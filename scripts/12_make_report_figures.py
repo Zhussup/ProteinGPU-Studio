@@ -37,8 +37,10 @@ def fig_inference(rows: list[dict]) -> None:
         e = [r["wall_iqr_s"] / 2 for r in rr]
         ax1.errorbar(x, y, yerr=e, marker="o", capsize=3,
                      label=profile, color=COLORS.get(profile))
-        vr = [r.get("vram_peak_mb") or 0 for r in rr]
-        ax2.plot(x, vr, marker="s", label=profile, color=COLORS.get(profile))
+        vr = [(r["length"], r["vram_peak_mb"]) for r in rr if r.get("vram_peak_mb")]
+        if vr:
+            ax2.plot([p[0] for p in vr], [p[1] for p in vr], marker="s",
+                     label=profile, color=COLORS.get(profile))
     ax1.set_yscale("log")
     ax1.set_xlabel("длина последовательности, aa")
     ax1.set_ylabel("latency, с (median ± IQR/2)")
