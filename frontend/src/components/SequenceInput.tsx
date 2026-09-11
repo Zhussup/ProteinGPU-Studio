@@ -42,7 +42,16 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
     setTranslating(true); setTransError(null)
     try {
       const text = await f.text()
-      setTranslation(await api.translate(text))
+      // distinguish DNA (mostly ACGTU) from protein FASTA: protein files go
+      // straight into the sequence box, DNA opens the codon/translation view
+      const body = stripFasta(text).replace(/[^A-Z]/g, '')
+      const dnaish = body.length > 0 &&
+        [...body].filter((c) => 'ACGTU'.includes(c)).length / body.length >= 0.9
+      if (dnaish) {
+        setTranslation(await api.translate(text))
+      } else {
+        onChange(text.trim())
+      }
     } catch (e) {
       setTransError(String(e))
     } finally {
@@ -90,7 +99,7 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
           onClick={() => fileRef.current?.click()}
           className="border border-neutral-300 px-2.5 py-1 text-xs text-neutral-700 transition hover:border-neutral-900 hover:text-neutral-900"
         >
-          {translating ? 'транслирую…' : 'Загрузить FASTA (ДНК)'}
+          {translating ? 'загружаю…' : 'Загрузить FASTA (ДНК или белок)'}
         </button>
       </div>
 

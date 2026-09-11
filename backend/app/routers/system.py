@@ -36,6 +36,55 @@ PRESETS = [
         "sequence": UBIQ, "position": 19, "mutant_aa": "G",
         "description": "Pro19 → Gly теряет жёсткий цикл; ожидание RMSD ≥ 2 Å (критично)",
     },
+    # Curated research proteins (UniProt-verified sequences, data/examples/).
+    {
+        "id": "kras-g12d", "name": "KRAS G12D",
+        "sequence": "MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNTKSFEDIHHYREQIKRVKDSEDVPMVLVGNKCDLPSRTVDTKQAQDLARSYGIPFIETSAKTRQRVEDAFYTLVREIRQYRLKKISKEEKTPGCVKIKKCIIM",
+        "position": 12, "mutant_aa": "D",
+        "description": "Онкоген 189 aa; G12D блокирует гидролиз GTP — 25% всех опухолей",
+    },
+    {
+        "id": "p53-r82h", "name": "p53 R82H (R175H)",
+        "sequence": "SSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKK",
+        "position": 82, "mutant_aa": "H",
+        "description": "ДНК-связывающий домен p53 (94-292), нумерация фрагмента: R82=полноразмерный R175 — структурная мутация, разрушает фолд",
+    },
+    {
+        "id": "hbb-e6v", "name": "β-гемоглобин E6V",
+        "sequence": "VHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH",
+        "position": 6, "mutant_aa": "V",
+        "description": "Серповидноклеточная анемия: Glu6→Val создаёт гидрофобный бугорок на поверхности",
+    },
+    {
+        "id": "lyz-i56t", "name": "Лизоцим I56T",
+        "sequence": "KVFERCELARTLKRLGMDGYRGISLANWMCLAKWESGYNTRATNYNAGDRSTDYGIFQINSRYWCNDGKTPGAVNACHLSCSALLQDNIADAVACAKRVVRDPQGIRAWVAWRNRCQNRDVRQYVQGCGV",
+        "position": 56, "mutant_aa": "T",
+        "description": "Наследственный амилоидоз: I56T и D67H дестабилизируют фолд",
+    },
+    {
+        "id": "trpcage-w6f", "name": "Trp-cage W6F",
+        "sequence": "DAYAQWLKDGGPSSGRPPPS",
+        "position": 6, "mutant_aa": "F",
+        "description": "Мини-белок 20 aa (1L2Y); W6F теряет индол гидрофобного ядра — самый быстрый прогон",
+    },
+    {
+        "id": "abeta-e22g", "name": "Aβ42 E22G",
+        "sequence": "DAEFRHDSGYEVHHQKLVFFAEDVGSNKGAIIGLMVGGVVIA",
+        "position": 22, "mutant_aa": "G",
+        "description": "Пепел Альцгеймера, «арктическая» мутация; быстрый прогон (~10 с)",
+    },
+    {
+        "id": "asyn-a53t", "name": "α-синуклеин A53T",
+        "sequence": "MDVFMKGLSKAKEGVVAAAEKTKQGVAEAAGKTKEGVLYVGSKTKEGVVHGVATVAEKTKEQVTNVGGAVVTGVTAVAQKTVEGAGSIAAATGFVKKDQLGKNEEGAPQEGILEDMPVDPDNEAYEMPSEEGYQDYEPEA",
+        "position": 53, "mutant_aa": "T",
+        "description": "Болезнь Паркинсона; белок в природе неупорядочен — честная ловушка для модели",
+    },
+    {
+        "id": "gfp-s65t", "name": "GFP S65T",
+        "sequence": "MSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITHGMDELYK",
+        "position": 65, "mutant_aa": "T",
+        "description": "Хромофор EGFP; кавет: хромофор — пост-трансляционная модификация, невидимая модели",
+    },
 ]
 
 

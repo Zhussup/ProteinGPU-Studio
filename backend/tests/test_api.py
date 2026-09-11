@@ -58,7 +58,7 @@ class TestSystem:
 
     def test_presets_have_ubiquitin(self):
         pr = client.get("/api/v1/system/presets").json()["presets"]
-        assert len(pr) == 4
+        assert len(pr) == 12  # 4 ubiquitin + 8 curated research proteins
         assert pr[1]["position"] == 44 and pr[1]["mutant_aa"] == "A"
 
 

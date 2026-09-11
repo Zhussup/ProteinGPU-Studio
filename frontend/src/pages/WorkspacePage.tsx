@@ -39,6 +39,12 @@ export default function WorkspacePage() {
   const posOk = position >= 1 && position <= seq.length
   const canRun = seqOk && posOk
 
+  // keep the mutation position valid when a shorter/longer sequence arrives
+  useEffect(() => {
+    if (seq.length >= 1 && position > seq.length) setPosition(seq.length)
+    if (position < 1 && seq.length >= 1) setPosition(1)
+  }, [seq.length, position])
+
   const applyPreset = useCallback((p: Preset) => {
     setInput(`>${p.name}\n${p.sequence}`)
     if (p.position) setPosition(p.position)
