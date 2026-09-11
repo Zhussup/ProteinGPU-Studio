@@ -47,6 +47,7 @@ def main() -> int:
     ap.add_argument("--repeats", type=int, default=5)
     ap.add_argument("--profiles", nargs="+", default=PROFILES)
     ap.add_argument("--sequence", default=UBIQ)
+    ap.add_argument("--out", default="bench_inference.json")
     args = ap.parse_args()
 
     print(f"profiles={args.profiles} lengths={args.lengths} repeats={args.repeats}")
@@ -67,7 +68,7 @@ def main() -> int:
         "nvidia_snapshot_end": snapshot,
         "rows": rows,
     }
-    out = REPO / "data" / "report" / "bench_inference.json"
+    out = REPO / "data" / "report" / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2, ensure_ascii=False))
     print(json.dumps(rows, indent=2))
