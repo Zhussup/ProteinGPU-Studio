@@ -119,7 +119,9 @@ class OmegaFoldModel:
 
         seq = validate_sequence(seq)
         inputs = self._make_inputs(seq)
-        with torch.no_grad():
+        with torch.no_grad(), torch.autocast(
+                "cuda", dtype=torch.float16,
+                enabled=self._half and self.device == "cuda"):
             out = self._model(inputs, predict_with_confidence=True,
                               fwd_cfg=self._fwd_cfg)
 
@@ -150,12 +152,17 @@ class OmegaFoldModel:
         )
 
     def to_fp16(self) -> None:
-        """Profile switch: convert resident weights to fp16 (CUDA only)."""
-        import torch
+        """Profile switch: fp16 compute via autocast (CUDA only).
+
+        OmegaFold release1 is not half()-safe: its PLM attention mixes fp32
+        buffers (relpos bias, scaling) with weights, so naive .half() crashes
+        with "expected scalar type Half but found Float". Weights stay fp32;
+        autocast runs tensor-core matmuls in fp16 and keeps reductions fp32 —
+        the standard mixed-precision recipe.
+        """
         if self.device == "cuda" and not self._half:
-            self._model.half()
             self._half = True
-            self.name = "omegafold-release1-fp16"
+            self.name = "omegafold-release1-fp16-autocast"
 
     def to_fp32(self) -> None:
         import torch
