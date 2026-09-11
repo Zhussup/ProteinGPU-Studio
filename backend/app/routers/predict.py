@@ -127,10 +127,12 @@ def _run_mutate(job: Job) -> dict:
         interpretation=interpret_rmsd(al.local_rmsd, settings.rmsd_stable_below,
                                       settings.rmsd_critical_above),
         engine=al.engine)
+    from ..services.summary import make_summary
     return {
         "wt_sequence": seq, "mutant_sequence": mut_seq,
         "position": pos, "wt_aa": seq[pos - 1], "mutant_aa": mut_aa,
         "model": svc.model_name, "wt_from_cache": wt_cached,
         "rmsd": rmsd.model_dump(),
+        "summary": make_summary(rmsd, seq[pos - 1], pos, mut_aa),
         "pdb_files": ["wt.pdb", "mut.pdb", "mut_aligned.pdb"],
     }

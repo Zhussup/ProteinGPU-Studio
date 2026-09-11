@@ -1,7 +1,7 @@
 // Thin API client. All calls go through the Vite dev proxy (/api → :8000).
 import type {
   GpuInfo, JobStatus, JobSummary, MutationResult,
-  PredictResponse, Preset,
+  PredictResponse, Preset, TranslateResponse,
 } from './types'
 
 async function json<T>(res: Response): Promise<T> {
@@ -53,6 +53,13 @@ export const api = {
 
   jobs: (limit = 20) =>
     fetch(`/api/v1/jobs?limit=${limit}`).then((r) => json<JobSummary[]>(r)),
+
+  translate: (fasta: string) =>
+    fetch('/api/v1/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fasta }),
+    }).then((r) => json<TranslateResponse>(r)),
 
   result: (jobId: string) =>
     fetch(`/api/v1/jobs/${jobId}/result`).then((r) =>

@@ -1,6 +1,10 @@
-// SequenceInput: FASTA/RAW sequence entry + demo presets (ubiquitin WT & mutants).
-import { useMemo } from 'react'
-import type { Preset } from '../lib/types'
+// SequenceInput: FASTA/RAW sequence entry (protein or DNA file upload),
+// demo presets, and a DNA→codon→amino-acid translation window.
+import { useMemo, useRef, useState } from 'react'
+import type { Preset, TranslateResponse } from '../lib/types'
+import { api } from '../lib/api'
+import Modal from './Modal'
+import TranslationPanel from './TranslationPanel'
 
 const AA_RE = /^[ACDEFGHIKLMNPQRSTVWY]+$/
 
@@ -27,6 +31,26 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
   const len = raw.length
   const lenOk = len >= minLen && len <= maxLen
 
+  // DNA FASTA upload → codon/translation modal
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [translation, setTranslation] = useState<TranslateResponse | null>(null)
+  const [translating, setTranslating] = useState(false)
+  const [transError, setTransError] = useState<string | null>(null)
+
+  const onFile = async (f: File | undefined) => {
+    if (!f) return
+    setTranslating(true); setTransError(null)
+    try {
+      const text = await f.text()
+      setTranslation(await api.translate(text))
+    } catch (e) {
+      setTransError(String(e))
+    } finally {
+      setTranslating(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -43,7 +67,7 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
         placeholder={">sp|P0CG48 ubiquitin\nMQIFVKTLTGK..."}
         className="mono w-full resize-y border border-neutral-300 bg-white p-3 text-xs text-neutral-900 outline-none focus:border-neutral-900"
       />
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         {presets.map((p) => (
           <button
             key={p.id}
@@ -54,7 +78,37 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
             {p.name}
           </button>
         ))}
+        <span className="mx-1 h-4 w-px bg-neutral-200" />
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".fasta,.fa,.fna,.txt"
+          className="hidden"
+          onChange={(e) => void onFile(e.target.files?.[0])}
+        />
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="border border-neutral-300 px-2.5 py-1 text-xs text-neutral-700 transition hover:border-neutral-900 hover:text-neutral-900"
+        >
+          {translating ? 'транслирую…' : 'Загрузить FASTA (ДНК)'}
+        </button>
       </div>
+
+      {transError && (
+        <div className="border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">{transError}</div>
+      )}
+
+      {translation && (
+        <Modal title="Трансляция: ДНК → кодоны → аминокислоты" onClose={() => setTranslation(null)} wide>
+          <TranslationPanel
+            data={translation}
+            onUseProtein={(protein, dnaLen) => {
+              onChange(`>переведено из ДНК (${dnaLen} nt)\n${protein}`)
+              setTranslation(null)
+            }}
+          />
+        </Modal>
+      )}
     </div>
   )
 }

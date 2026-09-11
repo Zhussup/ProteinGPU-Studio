@@ -21,6 +21,7 @@ export interface MutationResult {
   mutant_aa: string
   model?: string
   rmsd?: RmsdResult
+  summary?: string
 }
 
 export interface PredictResponse {
@@ -93,4 +94,19 @@ export interface PdbPayload {
   wt?: string
   mut?: string
   mutAligned?: string
+}
+
+// GET /api/v1/translate — DNA FASTA → codons → amino acids
+export interface Codon {
+  index: number
+  codon: string
+  aa: string // one-letter AA, "*" = stop
+}
+
+export interface TranslateResponse {
+  dna: string
+  protein: string
+  orf_start: number
+  codons: Codon[]
+  warnings: string[]
 }
