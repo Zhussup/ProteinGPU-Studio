@@ -79,7 +79,11 @@ class OmegaFoldModel:
         logger.info("OmegaFold loaded to %s in %.1fs", device, time.perf_counter() - t0)
 
         # Forward cfg: precision flags equivalent to CLI allow_tf32=True.
-        self._fwd_cfg = None  # model.forward accepts fwd_cfg=None
+        # The CLI always passes a fwd_cfg Namespace; OmegaPLM's GAU dereferences
+        # fwd_cfg.subbatch_size unconditionally, so None would crash.
+        import argparse
+        self._fwd_cfg = argparse.Namespace(
+            subbatch_size=None, num_recycle=num_cycles)
         if device == "cuda":
             torch.backends.cuda.matmul.allow_tf32 = True
             torch.backends.cudnn.allow_tf32 = True
