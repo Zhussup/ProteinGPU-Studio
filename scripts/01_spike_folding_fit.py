@@ -52,6 +52,7 @@ def run_profile_subprocess(profile: str, lengths: list[int]) -> list[dict]:
 def run_worker(profile: str, lengths: list[int], out_path: Path) -> int:
     """In-process profile run (executed inside the fresh subprocess)."""
     import random
+    sys.path.insert(0, str(REPO))
 
     from Bio import PDB
     from ml.folding.omegafold_model import OmegaFoldModel

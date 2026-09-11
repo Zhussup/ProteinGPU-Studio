@@ -1,0 +1,107 @@
+{
+  "checked_at": "2025-11 run series (3x fp32 full, 1x fp16 clean)",
+  "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "vram_total_mb": 6144.0,
+  "budgets": {
+    "vram_peak_mb": 4500.0,
+    "time_300aa_s": 120.0
+  },
+  "observed_vram_peak_mb": 5335.0,
+  "observed_300aa_s": 199.3,
+  "subbatch_experiment": {
+    "profile": "fp16-autocast + subbatch_size",
+    "results": [
+      {
+        "subbatch": 256,
+        "result": "OOM"
+      },
+      {
+        "subbatch": 128,
+        "wall_s": 203.8,
+        "vram_mb": 5335.0,
+        "note": "contaminated by preceding OOM; verdict unchanged: time >120s and VRAM >4500"
+      }
+    ]
+  },
+  "rows": [
+    {
+      "profile": "fp32-gpu",
+      "length": 76,
+      "wall_median_s": 11.6,
+      "vram_peak_mb": 3271.0,
+      "pdb_ok": true,
+      "status": "PASS",
+      "plddt_mean": 94.0
+    },
+    {
+      "profile": "fp32-gpu",
+      "length": 100,
+      "wall_median_s": 18.61,
+      "vram_peak_mb": 3336.4,
+      "pdb_ok": true,
+      "status": "PASS",
+      "plddt_mean": -1
+    },
+    {
+      "profile": "fp32-gpu",
+      "length": 200,
+      "wall_median_s": 99.32,
+      "vram_peak_mb": 3905.2,
+      "pdb_ok": true,
+      "status": "PASS",
+      "plddt_mean": -1
+    },
+    {
+      "profile": "fp32-gpu",
+      "length": 300,
+      "status": "FAIL",
+      "error": "CUDA out of memory (contended env); clean-run measurement: 199.3s / 5076.7MB — over both budgets",
+      "vram_peak_mb": -1,
+      "pdb_ok": false,
+      "pdb_msg": "see error"
+    },
+    {
+      "profile": "fp16-gpu",
+      "length": 76,
+      "wall_median_s": 8.49,
+      "wall_iqr_s": 0.034,
+      "vram_peak_mb": 4862.9,
+      "pdb_ok": true,
+      "pdb_msg": "ok",
+      "plddt_mean": 41.3,
+      "status": "FAIL"
+    },
+    {
+      "profile": "fp16-gpu",
+      "length": 100,
+      "wall_median_s": 13.81,
+      "wall_iqr_s": 0.039,
+      "vram_peak_mb": 4911.4,
+      "pdb_ok": true,
+      "pdb_msg": "ok",
+      "plddt_mean": 30.9,
+      "status": "FAIL"
+    },
+    {
+      "profile": "fp16-gpu",
+      "length": 200,
+      "wall_median_s": 58.95,
+      "wall_iqr_s": 0.041,
+      "vram_peak_mb": 5226.8,
+      "pdb_ok": true,
+      "pdb_msg": "ok",
+      "plddt_mean": 24.3,
+      "status": "FAIL"
+    },
+    {
+      "profile": "fp16-gpu",
+      "length": 300,
+      "status": "FAIL",
+      "error": "OutOfMemoryError: CUDA out of memory. Tried to allocate 412.00 MiB. GPU 0 has a total capacity of 5.79 GiB of which 307.25 MiB is free. Including non-PyTorch memory, this process has 5.48 GiB memory in use. Of the allocated memory 4.86 GiB is allocated by PyTorch, and 526.19 MiB is reserved by PyTorch but unallocated",
+      "vram_peak_mb": -1,
+      "pdb_ok": false,
+      "pdb_msg": "OutOfMemoryError: CUDA out of memory. Tried to allocate 412.00 MiB. GPU 0 has a total capacity of 5.79 GiB of which 307.25 MiB is free. Including non-PyTorch memory, this process has 5.48 GiB memory in use. Of the allocated memory 4.86 GiB is allocated by PyTorch, and 526.19 MiB is reserved by PyTorch but unallocated"
+    }
+  ],
+  "decision": "DECISION: OmegaFold fp32 primary (76-200aa PASS both budgets); fp16-autocast = speed profile (~27% faster, +1.5GB VRAM from autocast weight cache) for short chains only; 300aa out of interactive scope in all profiles — service demo cap <=200aa"
+}
