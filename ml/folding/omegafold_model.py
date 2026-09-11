@@ -73,8 +73,9 @@ class OmegaFoldModel:
         self._model.load_state_dict(state)
         self._model.eval()
         self._model.to(device)
-        if half and device == "cuda":
-            self._model.half()
+        # NOTE: weights stay fp32 even for half=True — the fp16 path is
+        # autocast inside predict() (see to_fp16 rationale below). Naive
+        # .half() here crashes the PLM attention ("Half but found Float").
         self._half = half
         logger.info("OmegaFold loaded to %s in %.1fs", device, time.perf_counter() - t0)
 

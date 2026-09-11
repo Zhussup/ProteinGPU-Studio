@@ -91,12 +91,24 @@ class DummyModel:
 def get_model(profile: str = "auto"):
     """Factory used by backend + spike scripts.
 
-    profiles: auto (real if weights+CUDA, else dummy) | omegafold | dummy
+    profiles: auto (real if weights+CUDA, else dummy) | omegafold | dummy |
+    fp32-gpu | fp16-gpu (autocast) | cpu
     """
     if profile == "dummy":
         return DummyModel()
     if profile == "omegafold":
         from .omegafold_model import OmegaFoldModel
+        return OmegaFoldModel()
+    if profile in ("fp32-gpu", "fp16-gpu", "cpu"):
+        import torch
+        from .omegafold_model import weights_path
+        if not (torch.cuda.is_available() and weights_path().exists()):
+            return DummyModel()
+        from .omegafold_model import OmegaFoldModel
+        if profile == "fp16-gpu":
+            return OmegaFoldModel(half=True)      # autocast, weights stay fp32
+        if profile == "cpu":
+            return OmegaFoldModel(device="cpu")
         return OmegaFoldModel()
     # auto
     try:

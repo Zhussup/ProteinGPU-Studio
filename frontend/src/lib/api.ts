@@ -1,6 +1,6 @@
 // Thin API client. All calls go through the Vite dev proxy (/api → :8000).
 import type {
-  GpuInfo, JobStatus, JobSummary, MutationResult,
+  GpuInfo, InferenceProfile, JobStatus, JobSummary, MutationResult,
   PredictResponse, Preset, TranslateResponse,
 } from './types'
 
@@ -22,19 +22,26 @@ export const api = {
   presets: () =>
     fetch('/api/v1/system/presets').then((r) => json<{ presets: Preset[] }>(r)),
 
-  submitPredict: (sequence: string) =>
+  submitPredict: (sequence: string, profile?: InferenceProfile) =>
     fetch('/api/v1/predict', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sequence }),
+      body: JSON.stringify({ sequence, profile }),
     }).then((r) => json<PredictResponse>(r)),
 
-  submitMutate: (sequence: string, position: number, mutant_aa: string) =>
+  submitMutate: (sequence: string, position: number, mutant_aa: string, profile?: InferenceProfile) =>
     fetch('/api/v1/mutate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sequence, position, mutant_aa }),
+      body: JSON.stringify({ sequence, position, mutant_aa, profile }),
     }).then((r) => json<MutationResult>(r)),
+
+  submitScan: (sequence: string, position: number, profile?: InferenceProfile) =>
+    fetch('/api/v1/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sequence, position, profile }),
+    }).then((r) => json<{ job_id: string; status: string }>(r)),
 
   submitBenchmark: (sequence: string, profiles: string[], repeats = 5, lengths?: number[]) =>
     fetch('/api/v1/benchmark', {
@@ -65,7 +72,7 @@ export const api = {
     fetch(`/api/v1/jobs/${jobId}/result`).then((r) =>
       json<Record<string, unknown>>(r)),
 
-  pdb: async (jobId: string, fn: 'wt.pdb' | 'mut.pdb' | 'mut_aligned.pdb') => {
+  pdb: async (jobId: string, fn: 'wt.pdb' | 'mut.pdb' | 'mut_aligned.pdb' | `scan_${string}.pdb`) => {
     const res = await fetch(`/api/v1/files/${jobId}/${fn}`)
     if (!res.ok) throw new Error(`${res.status}: PDB fetch failed`)
     return res.text()

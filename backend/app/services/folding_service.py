@@ -26,15 +26,36 @@ class FoldingService:
     def __init__(self) -> None:
         self._model: FoldingModel | None = None
         self._lock = threading.Lock()
+        self._profile_override: str | None = None  # set via set_profile()
         s = get_settings()
         self.cache = FoldingCache(maxsize=s.wt_cache_size)
+
+    @property
+    def profile(self) -> str:
+        return self._profile_override or get_settings().folding_profile
+
+    def set_profile(self, profile: str) -> None:
+        """Switch the resident model to a requested profile.
+
+        Must be called from a serialized context (the job GPU semaphore):
+        the current model is closed and rebuilt lazily on next use. The WT
+        cache keys on model name, so different profiles reuse nothing —
+        that is correct: different precision = different weights in memory.
+        """
+        with self._lock:
+            if self.profile == profile:
+                return
+            if self._model is not None:
+                self._model.close()
+                self._model = None
+            self._profile_override = profile
 
     @property
     def model(self) -> FoldingModel:
         with self._lock:
             if self._model is None:
                 from ml.folding.dummy_model import get_model
-                self._model = get_model(get_settings().folding_profile)
+                self._model = get_model(self.profile)
             return self._model
 
     @property

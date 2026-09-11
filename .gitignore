@@ -28,3 +28,5 @@ dist/
 __pycache__/
 *.db
 data/jobs/
+backend/tests/_testdata_scan/
+data/jobs.db*

@@ -130,6 +130,8 @@ class JobManager:
             mut_aa = params.get("mutant_aa")
             if kind == "mutate" and pos and 1 <= pos <= len(seq):
                 label = f"{seq[pos - 1]}{pos}{mut_aa}"
+            elif kind == "scan" and pos and 1 <= pos <= len(seq):
+                label = f"{seq[pos - 1]}{pos}×19"
             else:
                 label = f"{len(seq)} aa"
             out.append({

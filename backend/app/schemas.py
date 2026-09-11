@@ -14,9 +14,13 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 AA_RE = re.compile(r"^[ACDEFGHIKLMNPQRSTVWY]+$")
 
+Profile = Literal["auto", "fp32-gpu", "fp16-gpu", "cpu", "dummy"]
+
 
 class SequenceInput(BaseModel):
     sequence: str = Field(min_length=10, max_length=600)
+    # per-request inference profile; None → keep the resident one
+    profile: Profile | None = None
 
     @field_validator("sequence")
     @classmethod
@@ -72,6 +76,48 @@ class MutationResult(BaseModel):
     mutant_aa: str
     model: str | None = None
     rmsd: RmsdResult | None = None
+    # per-residue pLDDT profiles for the chart (same length as the sequence)
+    plddt_wt_list: list[float] | None = None
+    plddt_mut_list: list[float] | None = None
+
+
+class ScanRequest(BaseModel):
+    """Saturation-mutagenesis scan: all 19 substitutions at one position."""
+    sequence: str = Field(min_length=10, max_length=600)
+    position: int = Field(ge=1)
+    profile: Profile | None = None
+
+    @field_validator("sequence")
+    @classmethod
+    def _check(cls, v: str) -> str:
+        s = "".join(v.split()).upper()
+        if not AA_RE.fullmatch(s):
+            raise ValueError("sequence must contain only standard amino acids")
+        return s
+
+    @model_validator(mode="after")
+    def _pos_in_range(self):
+        if self.position > len(self.sequence):
+            raise ValueError(
+                f"position {self.position} out of range 1..{len(self.sequence)}")
+        return self
+
+
+class ScanRow(BaseModel):
+    mut_aa: str
+    local_rmsd: float
+    global_rmsd: float
+    tm_score: float
+    plddt_mut: float
+    dplddt: float
+    engine: str
+    interpretation: Literal["stable", "moderate", "critical"]
+
+
+class ScanResponse(BaseModel):
+    job_id: str
+    status: str
+    length: int
 
 
 class BenchmarkProfileRow(BaseModel):

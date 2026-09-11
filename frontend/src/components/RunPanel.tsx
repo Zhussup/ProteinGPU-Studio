@@ -5,7 +5,7 @@
 // segment per stage — filled when passed, pulsing while active — plus a live
 // elapsed timer. No interpolation, no invented percentages.
 import { useEffect, useState } from 'react'
-import type { JobStatus, GpuInfo } from '../lib/types'
+import type { InferenceProfile, JobStatus, GpuInfo } from '../lib/types'
 
 export interface RunPanelProps {
   canRun: boolean
@@ -13,8 +13,11 @@ export interface RunPanelProps {
   status: JobStatus | null
   error: string | null
   gpu: GpuInfo | null
+  profile: InferenceProfile
+  onProfileChange: (p: InferenceProfile) => void
   onRunPredict: () => void
   onRunMutate: () => void
+  onRunScan: () => void
   onReset: () => void
 }
 
@@ -30,6 +33,11 @@ const STAGES: Record<string, { at: number; label: string }[]> = {
     { at: 0.85, label: 'наложение' },
     { at: 0.95, label: 'метрики' },
   ],
+  scan: [
+    { at: 0.1, label: 'WT' },
+    { at: 0.9, label: '19 замен' },
+    { at: 0.95, label: 'итог' },
+  ],
 }
 
 function fmtElapsed(s: number): string {
@@ -38,8 +46,18 @@ function fmtElapsed(s: number): string {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
+// Labels for the runtime profile selector (backend _prepare_model semantics).
+const PROFILE_OPTIONS: { id: InferenceProfile; label: string }[] = [
+  { id: 'auto', label: 'auto — как в конфиге' },
+  { id: 'fp32-gpu', label: 'GPU fp32' },
+  { id: 'fp16-gpu', label: 'GPU fp16' },
+  { id: 'cpu', label: 'CPU' },
+  { id: 'dummy', label: 'dummy (тест)' },
+]
+
 export default function RunPanel({
-  canRun, running, status, error, gpu, onRunPredict, onRunMutate, onReset,
+  canRun, running, status, error, gpu, profile, onProfileChange,
+  onRunPredict, onRunMutate, onRunScan, onReset,
 }: RunPanelProps) {
   const [elapsed, setElapsed] = useState(0)
 
@@ -74,6 +92,14 @@ export default function RunPanel({
         >
           WT + мутант
         </button>
+        <button
+          onClick={onRunScan}
+          disabled={!canRun || running}
+          title="все 19 аминокислотных замен в выбранной позиции — ранжированный скрининг"
+          className="border border-red-700 px-4 py-2 text-sm text-red-800 transition hover:bg-red-50 disabled:opacity-40"
+        >
+          Скан позиции (19 мутаций)
+        </button>
         {!running && status && (
           <button onClick={onReset} className="text-xs text-neutral-500 underline hover:text-neutral-900">
             сброс
@@ -86,6 +112,24 @@ export default function RunPanel({
             {gpu.available ? `GPU: ${gpu.name}` : `CPU-only: ${gpu.reason ?? 'нет CUDA'}`}
           </span>
         )}
+      </div>
+
+      <div className="flex items-center gap-2 text-xs text-neutral-600">
+        <label htmlFor="profile-select">Профиль инференса:</label>
+        <select
+          id="profile-select"
+          value={profile}
+          onChange={(e) => onProfileChange(e.target.value as InferenceProfile)}
+          disabled={running}
+          className="mono border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 focus:border-neutral-900"
+        >
+          {PROFILE_OPTIONS.map((o) => (
+            <option key={o.id} value={o.id}>{o.label}</option>
+          ))}
+        </select>
+        <span className="text-[10px] text-neutral-400">
+          применяется к следующему запуску; модель перезагружается при смене
+        </span>
       </div>
 
       {running && (

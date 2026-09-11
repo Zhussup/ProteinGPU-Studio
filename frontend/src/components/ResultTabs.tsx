@@ -1,8 +1,10 @@
 // ResultTabs: RMSD cards + summary + sequences + pLDDT after a mutation job.
 // Each metric carries a "?" button opening a plain-language explanation modal.
-import { useState, type ReactNode } from 'react'
+import { Suspense, lazy, useState, type ReactNode } from 'react'
 import type { MutationResult } from '../lib/types'
 import Modal from './Modal'
+
+const Plot = lazy(() => import('./PlotlyChart'))
 
 const BADGE: Record<string, { cls: string; label: string }> = {
   stable: { cls: 'border border-neutral-900 text-neutral-900', label: 'стабильна' },
@@ -137,6 +139,30 @@ export default function ResultTabs({ result }: { result: MutationResult | null }
         <MetricSmall label="Движок выравнивания" value={r.engine} />
       </div>
 
+      {(result.plddt_wt_list && result.plddt_mut_list) && (
+        <details open className="border border-neutral-200 bg-neutral-50 p-3">
+          <summary className="cursor-pointer text-xs text-neutral-600">
+            pLDDT-профиль по остаткам
+            <QuestionMark topic="plddt" onOpen={setHelp} />
+          </summary>
+          <div className="mt-2">
+            <Suspense fallback={<div className="py-10 text-center text-xs text-neutral-400">график загружается…</div>}>
+              <PlddtChart
+                wt={result.plddt_wt_list}
+                mut={result.plddt_mut_list}
+                position={result.position}
+                wtAA={result.wt_aa}
+                mutAA={result.mutant_aa}
+              />
+            </Suspense>
+            <div className="mt-1 text-[10px] text-neutral-400">
+              серая линия — WT, чёрная — мутант; красный маркер — позиция мутации.
+              Провал уверенности в окне мутации часто предшествует реальному структурному сдвигу
+            </div>
+          </div>
+        </details>
+      )}
+
       <details className="border border-neutral-200 bg-neutral-50 p-3 text-xs">
         <summary className="cursor-pointer text-neutral-600">Последовательности</summary>
         <div className="mono mt-2 space-y-2 break-all">
@@ -175,6 +201,38 @@ function Metric({ label, value, help, onHelp }: {
       <div className="mono mt-1 text-xl text-neutral-900">{value}</div>
     </div>
   )
+}
+
+// Per-residue pLDDT trace: WT (grey) vs mutant (black), mutation position marked.
+function PlddtChart({ wt, mut, position, wtAA, mutAA }: {
+  wt: number[]; mut: number[]; position: number; wtAA: string; mutAA: string
+}) {
+  const xs = wt.map((_, i) => i + 1)
+  const data = [
+    {
+      x: xs, y: wt, type: 'scatter', mode: 'lines', name: 'WT',
+      line: { color: '#9ca3af', width: 1.5 },
+    },
+    {
+      x: xs, y: mut, type: 'scatter', mode: 'lines', name: `${wtAA}${position}${mutAA}`,
+      line: { color: '#111111', width: 2 },
+    },
+    {
+      x: [position, position], y: [
+        Math.min(...wt, ...mut) - 2, Math.max(...wt, ...mut) + 2,
+      ], type: 'scatter', mode: 'lines', name: 'мутация',
+      line: { color: '#b91c1c', width: 1, dash: 'dot' }, showlegend: false,
+    },
+  ]
+  const layout = {
+    margin: { t: 10, r: 10, b: 40, l: 45 },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { color: '#525252', size: 11 },
+    xaxis: { title: { text: 'номер остатка' }, linecolor: '#d4d4d4' },
+    yaxis: { title: { text: 'pLDDT' }, range: [0, 100], gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    legend: { orientation: 'h', y: 1.15 },
+  }
+  return <Plot data={data} layout={layout} />
 }
 
 function MetricSmall({ label, value, help, onHelp }: {

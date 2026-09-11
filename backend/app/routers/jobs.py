@@ -39,7 +39,8 @@ def job_result(job_id: str) -> dict:
 @router.get("/files/{job_id}/{fn}", response_class=PlainTextResponse)
 def job_file(job_id: str, fn: str) -> PlainTextResponse:
     _job_or_404(job_id)
-    if fn not in {"wt.pdb", "mut.pdb", "mut_aligned.pdb"}:
+    is_scan_artifact = fn.startswith("scan_") and fn.endswith(".pdb") and len(fn) == 10
+    if fn not in {"wt.pdb", "mut.pdb", "mut_aligned.pdb"} and not is_scan_artifact:
         raise HTTPException(404, "unknown artifact")
     path = get_job_manager().job_dir(job_id) / fn
     if not path.exists():

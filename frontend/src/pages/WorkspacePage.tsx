@@ -2,13 +2,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { useJob } from '../lib/useJob'
-import type { GpuInfo, JobSummary, MutationResult, Preset } from '../lib/types'
+import type {
+  GpuInfo, InferenceProfile, JobSummary, MutationResult, Preset, ScanResult,
+} from '../lib/types'
 import SequenceInput, { stripFasta } from '../components/SequenceInput'
 import MutationPicker from '../components/MutationPicker'
 import RunPanel from '../components/RunPanel'
 import ResultTabs from '../components/ResultTabs'
+import ScanPanel from '../components/ScanPanel'
 import MoleculeViewer from '../components/MoleculeViewer'
 import HistoryPanel from '../components/HistoryPanel'
+import MutationsCompare from '../components/MutationsCompare'
 
 const LIMITS = { min: 10, max: 600 }
 
@@ -16,9 +20,11 @@ export default function WorkspacePage() {
   const [input, setInput] = useState('')
   const [position, setPosition] = useState(44)
   const [mutantAA, setMutantAA] = useState('A')
+  const [profile, setProfile] = useState<InferenceProfile>('auto')
   const [presets, setPresets] = useState<Preset[]>([])
   const [gpu, setGpu] = useState<GpuInfo | null>(null)
   const [result, setResult] = useState<MutationResult | null>(null)
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null)
   const [wtPdb, setWtPdb] = useState<string | null>(null)
   const [mutPdb, setMutPdb] = useState<string | null>(null)
   const [history, setHistory] = useState<JobSummary[]>([])
@@ -51,35 +57,53 @@ export default function WorkspacePage() {
     if (p.mutant_aa) setMutantAA(p.mutant_aa)
   }, [])
 
-  const afterDone = useCallback(async (jobId: string, withMut: boolean) => {
+  const afterDone = useCallback(async (jobId: string, kind: string) => {
     try {
-      if (withMut) {
+      if (kind === 'mutate') {
         setResult(await api.result(jobId) as unknown as MutationResult)
         setMutPdb(await api.pdb(jobId, 'mut_aligned.pdb'))
+      } else if (kind === 'scan') {
+        const res = await api.result(jobId) as unknown as ScanResult
+        setScanResult(res)
+        setMutPdb(await api.pdb(jobId, `scan_${res.best}.pdb`))
       }
       setWtPdb(await api.pdb(jobId, 'wt.pdb'))
     } catch { /* files may be missing for predict-only runs */ }
   }, [])
 
   const runPredict = () => {
-    setResult(null); setMutPdb(null)
-    job.run(() => api.submitPredict(seq))
+    setResult(null); setMutPdb(null); setScanResult(null)
+    job.run(() => api.submitPredict(seq, profile === 'auto' ? undefined : profile))
   }
 
   const runMutate = () => {
-    setResult(null)
-    job.run(() => api.submitMutate(seq, position, mutantAA))
+    setResult(null); setScanResult(null)
+    job.run(() => api.submitMutate(seq, position, mutantAA, profile === 'auto' ? undefined : profile))
+  }
+
+  const runScan = () => {
+    setResult(null); setScanResult(null); setMutPdb(null)
+    job.run(() => api.submitScan(seq, position, profile === 'auto' ? undefined : profile))
   }
 
   // poll completion: fetch artifacts once done, refresh history
   useEffect(() => {
     const st = job.status?.status
     if (st === 'done') {
-      const kind = job.status!.kind
-      void afterDone(job.status!.job_id, kind === 'mutate')
+      void afterDone(job.status!.job_id, job.status!.kind)
     }
     if (st === 'done' || st === 'error') loadHistory()
   }, [job.status?.status, job.status?.job_id, job.status?.kind]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // show a scan mutant's overlay in the viewer (scan_<AA>.pdb is Kabsch-aligned)
+  const pickScanRow = useCallback(async (mutAA: string) => {
+    const jobId = job.status?.job_id
+    if (!jobId) return
+    try {
+      setMutPdb(await api.pdb(jobId, `scan_${mutAA}.pdb`))
+      setPosition(scanResult?.position ?? position)
+    } catch { /* artifact may be gone */ }
+  }, [job.status?.job_id, scanResult?.position, position])
 
   // restore a past job: sequence + mutation back into inputs, artifacts into viewer
   const restore = useCallback(async (j: JobSummary) => {
@@ -88,12 +112,15 @@ export default function WorkspacePage() {
     if (j.mutant_aa) setMutantAA(j.mutant_aa)
     setResult(null)
     setMutPdb(null)
+    setScanResult(null)
     try {
       if (j.kind === 'mutate') {
         setResult(await api.result(j.job_id) as unknown as MutationResult)
         setMutPdb(await api.pdb(j.job_id, 'mut_aligned.pdb'))
-      } else {
-        setResult(null)
+      } else if (j.kind === 'scan') {
+        const res = await api.result(j.job_id) as unknown as ScanResult
+        setScanResult(res)
+        setMutPdb(await api.pdb(j.job_id, `scan_${res.best}.pdb`))
       }
       setWtPdb(await api.pdb(j.job_id, 'wt.pdb'))
     } catch { /* artifacts may be gone */ }
@@ -117,9 +144,12 @@ export default function WorkspacePage() {
           status={job.status}
           error={job.error}
           gpu={gpu}
+          profile={profile}
+          onProfileChange={setProfile}
           onRunPredict={runPredict}
           onRunMutate={runMutate}
-          onReset={() => { setResult(null); setWtPdb(null); setMutPdb(null) }}
+          onRunScan={runScan}
+          onReset={() => { setResult(null); setWtPdb(null); setMutPdb(null); setScanResult(null) }}
         />
         <HistoryPanel
           jobs={history}
@@ -136,7 +166,14 @@ export default function WorkspacePage() {
           aligned={true}
           mutationPosition={position}
         />
-        {result?.rmsd ? (
+        {scanResult ? (
+          <div className="panel p-4">
+            <h3 className="mb-3 text-sm font-medium text-neutral-900">
+              Скан позиции {scanResult.position} — все 19 замен
+            </h3>
+            <ScanPanel result={scanResult} onPickRow={(aa) => void pickScanRow(aa)} />
+          </div>
+        ) : result?.rmsd ? (
           <div className="panel p-4">
             <h3 className="mb-3 text-sm font-medium text-neutral-900">Результат наложения</h3>
             <ResultTabs result={result} />
@@ -144,11 +181,13 @@ export default function WorkspacePage() {
         ) : (
           <div className="panel p-4 text-xs text-neutral-500">
             Global + local RMSD (±10 остатков), TM-score и pLDDT появятся после запуска «WT + мутант».
+            «Скан позиции» прогоняет все 19 замен и ранжирует их по локальному отклику.
             Модель почти детерминирована: на стабильном фолде точечные мутации дают суб-Å сдвиги
             (на убиквитине: I44A 0.21 Å, I3L 0.28 Å, P19G 0.72 Å — наибольший отклик).
             Ориентируйтесь на сравнение локального RMSD между мутациями, а не на абсолютные пороги.
           </div>
         )}
+        <MutationsCompare jobs={history} wtSequence={seqOk ? seq : ''} />
       </div>
     </div>
   )
