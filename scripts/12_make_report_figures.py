@@ -86,11 +86,17 @@ def fig_kernels(rows: list[dict]) -> None:
 
 def main() -> int:
     FIGS.mkdir(parents=True, exist_ok=True)
-    inf = REPORT / "bench_inference.json"
     ker = REPORT / "bench_kernels.json"
     made = []
-    if inf.exists():
-        fig_inference(json.loads(inf.read_text())["rows"])
+    # inference rows may be split across gpu/cpu files
+    inf_rows = []
+    for name in ("bench_inference.json", "bench_inference_gpu.json",
+                 "bench_inference_cpu.json"):
+        p = REPORT / name
+        if p.exists():
+            inf_rows.extend(json.loads(p.read_text())["rows"])
+    if inf_rows:
+        fig_inference(inf_rows)
         made.append("fig1_inference_latency.png")
     if ker.exists():
         fig_kernels(json.loads(ker.read_text())["rows"])

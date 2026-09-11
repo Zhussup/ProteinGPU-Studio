@@ -1,0 +1,65 @@
+{
+  "description": "inference latency/VRAM, median + IQR over repeats (2 warmup dropped), RTX 3050 Laptop 6GB, 60W",
+  "sequence_len": 76,
+  "repeats": 5,
+  "wall_total_s": 966.9,
+  "nvidia_snapshot_end": {
+    "clock_sm_mhz": "1912",
+    "clock_sm_max_mhz": "2100",
+    "temp_c": "69",
+    "power_draw_w": "56.72",
+    "power_limit_w": "[N/A]",
+    "util_pct": "76",
+    "mem_used_mb": "3410"
+  },
+  "rows": [
+    {
+      "profile": "fp32-gpu",
+      "length": 76,
+      "wall_median_s": 11.5856,
+      "wall_iqr_s": 0.0282,
+      "vram_peak_mb": 3271.0,
+      "repeats": 3
+    },
+    {
+      "profile": "fp32-gpu",
+      "length": 100,
+      "wall_median_s": 18.5905,
+      "wall_iqr_s": 0.0065,
+      "vram_peak_mb": 3336.4,
+      "repeats": 3
+    },
+    {
+      "profile": "fp32-gpu",
+      "length": 200,
+      "wall_median_s": 79.6958,
+      "wall_iqr_s": 0.1042,
+      "vram_peak_mb": 3905.2,
+      "repeats": 3
+    },
+    {
+      "profile": "fp16-gpu",
+      "length": 76,
+      "wall_median_s": 8.7249,
+      "wall_iqr_s": 0.0209,
+      "vram_peak_mb": 4862.6,
+      "repeats": 3
+    },
+    {
+      "profile": "fp16-gpu",
+      "length": 100,
+      "wall_median_s": 13.9814,
+      "wall_iqr_s": 0.1009,
+      "vram_peak_mb": 4910.9,
+      "repeats": 3
+    },
+    {
+      "profile": "fp16-gpu",
+      "length": 200,
+      "wall_median_s": 58.9705,
+      "wall_iqr_s": 0.0289,
+      "vram_peak_mb": 5227.2,
+      "repeats": 3
+    }
+  ]
+}
