@@ -1,6 +1,6 @@
 // Thin API client. All calls go through the Vite dev proxy (/api → :8000).
 import type {
-  GpuInfo, JobStatus, MutationResult,
+  GpuInfo, JobStatus, JobSummary, MutationResult,
   PredictResponse, Preset,
 } from './types'
 
@@ -50,6 +50,9 @@ export const api = {
 
   job: (jobId: string) =>
     fetch(`/api/v1/jobs/${jobId}`).then((r) => json<JobStatus>(r)),
+
+  jobs: (limit = 20) =>
+    fetch(`/api/v1/jobs?limit=${limit}`).then((r) => json<JobSummary[]>(r)),
 
   result: (jobId: string) =>
     fetch(`/api/v1/jobs/${jobId}/result`).then((r) =>

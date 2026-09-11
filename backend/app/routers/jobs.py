@@ -10,6 +10,12 @@ from ..services.job_manager import get_job_manager
 router = APIRouter(prefix="/api/v1", tags=["jobs"])
 
 
+@router.get("/jobs")
+def job_history(limit: int = 50) -> list[dict]:
+    """Recent jobs, newest first (history panel)."""
+    return get_job_manager().list(limit=min(max(limit, 1), 200))
+
+
 def _job_or_404(job_id: str):
     job = get_job_manager().get(job_id)
     if job is None:

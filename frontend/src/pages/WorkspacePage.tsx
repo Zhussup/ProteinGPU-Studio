@@ -1,13 +1,14 @@
-// WorkspacePage: sequence → mutation → run → 3D overlay + RMSD cards.
+// WorkspacePage: sequence → mutation → run → 3D overlay + RMSD cards + history.
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { useJob } from '../lib/useJob'
-import type { GpuInfo, MutationResult, Preset } from '../lib/types'
+import type { GpuInfo, JobSummary, MutationResult, Preset } from '../lib/types'
 import SequenceInput, { stripFasta } from '../components/SequenceInput'
 import MutationPicker from '../components/MutationPicker'
 import RunPanel from '../components/RunPanel'
 import ResultTabs from '../components/ResultTabs'
 import MoleculeViewer from '../components/MoleculeViewer'
+import HistoryPanel from '../components/HistoryPanel'
 
 const LIMITS = { min: 10, max: 600 }
 
@@ -20,12 +21,18 @@ export default function WorkspacePage() {
   const [result, setResult] = useState<MutationResult | null>(null)
   const [wtPdb, setWtPdb] = useState<string | null>(null)
   const [mutPdb, setMutPdb] = useState<string | null>(null)
+  const [history, setHistory] = useState<JobSummary[]>([])
   const job = useJob()
+
+  const loadHistory = useCallback(() => {
+    api.jobs(20).then(setHistory).catch(() => {})
+  }, [])
 
   useEffect(() => {
     api.presets().then((r) => setPresets(r.presets)).catch(() => {})
     api.gpu().then(setGpu).catch(() => {})
-  }, [])
+    loadHistory()
+  }, [loadHistory])
 
   const seq = stripFasta(input)
   const seqOk = seq.length >= LIMITS.min && seq.length <= LIMITS.max && /^[ACDEFGHIKLMNPQRSTVWY]+$/.test(seq)
@@ -58,13 +65,33 @@ export default function WorkspacePage() {
     job.run(() => api.submitMutate(seq, position, mutantAA))
   }
 
-  // poll completion: fetch artifacts once done
+  // poll completion: fetch artifacts once done, refresh history
   useEffect(() => {
-    if (job.status?.status === 'done') {
-      const kind = job.status.kind
-      void afterDone(job.status.job_id, kind === 'mutate')
+    const st = job.status?.status
+    if (st === 'done') {
+      const kind = job.status!.kind
+      void afterDone(job.status!.job_id, kind === 'mutate')
     }
+    if (st === 'done' || st === 'error') loadHistory()
   }, [job.status?.status, job.status?.job_id, job.status?.kind]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // restore a past job: sequence + mutation back into inputs, artifacts into viewer
+  const restore = useCallback(async (j: JobSummary) => {
+    if (j.sequence) setInput(j.sequence)
+    if (j.position) setPosition(j.position)
+    if (j.mutant_aa) setMutantAA(j.mutant_aa)
+    setResult(null)
+    setMutPdb(null)
+    try {
+      if (j.kind === 'mutate') {
+        setResult(await api.result(j.job_id) as unknown as MutationResult)
+        setMutPdb(await api.pdb(j.job_id, 'mut_aligned.pdb'))
+      } else {
+        setResult(null)
+      }
+      setWtPdb(await api.pdb(j.job_id, 'wt.pdb'))
+    } catch { /* artifacts may be gone */ }
+  }, [])
 
   return (
     <div className="grid gap-5 lg:grid-cols-[400px_1fr]">
@@ -87,6 +114,12 @@ export default function WorkspacePage() {
           onRunPredict={runPredict}
           onRunMutate={runMutate}
           onReset={() => { setResult(null); setWtPdb(null); setMutPdb(null) }}
+        />
+        <HistoryPanel
+          jobs={history}
+          currentJobId={job.status?.job_id ?? null}
+          onRestore={(j) => void restore(j)}
+          onRefresh={loadHistory}
         />
       </div>
 

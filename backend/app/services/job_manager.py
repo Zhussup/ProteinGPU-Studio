@@ -115,6 +115,31 @@ class JobManager:
             self._persist(job)
 
     # -- accessors ----------------------------------------------------------
+    def list(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Recent jobs for the history panel (newest first, from SQLite)."""
+        with self._db_lock:
+            rows = self._db.execute(
+                "SELECT job_id, kind, status, params, error, created_at, "
+                "finished_at FROM jobs ORDER BY created_at DESC, rowid DESC "
+                "LIMIT ?", (limit,)).fetchall()
+        out = []
+        for job_id, kind, status, params_json, error, created, finished in rows:
+            params = json.loads(params_json)
+            seq: str = params.get("sequence", "")
+            pos = params.get("position")
+            mut_aa = params.get("mutant_aa")
+            if kind == "mutate" and pos and 1 <= pos <= len(seq):
+                label = f"{seq[pos - 1]}{pos}{mut_aa}"
+            else:
+                label = f"{len(seq)} aa"
+            out.append({
+                "job_id": job_id, "kind": kind, "status": status,
+                "label": label, "sequence": seq,
+                "position": pos, "mutant_aa": mut_aa,
+                "error": error, "created_at": created, "finished_at": finished,
+            })
+        return out
+
     def get(self, job_id: str) -> Job | None:
         with self._lock:
             job = self._jobs.get(job_id)

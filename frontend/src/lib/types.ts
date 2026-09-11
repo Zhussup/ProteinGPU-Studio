@@ -40,6 +40,20 @@ export interface JobStatus {
   finished_at?: string | null
 }
 
+// One row of the history panel (GET /api/v1/jobs)
+export interface JobSummary {
+  job_id: string
+  kind: string
+  status: 'queued' | 'running' | 'done' | 'error'
+  label: string
+  sequence: string
+  position?: number | null
+  mutant_aa?: string | null
+  error?: string | null
+  created_at: string
+  finished_at?: string | null
+}
+
 export interface BenchmarkRow {
   profile: string
   length: number
