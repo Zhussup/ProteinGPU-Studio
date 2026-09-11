@@ -1,0 +1,35 @@
+{
+  "vram_peak_mb": 3271.5,
+  "wall_s": 46.3,
+  "vram_budget_mb": 4500,
+  "wall_budget_s": 600,
+  "results": [
+    {
+      "demo": "I44A",
+      "global_rmsd": 0.21002010036905966,
+      "local_rmsd": 0.05504746959629126,
+      "tm_score": 0.9955985154172527,
+      "engine": "cuda",
+      "n_res": 76,
+      "ok": true
+    },
+    {
+      "demo": "I3L",
+      "global_rmsd": 0.2790429227660699,
+      "local_rmsd": 0.07959212051060387,
+      "tm_score": 0.9924190267271031,
+      "engine": "cuda",
+      "n_res": 76,
+      "ok": true
+    },
+    {
+      "demo": "P19G",
+      "global_rmsd": 0.7210041597931558,
+      "local_rmsd": 0.12500026086365104,
+      "tm_score": 0.9631767214359087,
+      "engine": "cuda",
+      "n_res": 76,
+      "ok": true
+    }
+  ]
+}

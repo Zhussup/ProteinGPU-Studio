@@ -10,7 +10,8 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-for p in (str(REPO / "ml"), str(REPO / "hpc_core" / "python")):
+for p in (str(REPO), str(REPO / "hpc_core" / "python")):
+    # REPO (parent), not REPO/"ml": `import ml` needs the parent dir on path
     if p not in sys.path:
         sys.path.insert(0, p)
 

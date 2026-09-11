@@ -1,0 +1,119 @@
+{
+  "description": "Kabsch batched RMSD kernel wall time, median + IQR; cuda-pcie includes 2x H2D/D2H copies, cuda-resident is the zero-copy device-resident path",
+  "repeats": 9,
+  "wall_total_s": 7.1,
+  "rows": [
+    {
+      "engine": "numpy",
+      "pairs": 64,
+      "atoms": 76,
+      "wall_median_s": 0.00136,
+      "wall_iqr_s": 0.00012
+    },
+    {
+      "engine": "cpp-openmp",
+      "pairs": 64,
+      "atoms": 76,
+      "wall_median_s": 3e-05,
+      "wall_iqr_s": 8e-05
+    },
+    {
+      "engine": "cuda-pcie",
+      "pairs": 64,
+      "atoms": 76,
+      "wall_median_s": 0.0003,
+      "wall_iqr_s": 0.0
+    },
+    {
+      "engine": "cuda-resident",
+      "pairs": 64,
+      "atoms": 76,
+      "wall_median_s": 0.00027,
+      "wall_iqr_s": 0.0
+    },
+    {
+      "engine": "numpy",
+      "pairs": 1024,
+      "atoms": 256,
+      "wall_median_s": 0.03183,
+      "wall_iqr_s": 0.00015
+    },
+    {
+      "engine": "cpp-openmp",
+      "pairs": 1024,
+      "atoms": 256,
+      "wall_median_s": 0.00036,
+      "wall_iqr_s": 0.00022
+    },
+    {
+      "engine": "cuda-pcie",
+      "pairs": 1024,
+      "atoms": 256,
+      "wall_median_s": 0.00321,
+      "wall_iqr_s": 0.00012
+    },
+    {
+      "engine": "cuda-resident",
+      "pairs": 1024,
+      "atoms": 256,
+      "wall_median_s": 0.00181,
+      "wall_iqr_s": 1e-05
+    },
+    {
+      "engine": "numpy",
+      "pairs": 2048,
+      "atoms": 512,
+      "wall_median_s": 0.08917,
+      "wall_iqr_s": 0.00111
+    },
+    {
+      "engine": "cpp-openmp",
+      "pairs": 2048,
+      "atoms": 512,
+      "wall_median_s": 0.00143,
+      "wall_iqr_s": 0.00027
+    },
+    {
+      "engine": "cuda-pcie",
+      "pairs": 2048,
+      "atoms": 512,
+      "wall_median_s": 0.0091,
+      "wall_iqr_s": 0.00027
+    },
+    {
+      "engine": "cuda-resident",
+      "pairs": 2048,
+      "atoms": 512,
+      "wall_median_s": 0.00273,
+      "wall_iqr_s": 2e-05
+    },
+    {
+      "engine": "numpy",
+      "pairs": 4096,
+      "atoms": 1024,
+      "wall_median_s": 0.28781,
+      "wall_iqr_s": 0.00545
+    },
+    {
+      "engine": "cpp-openmp",
+      "pairs": 4096,
+      "atoms": 1024,
+      "wall_median_s": 0.00559,
+      "wall_iqr_s": 0.00015
+    },
+    {
+      "engine": "cuda-pcie",
+      "pairs": 4096,
+      "atoms": 1024,
+      "wall_median_s": 0.02778,
+      "wall_iqr_s": 0.00078
+    },
+    {
+      "engine": "cuda-resident",
+      "pairs": 4096,
+      "atoms": 1024,
+      "wall_median_s": 0.00615,
+      "wall_iqr_s": 2e-05
+    }
+  ]
+}

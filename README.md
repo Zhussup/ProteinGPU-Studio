@@ -32,3 +32,16 @@ make -C hpc_core cpu               # C++ ядро (без CUDA)
 ```
 
 Backend: `uvicorn backend.app.main:app --reload` · Frontend: `cd frontend && npm run dev`
+
+## Бенчмарки и отчёт
+
+```bash
+python scripts/10_bench_inference.py    # инференс: fp32/fp16/cpu × длины, median+IQR → data/report/
+python scripts/11_bench_kernels.py      # ядро Кабша: numpy vs C++ vs CUDA (PCIe vs resident)
+python scripts/12_make_report_figures.py  # PNG-фигуры для записки → data/report/figs/
+python scripts/e2e_smoke.py             # GPU e2e гейт: убиквитин + I44A/I3L/P19G
+```
+
+Все замеры — median + IQR (≥5 повторов, 2 warmup отбрасываются): 60-ваттный
+ноутбук троттлит, единичный замер врёт. PCIe-копии считаются отдельно от
+device-resident пути.
