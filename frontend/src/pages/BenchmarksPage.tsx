@@ -1,12 +1,15 @@
 // BenchmarksPage: inference latency vs length (log-y, IQR bands) + kernel bench bars.
 // Plotly is loaded lazily via React.lazy to keep the first paint fast.
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { api } from '../lib/api'
 import type { BenchmarkRow, KernelRow } from '../lib/types'
 
 const Plot = lazy(() => import('../components/PlotlyChart'))
 
 const PROFILES = ['fp32-gpu', 'fp16-gpu', 'cpu', 'dummy']
+
+// strict greys + one red; black is reserved for the primary series
+const COLORS = ['#111111', '#6b7280', '#b91c1c', '#9ca3af', '#374151']
 
 export default function BenchmarksPage() {
   const [seq] = useState('MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG')
@@ -18,17 +21,20 @@ export default function BenchmarksPage() {
   const [kPairs, setKPairs] = useState(1024)
   const [kAtoms, setKAtoms] = useState(512)
 
+  const poll = async (jobId: string) => {
+    for (;;) {
+      const s = await api.job(jobId)
+      if (s.status === 'done') return
+      if (s.status === 'error') throw new Error(s.error ?? 'job failed')
+      await new Promise((r) => setTimeout(r, 1000))
+    }
+  }
+
   const runInference = async () => {
     setBusy(true); setErr(null)
     try {
       const { job_id } = await api.submitBenchmark(seq, PROFILES, repeats)
-      // poll
-      for (;;) {
-        const s = await api.job(job_id)
-        if (s.status === 'done') break
-        if (s.status === 'error') throw new Error(s.error ?? 'benchmark failed')
-        await new Promise((r) => setTimeout(r, 1000))
-      }
+      await poll(job_id)
       const res = await api.result(job_id)
       setRows((res as { rows: BenchmarkRow[] }).rows ?? [])
     } catch (e) {
@@ -42,12 +48,7 @@ export default function BenchmarksPage() {
     setBusy(true); setErr(null)
     try {
       const { job_id } = await api.submitKernelBench(kPairs, kAtoms)
-      for (;;) {
-        const s = await api.job(job_id)
-        if (s.status === 'done') break
-        if (s.status === 'error') throw new Error(s.error ?? 'kernel bench failed')
-        await new Promise((r) => setTimeout(r, 1000))
-      }
+      await poll(job_id)
       const res = await api.result(job_id)
       setKernelRows((res as { rows: KernelRow[] }).rows ?? [])
     } catch (e) {
@@ -57,25 +58,23 @@ export default function BenchmarksPage() {
     }
   }
 
-  useEffect(() => { /* rows render when set */ }, [rows, kernelRows])
-
   return (
     <div className="space-y-6">
       {err && (
-        <div className="rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-2 text-xs text-red-300">{err}</div>
+        <div className="border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">{err}</div>
       )}
 
       <div className="panel space-y-4 p-4">
-        <h2 className="text-sm font-medium text-slate-200">Инференс: CPU vs GPU</h2>
+        <h2 className="text-sm font-medium text-neutral-900">Инференс: CPU vs GPU</h2>
         <div className="flex flex-wrap items-end gap-3 text-xs">
           <label className="flex flex-col gap-1">
-            <span className="text-slate-500">repeats (2 warmup отбрасываются)</span>
+            <span className="text-neutral-500">repeats (2 warmup отбрасываются)</span>
             <input type="number" min={3} max={20} value={repeats}
               onChange={(e) => setRepeats(parseInt(e.target.value, 10) || 5)}
-              className="mono w-24 rounded-lg border border-slate-800 bg-[#0b0f14] px-3 py-2 outline-none focus:border-cyan-700" />
+              className="mono w-24 border border-neutral-300 bg-white px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900" />
           </label>
           <button onClick={runInference} disabled={busy || seq.length < 10}
-            className="rounded-lg bg-cyan-700 px-4 py-2 font-medium text-white transition hover:bg-cyan-600 disabled:opacity-40">
+            className="bg-neutral-900 px-4 py-2 font-medium text-white transition hover:bg-neutral-700 disabled:opacity-40">
             {busy ? 'Считаю…' : 'Запустить бенчмарк'}
           </button>
         </div>
@@ -83,22 +82,22 @@ export default function BenchmarksPage() {
       </div>
 
       <div className="panel space-y-4 p-4">
-        <h2 className="text-sm font-medium text-slate-200">Kabsch-ядро: numpy vs C++ vs CUDA</h2>
+        <h2 className="text-sm font-medium text-neutral-900">Kabsch-ядро: numpy vs C++ vs CUDA</h2>
         <div className="flex flex-wrap items-end gap-3 text-xs">
           <label className="flex flex-col gap-1">
-            <span className="text-slate-500">пар (B)</span>
+            <span className="text-neutral-500">пар (B)</span>
             <input type="number" min={1} max={65536} value={kPairs}
               onChange={(e) => setKPairs(parseInt(e.target.value, 10) || 1024)}
-              className="mono w-28 rounded-lg border border-slate-800 bg-[#0b0f14] px-3 py-2 outline-none focus:border-cyan-700" />
+              className="mono w-28 border border-neutral-300 bg-white px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900" />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-slate-500">атомов (N)</span>
+            <span className="text-neutral-500">атомов (N)</span>
             <input type="number" min={2} max={10000} value={kAtoms}
               onChange={(e) => setKAtoms(parseInt(e.target.value, 10) || 512)}
-              className="mono w-28 rounded-lg border border-slate-800 bg-[#0b0f14] px-3 py-2 outline-none focus:border-cyan-700" />
+              className="mono w-28 border border-neutral-300 bg-white px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900" />
           </label>
           <button onClick={runKernels} disabled={busy}
-            className="rounded-lg border border-slate-700 px-4 py-2 text-slate-200 transition hover:border-slate-500 disabled:opacity-40">
+            className="border border-neutral-300 px-4 py-2 text-neutral-800 transition hover:border-neutral-900 disabled:opacity-40">
             Прогнать ядро
           </button>
         </div>
@@ -124,18 +123,19 @@ function InferenceChart({ rows }: { rows: BenchmarkRow[] }) {
       mode: 'lines+markers' as const,
       name: p,
       line: { color: COLORS[i % COLORS.length] },
+      marker: { color: COLORS[i % COLORS.length] },
     }
   })
   const layout = {
     margin: { t: 10, r: 10, b: 40, l: 60 },
-    paper_bgcolor: '#0f151d', plot_bgcolor: '#0f151d',
-    font: { color: '#9fb0c0', size: 11 },
-    xaxis: { title: { text: 'длина (aa)' }, gridcolor: '#1c2733' },
-    yaxis: { title: { text: 'latency, с (median±IQR/2)' }, type: 'log' as const, gridcolor: '#1c2733' },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { color: '#525252', size: 11 },
+    xaxis: { title: { text: 'длина (aa)' }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    yaxis: { title: { text: 'latency, с (median±IQR/2)' }, type: 'log' as const, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
     legend: { orientation: 'h' as const },
   }
   return (
-    <Suspense fallback={<div className="text-xs text-slate-600">график загружается…</div>}>
+    <Suspense fallback={<div className="text-xs text-neutral-400">график загружается…</div>}>
       <Plot data={data} layout={layout} />
     </Suspense>
   )
@@ -151,17 +151,15 @@ function KernelChart({ rows }: { rows: KernelRow[] }) {
   }]
   const layout = {
     margin: { t: 10, r: 10, b: 40, l: 60 },
-    paper_bgcolor: '#0f151d', plot_bgcolor: '#0f151d',
-    font: { color: '#9fb0c0', size: 11 },
-    yaxis: { title: { text: 'мс (median±IQR/2)' }, gridcolor: '#1c2733' },
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+    font: { color: '#525252', size: 11 },
+    yaxis: { title: { text: 'мс (median±IQR/2)' }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
   }
   const info = rows[0] ? `${rows[0].pairs} пар × ${rows[0].atoms} атомов` : ''
   return (
-    <Suspense fallback={<div className="text-xs text-slate-600">график загружается…</div>}>
-      <div className="text-xs text-slate-500">{info}</div>
+    <Suspense fallback={<div className="text-xs text-neutral-400">график загружается…</div>}>
+      <div className="text-xs text-neutral-500">{info}</div>
       <Plot data={data} layout={layout} />
     </Suspense>
   )
 }
-
-const COLORS = ['#22d3ee', '#a78bfa', '#f59e0b', '#34d399', '#f472b6']

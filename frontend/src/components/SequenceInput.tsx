@@ -30,8 +30,8 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-slate-300">Последовательность (FASTA или raw)</label>
-        <span className={`mono text-xs ${valid && lenOk ? 'text-emerald-400' : 'text-slate-500'}`}>
+        <label className="text-sm font-medium text-neutral-900">Последовательность (FASTA или raw)</label>
+        <span className={`mono text-xs ${valid && lenOk ? 'text-neutral-900' : 'text-red-700'}`}>
           {len} aa {valid ? '' : '· недопустимые символы'} {lenOk ? '' : `· ${minLen}–${maxLen}`}
         </span>
       </div>
@@ -41,7 +41,7 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
         rows={4}
         spellCheck={false}
         placeholder={">sp|P0CG48 ubiquitin\nMQIFVKTLTGK..."}
-        className="mono w-full resize-y rounded-lg border border-slate-800 bg-[#0b0f14] p-3 text-xs text-slate-200 outline-none focus:border-cyan-700"
+        className="mono w-full resize-y border border-neutral-300 bg-white p-3 text-xs text-neutral-900 outline-none focus:border-neutral-900"
       />
       <div className="flex flex-wrap gap-1.5">
         {presets.map((p) => (
@@ -49,7 +49,7 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
             key={p.id}
             onClick={() => onChange(`>${p.name}\n${p.sequence}`)}
             title={p.description}
-            className="rounded-full border border-slate-700 px-2.5 py-1 text-xs text-slate-300 transition hover:border-cyan-600 hover:text-cyan-300"
+            className="border border-neutral-300 px-2.5 py-1 text-xs text-neutral-700 transition hover:border-neutral-900 hover:text-neutral-900"
           >
             {p.name}
           </button>

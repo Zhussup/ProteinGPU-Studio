@@ -1,22 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
-  background: #0b0f14;
-  color: #dbe4ec;
+  background: #fafafa;
+  color: #111111;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* subtle panel look used across the app */
+/* strict panel look: square corners, hairline border */
 .panel {
-  border: 1px solid #1c2733;
-  border-radius: 0.75rem;
-  background: #0f151d;
+  border: 1px solid #d4d4d4;
+  background: #ffffff;
 }
 
 .mono {
@@ -24,12 +23,29 @@ body {
 }
 
 ::selection {
-  background: #0e7490;
+  background: #111111;
   color: #fff;
 }
 
-/* thin scrollbars on dark */
+/* thin scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #26333f transparent;
+  scrollbar-color: #c4c4c4 transparent;
+}
+
+/* square form controls: remove native rounding */
+input,
+select,
+textarea,
+button {
+  border-radius: 0;
+}
+
+/* indeterminate stage marker (real activity, no fake %) */
+@keyframes stagePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.stage-active {
+  animation: stagePulse 1.2s ease-in-out infinite;
 }

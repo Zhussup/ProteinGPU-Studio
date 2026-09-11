@@ -1,4 +1,10 @@
-// RunPanel: run buttons (WT only / WT+мутант), progress bar, GPU badge.
+// RunPanel: run buttons (WT only / WT+мутант), honest stage progress, GPU badge.
+//
+// The progress bar is deliberately NOT a smooth fake: the backend reports real
+// pipeline stages (progress jumps + message via GET /jobs/{id}); we render one
+// segment per stage — filled when passed, pulsing while active — plus a live
+// elapsed timer. No interpolation, no invented percentages.
+import { useEffect, useState } from 'react'
 import type { JobStatus, GpuInfo } from '../lib/types'
 
 export interface RunPanelProps {
@@ -12,54 +18,119 @@ export interface RunPanelProps {
   onReset: () => void
 }
 
+// Stage thresholds mirror backend/app/routers/predict.py progress values.
+const STAGES: Record<string, { at: number; label: string }[]> = {
+  predict: [
+    { at: 0.05, label: 'модель' },
+    { at: 0.9, label: 'PDB' },
+  ],
+  mutate: [
+    { at: 0.1, label: 'WT' },
+    { at: 0.5, label: 'мутант' },
+    { at: 0.85, label: 'наложение' },
+    { at: 0.95, label: 'метрики' },
+  ],
+}
+
+function fmtElapsed(s: number): string {
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+
 export default function RunPanel({
   canRun, running, status, error, gpu, onRunPredict, onRunMutate, onReset,
 }: RunPanelProps) {
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (!running) {
+      setElapsed(0)
+      return
+    }
+    setElapsed(0)
+    const t0 = Date.now()
+    const iv = setInterval(() => setElapsed(Math.floor((Date.now() - t0) / 1000)), 1000)
+    return () => clearInterval(iv)
+  }, [running, status?.job_id])
+
+  const stages = status ? (STAGES[status.kind] ?? []) : []
+  const progress = status?.progress ?? 0
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={onRunPredict}
           disabled={!canRun || running}
-          className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-slate-500 disabled:opacity-40"
+          className="border border-neutral-300 px-4 py-2 text-sm text-neutral-800 transition hover:border-neutral-900 disabled:opacity-40"
         >
           Только WT
         </button>
         <button
           onClick={onRunMutate}
           disabled={!canRun || running}
-          className="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-cyan-600 disabled:opacity-40"
+          className="bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-40"
         >
           WT + мутант
         </button>
         {!running && status && (
-          <button onClick={onReset} className="text-xs text-slate-500 underline hover:text-slate-300">
+          <button onClick={onReset} className="text-xs text-neutral-500 underline hover:text-neutral-900">
             сброс
           </button>
         )}
         {gpu && (
-          <span className={`ml-auto rounded-full px-2 py-0.5 text-xs ${gpu.available ? 'bg-emerald-900/50 text-emerald-400' : 'bg-amber-900/40 text-amber-400'}`}>
+          <span className={`mono ml-auto border px-2 py-0.5 text-xs ${
+            gpu.available ? 'border-neutral-900 text-neutral-900' : 'border-neutral-300 text-neutral-500'
+          }`}>
             {gpu.available ? `GPU: ${gpu.name}` : `CPU-only: ${gpu.reason ?? 'нет CUDA'}`}
           </span>
         )}
       </div>
 
       {running && (
-        <div className="space-y-1">
-          <div className="h-1.5 overflow-hidden rounded bg-slate-800">
-            <div
-              className="h-full bg-cyan-500 transition-all duration-500"
-              style={{ width: `${Math.round((status?.progress ?? 0) * 100)}%` }}
-            />
+        <div className="space-y-1.5 border border-neutral-200 p-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-neutral-700">
+              {status?.status === 'queued'
+                ? (status.message ?? 'в очереди…')
+                : (status?.message ?? 'выполняется…')}
+            </span>
+            <span className="mono text-neutral-500">{fmtElapsed(elapsed)}</span>
           </div>
-          <div className="text-xs text-slate-500">
-            {status?.status === 'queued' ? 'в очереди…' : status?.message ?? 'выполняется…'}
+
+          {/* one segment per real pipeline stage */}
+          <div className="flex gap-1">
+            {stages.map((st) => {
+              const passed = progress >= st.at && status?.status !== 'queued'
+              const active = !passed && status?.status === 'running' &&
+                progress < st.at
+              return (
+                <div key={st.label} className="flex-1">
+                  <div className={`h-1.5 border ${
+                    passed
+                      ? 'border-neutral-900 bg-neutral-900'
+                      : active
+                        ? 'stage-active border-neutral-900 bg-neutral-400'
+                        : 'border-neutral-300 bg-white'
+                  }`} />
+                  <div className={`mt-1 text-[10px] ${
+                    passed ? 'text-neutral-900' : active ? 'text-neutral-700' : 'text-neutral-400'
+                  }`}>{st.label}</div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="text-[10px] text-neutral-400">
+            прогресс — по реальным этапам пайплайна, без интерполяции; инференс занимает
+            минуты и внутри этапа неразбиваем
           </div>
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-2 text-xs text-red-300">
+        <div className="border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
           {error}
         </div>
       )}

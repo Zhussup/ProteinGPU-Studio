@@ -25,11 +25,21 @@ from ..services.pdb_io import parse_ca_coords  # noqa: E402
 router = APIRouter(prefix="/api/v1", tags=["folding"])
 
 
+def _stage(job: Job, jm, message: str, progress: float) -> None:
+    """Record a real pipeline stage; pollers read it via GET /jobs/{id}."""
+    job.message = message
+    job.progress = progress
+    jm.update(job)
+
+
 def _run_predict(job: Job) -> dict:
     svc = get_folding_service()
-    seq = job.params["sequence"]
-    res, from_cache = svc.predict_cached(seq)
     jm = _jm()
+    seq = job.params["sequence"]
+    _stage(job, jm, "загрузка модели", 0.05)
+    _ = svc.model  # force weight load under the "загрузка" message
+    res, from_cache = svc.predict_cached(seq)
+    _stage(job, jm, "сохранение PDB", 0.9)
     out_dir = jm.job_dir(job.job_id)
     (out_dir / "wt.pdb").write_text(res.pdb_text)
     return {
@@ -86,17 +96,21 @@ def _run_mutate(job: Job) -> dict:
     mut_aa: str = job.params["mutant_aa"]
     mut_seq = mutant_sequence(seq, pos, mut_aa)
 
-    job.progress = 0.1
+    _stage(job, jm, "подготовка модели", 0.03)
+    _ = svc.model  # force weight load under the "подготовка" message
+    if svc.cache.get(seq, svc.model_name) is None:
+        _stage(job, jm, "инференс WT", 0.1)  # skipped message if cache hit
     wt, wt_cached = svc.predict_cached(seq)
-    job.progress = 0.5
+    _stage(job, jm, "инференс мутанта", 0.5)
     mut = svc.model.predict(mut_seq)
-    job.progress = 0.8
+    _stage(job, jm, "запись PDB-файлов", 0.8)
 
     out_dir = jm.job_dir(job.job_id)
     (out_dir / "wt.pdb").write_text(wt.pdb_text)
     (out_dir / "mut.pdb").write_text(mut.pdb_text)
 
     # Align mutant ONTO WT in the WT frame; write pre-aligned mutant PDB.
+    _stage(job, jm, "наложение Кабша (C++/CUDA)", 0.85)
     al = align_pair(parse_ca_coords(wt.pdb_text), parse_ca_coords(mut.pdb_text),
                     position=pos, radius=settings.local_radius)
     from ..services.align_service import write_aligned_pdb
@@ -105,6 +119,7 @@ def _run_mutate(job: Job) -> dict:
     (out_dir / "mut_aligned.pdb").write_text(
         write_aligned_pdb(mut.pdb_text, full.R, full.t))
 
+    _stage(job, jm, "метрики", 0.95)
     rmsd = RmsdResult(
         global_rmsd=al.global_rmsd, local_rmsd=al.local_rmsd,
         local_window=al.local_window, tm_score=al.tm_score,
@@ -112,7 +127,6 @@ def _run_mutate(job: Job) -> dict:
         interpretation=interpret_rmsd(al.local_rmsd, settings.rmsd_stable_below,
                                       settings.rmsd_critical_above),
         engine=al.engine)
-    job.progress = 0.95
     return {
         "wt_sequence": seq, "mutant_sequence": mut_seq,
         "position": pos, "wt_aa": seq[pos - 1], "mutant_aa": mut_aa,

@@ -10,6 +10,7 @@ export default function App() {
   const [health, setHealth] = useState<'ok' | 'down' | 'checking'>('checking')
 
   useEffect(() => {
+    setHealth('checking')
     api.health()
       .then(() => setHealth('ok'))
       .catch(() => setHealth('down'))
@@ -17,23 +18,25 @@ export default function App() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-5">
-      <header className="mb-5 flex items-center justify-between">
+      <header className="mb-5 flex items-end justify-between border-b border-neutral-200 pb-4">
         <div>
-          <h1 className="text-lg font-semibold text-slate-100">
-            ProteinGPU<span className="text-cyan-400">-Studio</span>
+          <h1 className="text-lg font-semibold tracking-tight text-neutral-900">
+            ProteinGPU-Studio
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-neutral-500">
             предсказание структуры · мутагенез in silico · Kabsch/RMSD на CPU и CUDA
           </p>
         </div>
-        <div className="flex items-center gap-3 text-xs">
-          <nav className="flex gap-1">
+        <div className="flex items-center gap-4 text-xs">
+          <nav className="flex">
             {(['workspace', 'benchmarks'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`rounded-lg px-3 py-1.5 transition ${
-                  tab === t ? 'bg-cyan-700 text-white' : 'text-slate-400 hover:text-slate-200'
+                className={`border border-b-0 px-3 py-1.5 transition ${
+                  tab === t
+                    ? 'border-neutral-900 bg-neutral-900 font-medium text-white'
+                    : 'border-neutral-200 text-neutral-500 hover:border-neutral-900 hover:text-neutral-900'
                 }`}
               >
                 {t === 'workspace' ? 'Рабочая область' : 'Бенчмарки'}
@@ -41,10 +44,14 @@ export default function App() {
             ))}
           </nav>
           <span
-            className={`h-2 w-2 rounded-full ${
-              health === 'ok' ? 'bg-emerald-400' : health === 'down' ? 'bg-red-500' : 'bg-slate-600'
+            className={`inline-block h-2.5 w-2.5 border ${
+              health === 'ok'
+                ? 'border-neutral-900 bg-neutral-900'
+                : health === 'down'
+                  ? 'border-red-700 bg-red-700'
+                  : 'border-neutral-300 bg-neutral-200'
             }`}
-            title={health === 'ok' ? 'бэкенд доступен' : 'бэкенд недоступен — запустите uvicorn'}
+            title={health === 'ok' ? 'бэкенд доступен' : health === 'down' ? 'бэкенд недоступен — запустите uvicorn' : 'проверка…'}
           />
         </div>
       </header>

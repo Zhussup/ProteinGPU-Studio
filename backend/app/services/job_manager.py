@@ -72,6 +72,10 @@ class JobManager:
                  job.error, job.created_at, job.finished_at))
             self._db.commit()
 
+    def update(self, job: Job) -> None:
+        """Persist a stage change (progress/message) so pollers see it."""
+        self._persist(job)
+
     # -- job lifecycle -----------------------------------------------------
     def submit(self, kind: str, params: dict[str, Any],
                run_fn: Callable[[Job], dict[str, Any]], use_gpu: bool) -> str:
@@ -89,8 +93,15 @@ class JobManager:
             job.status = "running"
             self._persist(job)
             if use_gpu:
-                with self.gpu_sem:  # serial GPU access
+                # honest queue feedback: report contention before blocking
+                if not self.gpu_sem.acquire(blocking=False):
+                    job.message = "ожидание GPU-слота (занята другой задачей)"
+                    self._persist(job)
+                    self.gpu_sem.acquire()
+                try:
                     result = run_fn(job)
+                finally:
+                    self.gpu_sem.release()
             else:
                 result = run_fn(job)
             job.result = result

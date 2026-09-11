@@ -24,31 +24,31 @@ export default function MutationPicker({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-slate-300">Мутация</label>
-        <span className="mono text-xs text-slate-400">
+        <label className="text-sm font-medium text-neutral-900">Мутация</label>
+        <span className="mono text-xs text-neutral-700">
           {posOk ? `${wtAA}${position}${mutantAA}` : '—'}
         </span>
       </div>
 
       <div className="flex items-end gap-2">
         <div>
-          <div className="mb-1 text-[11px] text-slate-500">Позиция (1-based)</div>
+          <div className="mb-1 text-[11px] text-neutral-500">Позиция (1-based)</div>
           <input
             type="number"
             min={1}
             max={sequence.length || undefined}
             value={position || ''}
             onChange={(e) => onChange(parseInt(e.target.value, 10) || 0, mutantAA)}
-            className="mono w-24 rounded-lg border border-slate-800 bg-[#0b0f14] px-3 py-2 text-sm outline-none focus:border-cyan-700"
+            className="mono w-24 border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
           />
         </div>
-        <div className="pb-2 text-slate-500">→</div>
+        <div className="pb-2 text-neutral-400">→</div>
         <div>
-          <div className="mb-1 text-[11px] text-slate-500">Новый остаток</div>
+          <div className="mb-1 text-[11px] text-neutral-500">Новый остаток</div>
           <select
             value={mutantAA}
             onChange={(e) => onChange(position, e.target.value)}
-            className="mono w-24 rounded-lg border border-slate-800 bg-[#0b0f14] px-3 py-2 text-sm outline-none focus:border-cyan-700"
+            className="mono w-24 border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
           >
             {AAS.map((a) => (
               <option key={a} value={a}>{a}</option>
@@ -62,14 +62,14 @@ export default function MutationPicker({
       )}
 
       <div>
-        <div className="mb-1.5 text-[11px] text-slate-500">Демо-пресеты (убиквитин, литературно обоснованные):</div>
+        <div className="mb-1.5 text-[11px] text-neutral-500">Демо-пресеты (убиквитин, литературно обоснованные):</div>
         <div className="flex flex-wrap gap-1.5">
           {demoPresets.map((p) => (
             <button
               key={p.id}
               onClick={() => onApplyPreset(p)}
               title={p.description}
-              className="mono rounded-full border border-slate-700 px-2.5 py-1 text-xs text-slate-300 transition hover:border-cyan-600 hover:text-cyan-300"
+              className="mono border border-neutral-300 px-2.5 py-1 text-xs text-neutral-700 transition hover:border-neutral-900 hover:text-neutral-900"
             >
               {p.name}
             </button>
@@ -89,13 +89,13 @@ function SequenceStrip({ sequence, position }: { sequence: string; position: num
   const after = sequence.slice(position, end)
 
   return (
-    <div className="mono overflow-x-auto rounded-lg border border-slate-800 bg-[#0b0f14] px-3 py-2 text-xs whitespace-nowrap">
-      {start > 0 && <span className="text-slate-600">…</span>}
-      <span className="text-slate-400">{before}</span>
-      <span className="rounded bg-red-900/60 px-0.5 font-bold text-red-300">{site}</span>
-      <span className="text-slate-400">{after}</span>
-      {end < sequence.length && <span className="text-slate-600">…</span>}
-      <span className="ml-2 text-slate-600">[{start + 1}–{end}]</span>
+    <div className="mono overflow-x-auto border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs whitespace-nowrap">
+      {start > 0 && <span className="text-neutral-400">…</span>}
+      <span className="text-neutral-600">{before}</span>
+      <span className="bg-neutral-900 px-0.5 font-bold text-white">{site}</span>
+      <span className="text-neutral-600">{after}</span>
+      {end < sequence.length && <span className="text-neutral-400">…</span>}
+      <span className="ml-2 text-neutral-400">[{start + 1}–{end}]</span>
     </div>
   )
 }

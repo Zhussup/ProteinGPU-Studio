@@ -99,11 +99,11 @@ export default function WorkspacePage() {
         />
         {result?.rmsd ? (
           <div className="panel p-4">
-            <h3 className="mb-3 text-sm font-medium text-slate-300">Результат наложения</h3>
+            <h3 className="mb-3 text-sm font-medium text-neutral-900">Результат наложения</h3>
             <ResultTabs result={result} />
           </div>
         ) : (
-          <div className="panel p-4 text-xs text-slate-600">
+          <div className="panel p-4 text-xs text-neutral-500">
             Global + local RMSD (±10 остатков), TM-score и pLDDT появятся после запуска «WT + мутант».
             Модель почти детерминирована: на стабильном фолде точечные мутации дают суб-Å сдвиги
             (на убиквитине: I44A 0.21 Å, I3L 0.28 Å, P19G 0.72 Å — наибольший отклик).
