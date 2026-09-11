@@ -153,3 +153,22 @@ class TestGpu:
         # spot-check values against numpy on a few pairs
         for b in rng.choice(B, 5, replace=False):
             assert got[b] == pytest.approx(kabsch_numpy(P[b], Q[b]), abs=1e-5)
+
+    def test_gpu_device_resident_path(self):
+        """Torch CUDA tensors pass to the GPU by pointer — values still exact."""
+        if not hpc_core.HAS_CUDA:
+            pytest.skip("CUDA build not present")
+        torch = pytest.importorskip("torch")
+
+        P, Q, _ = make_rigid_pair(256, seed=11, noise=0.03)
+        res = hpc_core.kabsch(torch.from_numpy(P).cuda(), torch.from_numpy(Q).cuda())
+        assert res.engine == "cuda"
+        assert res.rmsd == pytest.approx(kabsch_numpy(P, Q), abs=1e-5)
+
+        rng = np.random.default_rng(12)
+        B, N = 16, 128
+        Pb = rng.uniform(-5, 5, (B, N, 3))
+        Qb = Pb + rng.normal(0, 0.05, Pb.shape)
+        got = hpc_core.batched_rmsd(torch.from_numpy(Pb).cuda(), torch.from_numpy(Qb).cuda())
+        for b in range(B):
+            assert got[b] == pytest.approx(kabsch_numpy(Pb[b], Qb[b]), abs=1e-5)

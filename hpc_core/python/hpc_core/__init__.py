@@ -55,8 +55,23 @@ def _to_coords(x) -> np.ndarray:
     return np.ascontiguousarray(arr)
 
 
+def _is_cuda_tensor(x) -> bool:
+    # torch/cupy device tensors expose __cuda_array_interface__; the native
+    # layer takes them by pointer with zero PCIe copies.
+    return hasattr(x, "__cuda_array_interface__")
+
+
 def kabsch(P, Q) -> AlignmentResult:
     """Optimal rigid alignment of P onto Q (Kabsch). Returns RMSD, R, t, TM-score."""
+    if HAS_CUDA and _is_cuda_tensor(P) and _is_cuda_tensor(Q):
+        try:
+            r = _native.kabsch_rmsd_cuda(P, Q)  # device-resident fast path
+        except Exception:
+            r = _native.kabsch_rmsd_cpu(_to_coords(P), _to_coords(Q))
+        return AlignmentResult(
+            rmsd=float(r["rmsd"]), tm_score=float(r["tm_score"]),
+            R=np.asarray(r["R"]), t=np.asarray(r["t"]), n=int(r["n"]),
+            engine=str(r["engine"]))
     p, q = _to_coords(P), _to_coords(Q)
     if len(p) != len(q):
         raise ValueError(f"length mismatch: {len(p)} vs {len(q)}")
@@ -77,7 +92,17 @@ def kabsch(P, Q) -> AlignmentResult:
 
 
 def batched_rmsd(P, Q, use_gpu: bool = True) -> np.ndarray:
-    """Pairwise RMSD over B pairs: P, Q of shape [B, N, 3]. Returns [B] float64."""
+    """Pairwise RMSD over B pairs: P, Q of shape [B, N, 3]. Returns [B] float64.
+
+    Device tensors (torch/cupy, float64, CUDA) are passed to the GPU by
+    pointer — no host copy. Host arrays go over PCIe (the copy cost is real
+    and part of the honest benchmark).
+    """
+    if use_gpu and HAS_CUDA and _is_cuda_tensor(P) and _is_cuda_tensor(Q):
+        try:
+            return np.asarray(_native.batched_rmsd_cuda(P, Q))
+        except Exception:
+            pass  # fall through to the host path below
     p = np.ascontiguousarray(np.asarray(P, dtype=np.float64))
     q = np.ascontiguousarray(np.asarray(Q, dtype=np.float64))
     if p.ndim != 3 or p.shape[2] != 3:
