@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# ML weights & artifacts (large)
+data/models/
+data/jobs/
+
+# Built binaries
+*.so
+*.o
+*.cu.o
+hpc_core/build/
+
+# Frontend
+node_modules/
+dist/
+
+# Reports (regenerable, but keep figures)
+# data/report/ — commit figures, ignore raw json? keep all for now
+
+# OS
+.DS_Store
+__pycache__/
