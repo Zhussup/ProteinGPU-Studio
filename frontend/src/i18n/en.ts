@@ -26,11 +26,37 @@ export const en: Dict = {
   'mut.newResidue': 'New residue',
   'mut.demoPresets': 'Demo presets (ubiquitin, literature-backed):',
 
+  'dial.title': 'Mutagenesis strength dial',
+  'dial.mode.exhaustive': 'all 19 subs',
+  'dial.modeExhaustiveTitle':
+    'exhaustive mode: all 19 single substitutions at the position (a superset of "Position scan"); μ/τ/K do not apply',
+  'dial.mu': 'μ — simultaneous substitutions per variant',
+  'dial.muHint': 'anchor + (μ−1) background',
+  'dial.tau': 'τ — substitution spectrum temperature (Grantham)',
+  'dial.tauCons': 'conservative',
+  'dial.tauRad': 'radical',
+  'dial.k': 'K — variants',
+  'dial.seed': 'seed',
+  'dial.seedAuto': 'auto',
+  'dial.seedNote':
+    'empty seed → the configuration (sequence, position, μ, τ, K) determines the ensemble ' +
+    'deterministically — a rerun reproduces it; a number is an explicit override',
+  'dial.estimateLabel': 'runtime estimate:',
+  'dial.estimateInstant': '< 1 s (dummy)',
+  'dial.estimateWarn': 'long — reduce K, switch to fp16, or shorten the ensemble',
+  'dial.granthamNote':
+    'substitutions are drawn via the Grantham matrix (physico-chemical distance, Grantham 1974): ' +
+    'τ=0 — conservative halves only, τ=1 — radical only, τ=0.5 — uniformly over all 19',
+
   'run.wtOnly': 'WT only',
   'run.wtMutant': 'WT + mutant',
   'run.scan': 'Position scan (19 mutations)',
   'run.scanTitle':
     'all 19 amino-acid substitutions at the selected position — ranked screening',
+  'run.ensemble': 'Ensemble (dial)',
+  'run.ensembleTitle':
+    'K variants around the anchor position: μ simultaneous substitutions, Grantham spectrum (τ), ' +
+    'sensitivity = the distribution of responses',
   'run.reset': 'reset',
   'run.profile': 'Inference profile:',
   'run.profileHint': 'applies to the next run; switching reloads the model',
@@ -54,9 +80,11 @@ export const en: Dict = {
   'run.stage.align': 'alignment',
   'run.stage.metrics': 'metrics',
   'run.stage.subs19': '19 subs',
+  'run.stage.ens': 'variants',
   'run.stage.summary': 'summary',
 
   'ws.scanTitle': 'Position scan {pos} — all 19 substitutions',
+  'ws.ensembleTitle': 'Ensemble of position {pos} — mutagenesis strength dial',
   'ws.overlayResult': 'Overlay result',
   'ws.hint':
     'Global + local RMSD (±10 residues), TM-score and pLDDT appear after a "WT + mutant" run. ' +
@@ -126,6 +154,20 @@ export const en: Dict = {
     'For a stable protein it usually stays within ±1–2.',
     'In OmegaFold, a drop in pLDDT often precedes a real structural change — a useful early signal.',
   ],
+  'help.ensemble.title': 'Mutagenesis strength dial',
+  'help.ensemble': [
+    'The "strength of the effect" is measured as the **distribution of responses**, not by ' +
+    'eyeballing two pictures. Instead of one mutant, the dial generates **K variants**: each ' +
+    'contains a substitution at the anchor position (μ>1 — plus background substitutions at ' +
+    'random sites); the substitutions themselves are drawn from the **Grantham** matrix with ' +
+    'temperature τ (conservative ↔ radical).',
+    'The histograms show the distributions of local RMSD and |ΔpLDDT| across all variants; the ' +
+    'median and IQR summarize them. Level badge: "quiet position" (both medians < 1), "strong" ' +
+    '(≥ 2 on either), otherwise "moderate". Spread width = IQR / median of local RMSD.',
+    '**Honesty hierarchy:** local ΔpLDDT > local RMSD > global RMSD > TM — no invented 0–100 ' +
+    'score. Positions can be compared only by percentiles within the compared set: each window ' +
+    'has its own model noise floor.',
+  ],
 
   'scan.h.mutation': 'mutation',
   'scan.h.local': 'local RMSD, Å',
@@ -143,12 +185,50 @@ export const en: Dict = {
     'overlays that mutant structure on the WT',
   'scan.xaxis.subst': 'substitution {wt} → X',
 
+  'ens.exhaustiveNote': 'mode "all 19 subs" — a strict superset of "Position scan" (μ=1, K=19)',
+  'ens.seedLabel': 'seed',
+  'ens.level.quiet': 'quiet position',
+  'ens.level.moderate': 'moderate sensitivity',
+  'ens.level.strong': 'strong sensitivity',
+  'ens.width.label': 'spread',
+  'ens.width.narrow': 'narrow spread',
+  'ens.width.moderate': 'moderate spread',
+  'ens.width.wide': 'wide spread',
+  'ens.help.q': 'what does the dial measure?',
+  'ens.card.medLocal': 'median local RMSD',
+  'ens.card.iqr': 'IQR {v} Å',
+  'ens.card.medDplddt': 'median |ΔpLDDT| window',
+  'ens.card.dplddtUnit': 'pLDDT points',
+  'ens.card.range': 'local RMSD range',
+  'ens.card.k': 'variants',
+  'ens.card.spread': 'iqr/median {v}',
+  'ens.hist.localTitle': 'local RMSD distribution across the ensemble',
+  'ens.hist.dplddtTitle': 'window |ΔpLDDT| distribution',
+  'ens.hist.xaxisLocal': 'local RMSD, Å',
+  'ens.hist.xaxisDplddt': 'window |ΔpLDDT|',
+  'ens.hist.yaxis': 'variants',
+  'ens.h.dplddtLocal': 'window ΔpLDDT',
+  'ens.note':
+    'the table is sorted by local RMSD; clicking a row overlays that variant (ens_XX.pdb) on the ' +
+    'WT; ΔpLDDT averages the whole protein, window ΔpLDDT — the ±10 anchor window',
+
+  'sens.title': 'Position sensitivity (ensembles of one protein)',
+  'sens.h.position': 'position',
+  'sens.h.medLocal': 'med. local RMSD',
+  'sens.h.medDplddt': 'med. |ΔpLDDT|',
+  'sens.h.sensitivity': 'sensitivity',
+  'sens.note':
+    'only positions with already-run ensembles; "sensitivity" is the percentile within the ' +
+    'compared set (mean of the local RMSD and |ΔpLDDT| ranks), raw medians next to it: each ' +
+    'window has its own model noise floor, absolute numbers are not directly comparable',
+
   'hist.title': 'History',
   'hist.refresh': 'refresh',
   'hist.empty': 'no jobs yet',
   'hist.kind.predict': 'prediction',
   'hist.kind.mutate': 'mutation',
   'hist.kind.scan': 'scan',
+  'hist.kind.ensemble': 'ensemble',
   'hist.restoreHint': 'click to restore the result',
   'hist.noResult': 'no result',
   'hist.error': 'error',
@@ -198,6 +278,9 @@ export const en: Dict = {
     'will appear on the axis.',
   'pv.plddtNoData': 'no data — run "WT + mutant"',
   'pv.scanNoData': 'no data — run "Position scan"',
+  'pv.variantsNoData': 'no data — run "Ensemble"',
+  'pv.variantsHeat': 'ensemble: mean |ΔpLDDT| {v}',
+  'pv.ensAnchor': 'ensemble anchor position',
   'pv.uniprotPlaceholder': 'UniProt annotations — stage 1.3',
   'pv.pos': 'Position {pos}: {aa}',
   'pv.mutation': 'mutation {m}',
@@ -209,5 +292,5 @@ export const en: Dict = {
   'track.mutation': 'Mutation',
   'track.scan': 'Position scan (19 subs)',
   'track.domains': 'UniProt domains',
-  'track.variants': 'Known variants',
+  'track.variants': 'Sensitivity (ensemble)',
 }

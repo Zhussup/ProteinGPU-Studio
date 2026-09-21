@@ -113,6 +113,6 @@ cd frontend && npm install && npm run dev
 
 ## Благодарности
 
-- [OmegaFold](https://github.com/HeliXonProtein/OmegaFold) и [ESMFold](https://github.com/facebookresearch/esm) — предсказание структуры
+- [OmegaFold](https://github.com/HeliXonProtein/OmegaFold) ([Wu et al., 2022](https://doi.org/10.1101/2022.07.21.500999), Apache-2.0) и [ESMFold](https://github.com/facebookresearch/esm) — предсказание структуры
 - [3Dmol.js](https://3dmol.csb.pitt.edu/) — молекулярный вьюер · [Plotly.js](https://plotly.com/javascript/) — графики
 - [PyBind11](https://github.com/pybind/pybind11) — биндинги C++/Python

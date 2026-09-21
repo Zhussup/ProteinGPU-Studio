@@ -110,6 +110,6 @@ cd frontend && npm install && npm run dev
 
 ## 致谢
 
-- [OmegaFold](https://github.com/HeliXonProtein/OmegaFold) 与 [ESMFold](https://github.com/facebookresearch/esm) —— 结构预测
+- [OmegaFold](https://github.com/HeliXonProtein/OmegaFold)（[Wu et al., 2022](https://doi.org/10.1101/2022.07.21.500999)，Apache-2.0）与 [ESMFold](https://github.com/facebookresearch/esm) —— 结构预测
 - [3Dmol.js](https://3dmol.csb.pitt.edu/) —— 分子可视化 · [Plotly.js](https://plotly.com/javascript/) —— 图表
 - [PyBind11](https://github.com/pybind/pybind11) —— C++/Python 绑定

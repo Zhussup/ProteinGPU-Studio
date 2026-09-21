@@ -111,6 +111,6 @@ job ran the real model, not a stub.
 
 ## Credits
 
-- [OmegaFold](https://github.com/HeliXonProtein/OmegaFold) and [ESMFold](https://github.com/facebookresearch/esm) — structure prediction
+- [OmegaFold](https://github.com/HeliXonProtein/OmegaFold) ([Wu et al., 2022](https://doi.org/10.1101/2022.07.21.500999), Apache-2.0) and [ESMFold](https://github.com/facebookresearch/esm) — structure prediction
 - [3Dmol.js](https://3dmol.csb.pitt.edu/) — molecular viewer · [Plotly.js](https://plotly.com/javascript/) — charts
 - [PyBind11](https://github.com/pybind/pybind11) — C++/Python bindings

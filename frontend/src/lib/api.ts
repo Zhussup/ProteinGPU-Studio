@@ -51,6 +51,20 @@ export const api = {
       body: JSON.stringify({ sequence, position, profile }),
     }).then((r) => json<{ job_id: string; status: string }>(r)),
 
+  submitEnsemble: (
+    sequence: string, position: number, mode: 'sampled' | 'exhaustive',
+    mu: number, tau: number, k: number, seed: number | null,
+    profile?: InferenceProfile,
+  ) =>
+    fetch(withLang('/api/v1/ensemble'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sequence, position, mode, mu, tau, k,
+        seed: seed ?? undefined, profile,
+      }),
+    }).then((r) => json<{ job_id: string; status: string }>(r)),
+
   submitBenchmark: (sequence: string, profiles: string[], repeats = 5, lengths?: number[]) =>
     fetch('/api/v1/benchmark', {
       method: 'POST',
@@ -80,7 +94,7 @@ export const api = {
     fetch(withLang(`/api/v1/jobs/${jobId}/result`)).then((r) =>
       json<Record<string, unknown>>(r)),
 
-  pdb: async (jobId: string, fn: 'wt.pdb' | 'mut.pdb' | 'mut_aligned.pdb' | `scan_${string}.pdb`) => {
+  pdb: async (jobId: string, fn: 'wt.pdb' | 'mut.pdb' | 'mut_aligned.pdb' | `scan_${string}.pdb` | `ens_${string}.pdb`) => {
     const res = await fetch(`/api/v1/files/${jobId}/${fn}`)
     if (!res.ok) throw new Error(`${res.status}: PDB fetch failed`)
     return res.text()

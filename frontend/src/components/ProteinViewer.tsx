@@ -5,7 +5,7 @@
 // Click anywhere = current position: the detail panel, the crosshair and
 // MoleculeViewer's red sticks all follow it (cross-highlight, §4).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { MutationResult, ScanResult } from '../lib/types'
+import type { EnsembleResult, MutationResult, ScanResult } from '../lib/types'
 import { useI18n, type Key, type TFn } from '../i18n'
 import {
   AXIS_HEIGHT, PAD_X, TRACKS, buildGeometry, computeWindow, tickStep, trackHeight,
@@ -36,12 +36,13 @@ export interface ProteinViewerProps {
   plddtWt?: number[] | null // index i = position i+1
   result?: MutationResult | null
   scan?: ScanResult | null
+  ensemble?: EnsembleResult | null
 }
 
 type ViewMode = 'whole' | 'window'
 
 export default function ProteinViewer({
-  sequence, position, onPositionChange, plddtWt, result, scan,
+  sequence, position, onPositionChange, plddtWt, result, scan, ensemble,
 }: ProteinViewerProps) {
   const { t } = useI18n()
   const [mode, setMode] = useState<ViewMode>('whole')
@@ -56,6 +57,7 @@ export default function ProteinViewer({
 
   const length = sequence.length
   const sc = scan ?? null
+  const en = ensemble ?? null
   // clamp defensively: the parent clamps too, but the sequence can change first
   const cur = Math.min(Math.max(1, position), Math.max(1, length))
 
@@ -127,11 +129,12 @@ export default function ProteinViewer({
     drawPlddt(ctx, geom, sequence, plddtWt, t)
     drawMutation(ctx, geom, mutation)
     drawScan(ctx, geom, sc, t)
+    drawVariants(ctx, geom, en, t)
     drawTrackPlaceholders(ctx, geom, t)
 
     if (hover) drawVLine(ctx, geom, hover, '#a3a3a3', true)
     drawVLine(ctx, geom, cur, '#111111', false)
-  }, [geom, sequence, plddtWt, mutation, sc, result, hover, cur, t])
+  }, [geom, sequence, plddtWt, mutation, sc, en, result, hover, cur, t])
 
   // --- mini-map: orientation strip with the current window ---
   const mapH = 20
@@ -197,9 +200,9 @@ export default function ProteinViewer({
   }
 
   const hoverInfo = hover && geom
-    ? describePosition(hover, sequence, plddtWt, mutation, sc, result, t)
+    ? describePosition(hover, sequence, plddtWt, mutation, sc, result, en, t)
     : null
-  const curInfo = describePosition(cur, sequence, plddtWt, mutation, sc, result, t)
+  const curInfo = describePosition(cur, sequence, plddtWt, mutation, sc, result, en, t)
 
   return (
     <div className="panel p-4">
@@ -483,14 +486,54 @@ function drawScan(
 function drawTrackPlaceholders(
   ctx: CanvasRenderingContext2D, g: Geometry, t: TFn,
 ) {
-  // domains/variants arrive with the UniProt stage (design doc §6, этап 1.3–1.4)
-  for (const id of ['domains', 'variants'] as TrackId[]) {
-    const top = g.trackTopOf(id)
-    const h = trackHeight(id)
+  // domains arrive with the UniProt stage (design doc §6, этап 1.3)
+  const top = g.trackTopOf('domains')
+  const h = trackHeight('domains')
+  ctx.fillStyle = '#a3a3a3'
+  ctx.font = '9px ui-sans-serif, system-ui, sans-serif'
+  ctx.fillText(t('pv.uniprotPlaceholder'), g.plotX + 16, top + h / 2)
+}
+
+// variants track: per-residue mean |ΔpLDDT| across the ensemble (dum.md §6 —
+// the honest sensitivity picture), a heat strip light-grey → strict red,
+// normalized by the max within THIS ensemble.
+const HEAT_LO = [0xf5, 0xf5, 0xf5]
+const HEAT_HI = [0xb9, 0x1c, 0x1c]
+
+function heatColor(frac: number): string {
+  const c = HEAT_LO.map((lo, i) => Math.round(lo + (HEAT_HI[i] - lo) * frac))
+  return `rgb(${c[0]},${c[1]},${c[2]})`
+}
+
+function drawVariants(
+  ctx: CanvasRenderingContext2D, g: Geometry, ens: EnsembleResult | null, t: TFn,
+) {
+  const top = g.trackTopOf('variants')
+  const h = trackHeight('variants')
+  const list = ens?.dplddt_abs_mean_list
+  if (!list || list.length !== g.length) {
     ctx.fillStyle = '#a3a3a3'
     ctx.font = '9px ui-sans-serif, system-ui, sans-serif'
-    ctx.fillText(t('pv.uniprotPlaceholder'), g.plotX + 16, top + h / 2)
+    ctx.fillText(t('pv.variantsNoData'), g.plotX + 16, top + h / 2)
+    return
   }
+  const pad = 3
+  const stripH = Math.max(4, h - 2 * pad)
+  const max = Math.max(...list)
+  for (let p = g.win.start; p <= g.win.end; p++) {
+    // guard ≈0 → all white (a flat profile carries no information)
+    const frac = max > 1e-9 ? Math.min(1, Math.max(0, list[p - 1] / max)) : 0
+    ctx.fillStyle = heatColor(frac)
+    ctx.fillRect(g.xFor(p), top + pad, Math.max(1, g.colW - 0.5), stripH)
+  }
+  // anchor: outlined like every other site marker
+  const x = g.xFor(ens!.position)
+  const w = Math.max(2, g.colW - 0.5)
+  ctx.strokeStyle = '#111111'
+  ctx.strokeRect(x + 0.5, top + pad + 0.5, w - 1, stripH - 1)
+  ctx.fillStyle = '#737373'
+  ctx.font = '9px ui-monospace, monospace'
+  ctx.fillText(`ens @ ${ens!.position}`, x + w + 4, top + 6)
 }
 
 // --- detail panel / tooltip text ---
@@ -502,6 +545,7 @@ function describePosition(
   mutation: { position: number; wt_aa: string; mut_aa: string } | null,
   scan: ScanResult | null,
   result: MutationResult | null | undefined,
+  ens: EnsembleResult | null,
   t: TFn,
 ): string {
   const aa = seq[pos - 1] ?? '?'
@@ -518,6 +562,14 @@ function describePosition(
   if (result?.rmsd) {
     const [a, b] = result.rmsd.local_window
     if (pos >= a && pos <= b) parts.push(t('pv.inLocalWindow', { a, b }))
+  }
+
+  if (ens?.dplddt_abs_mean_list && ens.dplddt_abs_mean_list.length === seq.length) {
+    const v = ens.dplddt_abs_mean_list[pos - 1]
+    if (v != null) {
+      parts.push(t('pv.variantsHeat', { v: v.toFixed(2) }))
+      if (ens.position === pos) parts.push(t('pv.ensAnchor'))
+    }
   }
 
   if (scan && scan.position === pos) {

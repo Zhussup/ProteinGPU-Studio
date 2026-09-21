@@ -49,3 +49,46 @@ button {
 .stage-active {
   animation: stagePulse 1.2s ease-in-out infinite;
 }
+
+/* the mutagenesis dial's τ slider: square thumb, hairline track — same strict
+   geometry as every other control (no native rounded look) */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  background: transparent;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  background: #d4d4d4;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  background: #111111;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-track {
+  height: 2px;
+  background: #d4d4d4;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: #111111;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+}
+input[type="range"]:focus::-webkit-slider-thumb {
+  outline: 1px solid #111111;
+  outline-offset: 2px;
+}
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: #a3a3a3;
+}

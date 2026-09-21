@@ -51,6 +51,66 @@ export interface ScanResult {
   summary: string
 }
 
+// POST /api/v1/ensemble — the mutagenesis-strength dial: K variants around one
+// anchor position (μ simultaneous substitutions, Grantham/τ spectrum); the
+// position's sensitivity = the DISTRIBUTION of responses, not two pictures.
+export interface EnsembleMutation {
+  position: number
+  wt_aa: string
+  mut_aa: string
+}
+
+export interface EnsembleRow {
+  label: string // "I44A" | "I44A+L3M"
+  mutations: EnsembleMutation[]
+  mut_aa: string | null // μ=1 only — parity with ScanRow
+  local_rmsd: number
+  global_rmsd: number
+  tm_score: number
+  plddt_mut: number
+  dplddt: number
+  dplddt_local: number // mean ΔpLDDT over the anchor window (honest metric)
+  engine: string
+  interpretation: 'stable' | 'moderate' | 'critical'
+  pdb_file: string // "ens_XX.pdb", Kabsch-aligned to the WT frame
+}
+
+export interface StatsBlock {
+  mean: number
+  std: number
+  median: number
+  iqr: number
+  min: number
+  max: number
+}
+
+export interface EnsembleHeadline {
+  level: 'quiet' | 'moderate' | 'strong'
+  width: 'narrow' | 'moderate' | 'wide'
+  iqr_ratio: number
+  median_local_rmsd: number
+  median_abs_dplddt_local: number
+}
+
+export interface EnsembleResult {
+  wt_sequence: string
+  position: number
+  wt_aa: string
+  model?: string
+  wt_from_cache?: boolean
+  mode: 'sampled' | 'exhaustive'
+  params: { mu: number; tau: number; k: number; seed: number }
+  variants: EnsembleRow[] // strongest first (local_rmsd desc)
+  stats: { local_rmsd: StatsBlock; dplddt: StatsBlock; dplddt_local: StatsBlock }
+  headline: EnsembleHeadline
+  dplddt_abs_mean_list: number[] // per-residue mean |ΔpLDDT| — the viewer track
+  plddt_wt?: number
+  plddt_wt_list?: number[]
+  best: number
+  summary: string
+  pdb_files?: string[]
+}
+
 export interface PredictResponse {
   job_id: string
   status: string
@@ -77,6 +137,11 @@ export interface JobSummary {
   sequence: string
   position?: number | null
   mutant_aa?: string | null
+  // dial params (ensemble jobs; null elsewhere)
+  mu?: number | null
+  tau?: number | null
+  k?: number | null
+  mode?: string | null
   error?: string | null
   created_at: string
   finished_at?: string | null

@@ -19,6 +19,7 @@ export interface RunPanelProps {
   onRunPredict: () => void
   onRunMutate: () => void
   onRunScan: () => void
+  onRunEnsemble: () => void
   onReset: () => void
 }
 
@@ -38,6 +39,11 @@ const STAGE_KEYS: Record<string, { at: number; label: Key }[]> = {
   scan: [
     { at: 0.1, label: 'run.stage.wt' },
     { at: 0.9, label: 'run.stage.subs19' },
+    { at: 0.95, label: 'run.stage.summary' },
+  ],
+  ensemble: [
+    { at: 0.1, label: 'run.stage.wt' },
+    { at: 0.9, label: 'run.stage.ens' },
     { at: 0.95, label: 'run.stage.summary' },
   ],
 }
@@ -70,7 +76,7 @@ const PROFILE_OPTIONS: { id: InferenceProfile; label: Key }[] = [
 
 export default function RunPanel({
   canRun, running, status, error, gpu, profile, onProfileChange,
-  onRunPredict, onRunMutate, onRunScan, onReset,
+  onRunPredict, onRunMutate, onRunScan, onRunEnsemble, onReset,
 }: RunPanelProps) {
   const { t } = useI18n()
   const [elapsed, setElapsed] = useState(0)
@@ -113,6 +119,14 @@ export default function RunPanel({
           className="border border-red-700 px-4 py-2 text-sm text-red-800 transition hover:bg-red-50 disabled:opacity-40"
         >
           {t('run.scan')}
+        </button>
+        <button
+          onClick={onRunEnsemble}
+          disabled={!canRun || running}
+          title={t('run.ensembleTitle')}
+          className="border border-neutral-900 px-4 py-2 text-sm text-neutral-900 transition hover:bg-neutral-100 disabled:opacity-40"
+        >
+          {t('run.ensemble')}
         </button>
         {!running && status && (
           <button onClick={onReset} className="text-xs text-neutral-500 underline hover:text-neutral-900">
