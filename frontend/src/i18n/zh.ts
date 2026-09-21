@@ -26,10 +26,34 @@ export const zh: Dict = {
   'mut.newResidue': '新残基',
   'mut.demoPresets': '演示预设（泛素，有文献依据）：',
 
+  'dial.title': '突变强度旋钮',
+  'dial.mode.exhaustive': '全部 19 种替换',
+  'dial.modeExhaustiveTitle':
+    'exhaustive 模式：该位点的全部 19 种单替换（「位点扫描」的超集）；不使用 μ/τ/K',
+  'dial.mu': 'μ — 每个变体的同步替换数',
+  'dial.muHint': '锚点 + (μ−1) 个背景',
+  'dial.tau': 'τ — 替换谱温度（按 Grantham）',
+  'dial.tauCons': '保守',
+  'dial.tauRad': '激进',
+  'dial.k': 'K — 变体数',
+  'dial.seed': '种子',
+  'dial.seedAuto': '自动',
+  'dial.seedNote':
+    '种子留空 → 配置（序列、位置、μ、τ、K）确定性地决定组合——重复运行结果相同；填数字为显式覆盖',
+  'dial.estimateLabel': '耗时估计：',
+  'dial.estimateInstant': '< 1 秒（dummy）',
+  'dial.estimateWarn': '耗时较长——请减小 K、改用 fp16 或缩短组合',
+  'dial.granthamNote':
+    '替换按 Grantham 矩阵（理化距离，Grantham 1974）抽取：τ=0——仅保守半区，' +
+    'τ=1——仅激进半区，τ=0.5——全部 19 种均匀抽取',
+
   'run.wtOnly': '仅 WT',
   'run.wtMutant': 'WT + 突变体',
   'run.scan': '位点扫描（19 个突变）',
   'run.scanTitle': '所选位点的全部 19 种氨基酸替换——排序筛选',
+  'run.ensemble': '组合（旋钮）',
+  'run.ensembleTitle':
+    '围绕锚定位点生成 K 个变体：μ 个同步替换、Grantham 谱（τ），敏感性 = 响应的分布',
   'run.reset': '重置',
   'run.profile': '推理配置：',
   'run.profileHint': '应用于下一次运行；切换时会重新加载模型',
@@ -51,9 +75,11 @@ export const zh: Dict = {
   'run.stage.align': '叠合',
   'run.stage.metrics': '指标',
   'run.stage.subs19': '19 个替换',
+  'run.stage.ens': '变体',
   'run.stage.summary': '汇总',
 
   'ws.scanTitle': '位点 {pos} 扫描——全部 19 种替换',
+  'ws.ensembleTitle': '位点 {pos} 组合——突变强度旋钮',
   'ws.overlayResult': '叠合结果',
   'ws.hint':
     '运行「WT + 突变体」后，这里会出现 global + local RMSD（±10 残基）、TM-score 和 pLDDT。' +
@@ -116,6 +142,17 @@ export const zh: Dict = {
     '为正——突变使该区域"更有序"。对稳定蛋白而言，通常在 ±1–2 以内。',
     '在 OmegaFold 中，pLDDT 的下降常常先于真实的结构变化出现——这是一个有用的早期信号。',
   ],
+  'help.ensemble.title': '突变强度旋钮',
+  'help.ensemble': [
+    '这里"效应强度"以**响应的分布**来度量，而不是用眼睛比较两张图。旋钮不是生成一个突变体，' +
+    '而是生成 **K 个变体**：每个变体都在锚定位点带有替换（μ>1 时另加随机位点的背景替换），' +
+    '替换本身按 **Grantham** 矩阵以温度 τ（保守 ↔ 激进）抽取。',
+    '直方图展示所有变体的 local RMSD 与 |ΔpLDDT| 分布；中位数与 IQR 是其概括。' +
+    '等级徽章："安静位点"（两个中位数均 < 1）、"强"（任一 ≥ 2），否则为"中等"。' +
+    '离散度宽度 = local RMSD 的 IQR/中位数。',
+    '**诚实层级：**局部 ΔpLDDT > local RMSD > global RMSD > TM——不用任何虚构的 0–100 评分。' +
+    '位点之间只能在比较集合内按百分位比较：每个窗口都有各自的模型噪声底。',
+  ],
 
   'scan.h.mutation': '突变',
   'scan.h.local': 'local RMSD，Å',
@@ -133,12 +170,49 @@ export const zh: Dict = {
     '点击行可将该突变体结构叠合到 WT 上',
   'scan.xaxis.subst': '替换 {wt} → X',
 
+  'ens.exhaustiveNote': '「全部 19 种替换」模式——「位点扫描」的严格超集（μ=1，K=19）',
+  'ens.seedLabel': '种子',
+  'ens.level.quiet': '安静位点',
+  'ens.level.moderate': '中等敏感性',
+  'ens.level.strong': '强敏感性',
+  'ens.width.label': '离散度',
+  'ens.width.narrow': '离散度小',
+  'ens.width.moderate': '离散度中',
+  'ens.width.wide': '离散度大',
+  'ens.help.q': '旋钮测量什么？',
+  'ens.card.medLocal': 'local RMSD 中位数',
+  'ens.card.iqr': 'IQR {v} Å',
+  'ens.card.medDplddt': '窗口 |ΔpLDDT| 中位数',
+  'ens.card.dplddtUnit': 'pLDDT 点',
+  'ens.card.range': 'local RMSD 范围',
+  'ens.card.k': '变体',
+  'ens.card.spread': 'iqr/median {v}',
+  'ens.hist.localTitle': '组合内 local RMSD 分布',
+  'ens.hist.dplddtTitle': '窗口 |ΔpLDDT| 分布',
+  'ens.hist.xaxisLocal': 'local RMSD，Å',
+  'ens.hist.xaxisDplddt': '窗口 |ΔpLDDT|',
+  'ens.hist.yaxis': '变体数',
+  'ens.h.dplddtLocal': '窗口 ΔpLDDT',
+  'ens.note':
+    '表格按 local RMSD 排序；点击行可将该变体（ens_XX.pdb）叠合到 WT 上；' +
+    'ΔpLDDT 为全蛋白平均，窗口 ΔpLDDT 为锚点 ±10 窗口平均',
+
+  'sens.title': '位点敏感性（同一蛋白的组合）',
+  'sens.h.position': '位置',
+  'sens.h.medLocal': '中位 local RMSD',
+  'sens.h.medDplddt': '中位 |ΔpLDDT|',
+  'sens.h.sensitivity': '敏感性',
+  'sens.note':
+    '仅包含已运行过组合的位点；「敏感性」为比较集合内的百分位（local RMSD 与 |ΔpLDDT| 排名的均值），' +
+    '旁边是原始中位数：每个窗口都有自己的模型噪声底，绝对数值不能直接比较',
+
   'hist.title': '历史',
   'hist.refresh': '刷新',
   'hist.empty': '暂无任务',
   'hist.kind.predict': '预测',
   'hist.kind.mutate': '突变',
   'hist.kind.scan': '扫描',
+  'hist.kind.ensemble': '组合',
   'hist.restoreHint': '点击以恢复结果',
   'hist.noResult': '无结果',
   'hist.error': '错误',
@@ -187,6 +261,9 @@ export const zh: Dict = {
     '输入序列或运行任务——坐标轴上会出现序列、pLDDT、突变位点和扫描结果。',
   'pv.plddtNoData': '无数据——请运行「WT + 突变体」',
   'pv.scanNoData': '无数据——请运行「位点扫描」',
+  'pv.variantsNoData': '无数据——请运行「组合」',
+  'pv.variantsHeat': '组合：平均 |ΔpLDDT| {v}',
+  'pv.ensAnchor': '组合锚定位点',
   'pv.uniprotPlaceholder': 'UniProt 注释——阶段 1.3',
   'pv.pos': '位置 {pos}：{aa}',
   'pv.mutation': '突变 {m}',
@@ -198,5 +275,5 @@ export const zh: Dict = {
   'track.mutation': '突变',
   'track.scan': '位点扫描（19 替换）',
   'track.domains': 'UniProt 结构域',
-  'track.variants': '已知变异',
+  'track.variants': '敏感性（组合）',
 }

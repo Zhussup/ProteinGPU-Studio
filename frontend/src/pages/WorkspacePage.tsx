@@ -4,17 +4,21 @@ import { api } from '../lib/api'
 import { useJob } from '../lib/useJob'
 import { useI18n } from '../i18n'
 import type {
-  GpuInfo, InferenceProfile, JobSummary, MutationResult, Preset, ScanResult,
+  EnsembleResult, GpuInfo, InferenceProfile, JobSummary, MutationResult,
+  Preset, ScanResult,
 } from '../lib/types'
 import SequenceInput, { stripFasta } from '../components/SequenceInput'
 import MutationPicker from '../components/MutationPicker'
+import MutagenesisDial from '../components/MutagenesisDial'
 import RunPanel from '../components/RunPanel'
 import ResultTabs from '../components/ResultTabs'
 import ScanPanel from '../components/ScanPanel'
+import EnsemblePanel from '../components/EnsemblePanel'
 import MoleculeViewer from '../components/MoleculeViewer'
 import ProteinViewer from '../components/ProteinViewer'
 import HistoryPanel from '../components/HistoryPanel'
 import MutationsCompare from '../components/MutationsCompare'
+import SensitivityCompare from '../components/SensitivityCompare'
 
 const LIMITS = { min: 10, max: 600 }
 
@@ -28,6 +32,15 @@ export default function WorkspacePage() {
   const [gpu, setGpu] = useState<GpuInfo | null>(null)
   const [result, setResult] = useState<MutationResult | null>(null)
   const [scanResult, setScanResult] = useState<ScanResult | null>(null)
+  const [ensembleResult, setEnsembleResult] = useState<EnsembleResult | null>(null)
+  const [pickedEnsIdx, setPickedEnsIdx] = useState<number | null>(null)
+  // the mutagenesis dial (dum.md §2): μ = simultaneous substitutions, τ = the
+  // Grantham spectrum temperature, K = ensemble size; exhaustive = all 19 subs
+  const [dialExhaustive, setDialExhaustive] = useState(false)
+  const [dialMu, setDialMu] = useState(1)
+  const [dialTau, setDialTau] = useState(0.5)
+  const [dialK, setDialK] = useState(20)
+  const [dialSeed, setDialSeed] = useState<number | null>(null)
   const [wtPdb, setWtPdb] = useState<string | null>(null)
   const [mutPdb, setMutPdb] = useState<string | null>(null)
   const [history, setHistory] = useState<JobSummary[]>([])
@@ -76,24 +89,49 @@ export default function WorkspacePage() {
         setScanResult(res)
         setMutPdb(await api.pdb(jobId, `scan_${res.best}.pdb`))
         setResultJob({ id: jobId, kind })
+      } else if (kind === 'ensemble') {
+        const res = await api.result(jobId) as unknown as EnsembleResult
+        setEnsembleResult(res)
+        setPickedEnsIdx(0)
+        if (res.variants[0]) {
+          setMutPdb(await api.pdb(jobId, res.variants[0].pdb_file as `ens_${string}.pdb`))
+        }
+        setResultJob({ id: jobId, kind })
       }
       setWtPdb(await api.pdb(jobId, 'wt.pdb'))
     } catch { /* files may be missing for predict-only runs */ }
   }, [])
 
   const runPredict = () => {
-    setResult(null); setMutPdb(null); setScanResult(null); setResultJob(null)
+    setResult(null); setMutPdb(null); setScanResult(null)
+    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
     job.run(() => api.submitPredict(seq, profile === 'auto' ? undefined : profile))
   }
 
   const runMutate = () => {
-    setResult(null); setScanResult(null); setResultJob(null)
+    setResult(null); setScanResult(null)
+    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
     job.run(() => api.submitMutate(seq, position, mutantAA, profile === 'auto' ? undefined : profile))
   }
 
   const runScan = () => {
-    setResult(null); setScanResult(null); setMutPdb(null); setResultJob(null)
+    setResult(null); setScanResult(null); setMutPdb(null)
+    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
     job.run(() => api.submitScan(seq, position, profile === 'auto' ? undefined : profile))
+  }
+
+  const runEnsemble = () => {
+    setResult(null); setScanResult(null); setMutPdb(null)
+    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
+    const mode = dialExhaustive ? 'exhaustive' as const : 'sampled' as const
+    job.run(() => api.submitEnsemble(
+      seq, position, mode,
+      dialExhaustive ? 1 : dialMu,
+      dialTau,
+      dialExhaustive ? 19 : dialK,
+      dialSeed,
+      profile === 'auto' ? undefined : profile,
+    ))
   }
 
   // poll completion: fetch artifacts once done, refresh history
@@ -115,6 +153,20 @@ export default function WorkspacePage() {
     } catch { /* artifact may be gone */ }
   }, [job.status?.job_id, scanResult?.position, position])
 
+  // show an ensemble variant's overlay in the viewer (ens_XX.pdb, aligned to WT)
+  const pickEnsembleRow = useCallback(async (i: number) => {
+    // resultJob covers restored jobs too (job.status only knows the current run)
+    const jobId = resultJob?.id ?? job.status?.job_id
+    const res = ensembleResult
+    const row = res?.variants[i]
+    if (!jobId || !row) return
+    try {
+      setMutPdb(await api.pdb(jobId, row.pdb_file as `ens_${string}.pdb`))
+      setPickedEnsIdx(i)
+      setPosition(res!.position)
+    } catch { /* artifact may be gone */ }
+  }, [resultJob, job.status?.job_id, ensembleResult])
+
   // restore a past job: sequence + mutation back into inputs, artifacts into viewer
   const restore = useCallback(async (j: JobSummary) => {
     if (j.sequence) setInput(j.sequence)
@@ -123,6 +175,8 @@ export default function WorkspacePage() {
     setResult(null)
     setMutPdb(null)
     setScanResult(null)
+    setEnsembleResult(null)
+    setPickedEnsIdx(null)
     try {
       if (j.kind === 'mutate') {
         setResult(await api.result(j.job_id) as unknown as MutationResult)
@@ -133,6 +187,22 @@ export default function WorkspacePage() {
         setScanResult(res)
         setMutPdb(await api.pdb(j.job_id, `scan_${res.best}.pdb`))
         setResultJob({ id: j.job_id, kind: j.kind })
+      } else if (j.kind === 'ensemble') {
+        const res = await api.result(j.job_id) as unknown as EnsembleResult
+        setEnsembleResult(res)
+        setPickedEnsIdx(0)
+        if (res.variants[0]) {
+          setMutPdb(await api.pdb(j.job_id, res.variants[0].pdb_file as `ens_${string}.pdb`))
+        }
+        // the dial reads back the configuration that produced this ensemble;
+        // the seed needs no field — the derived seed reproduces from the config
+        // (an explicit override is cleared, it would otherwise leak into reruns)
+        if (j.mode) setDialExhaustive(j.mode === 'exhaustive')
+        if (j.mu) setDialMu(j.mu)
+        if (typeof j.tau === 'number') setDialTau(j.tau)
+        if (j.k) setDialK(j.k)
+        setDialSeed(null)
+        setResultJob({ id: j.job_id, kind: j.kind })
       }
       setWtPdb(await api.pdb(j.job_id, 'wt.pdb'))
     } catch { /* artifacts may be gone */ }
@@ -140,16 +210,24 @@ export default function WorkspacePage() {
 
   // language switch → backend texts (summary) arrive in the new language
   useEffect(() => {
-    if (!resultJob || (resultJob.kind !== 'mutate' && resultJob.kind !== 'scan')) return
+    if (!resultJob) return
+    const kind = resultJob.kind
+    if (kind !== 'mutate' && kind !== 'scan' && kind !== 'ensemble') return
     let live = true
     api.result(resultJob.id).then((res) => {
       if (!live) return
-      if (resultJob.kind === 'mutate') {
+      if (kind === 'mutate') {
         setResult(res as unknown as MutationResult)
         setScanResult(null)
-      } else {
+        setEnsembleResult(null)
+      } else if (kind === 'scan') {
         setScanResult(res as unknown as ScanResult)
         setResult(null)
+        setEnsembleResult(null)
+      } else {
+        setEnsembleResult(res as unknown as EnsembleResult)
+        setResult(null)
+        setScanResult(null)
       }
     }).catch(() => { /* job artifacts may be gone */ })
     return () => { live = false }
@@ -167,6 +245,20 @@ export default function WorkspacePage() {
           presets={presets}
           onApplyPreset={applyPreset}
         />
+        <MutagenesisDial
+          seqLen={seq.length}
+          profile={profile}
+          exhaustive={dialExhaustive}
+          mu={dialMu}
+          tau={dialTau}
+          k={dialExhaustive ? 19 : dialK}
+          seed={dialSeed}
+          onExhaustive={setDialExhaustive}
+          onMu={setDialMu}
+          onTau={setDialTau}
+          onK={setDialK}
+          onSeed={setDialSeed}
+        />
         <RunPanel
           canRun={canRun}
           running={!!job.running}
@@ -178,7 +270,11 @@ export default function WorkspacePage() {
           onRunPredict={runPredict}
           onRunMutate={runMutate}
           onRunScan={runScan}
-          onReset={() => { setResult(null); setWtPdb(null); setMutPdb(null); setScanResult(null); setResultJob(null) }}
+          onRunEnsemble={runEnsemble}
+          onReset={() => {
+            setResult(null); setWtPdb(null); setMutPdb(null); setScanResult(null)
+            setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
+          }}
         />
         <HistoryPanel
           jobs={history}
@@ -202,6 +298,7 @@ export default function WorkspacePage() {
           plddtWt={result?.plddt_wt_list ?? null}
           result={result}
           scan={scanResult}
+          ensemble={ensembleResult}
         />
         {scanResult ? (
           <div className="panel p-4">
@@ -209,6 +306,17 @@ export default function WorkspacePage() {
               {t('ws.scanTitle', { pos: scanResult.position })}
             </h3>
             <ScanPanel result={scanResult} onPickRow={(aa) => void pickScanRow(aa)} />
+          </div>
+        ) : ensembleResult ? (
+          <div className="panel p-4">
+            <h3 className="mb-3 text-sm font-medium text-neutral-900">
+              {t('ws.ensembleTitle', { pos: ensembleResult.position })}
+            </h3>
+            <EnsemblePanel
+              result={ensembleResult}
+              onPickRow={(i) => void pickEnsembleRow(i)}
+              pickedIndex={pickedEnsIdx}
+            />
           </div>
         ) : result?.rmsd ? (
           <div className="panel p-4" data-demo="metrics">
@@ -221,6 +329,7 @@ export default function WorkspacePage() {
           </div>
         )}
         <MutationsCompare jobs={history} wtSequence={seqOk ? seq : ''} />
+        <SensitivityCompare jobs={history} wtSequence={seqOk ? seq : ''} />
       </div>
     </div>
   )
