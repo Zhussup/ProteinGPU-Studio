@@ -52,6 +52,8 @@ the actual backend pipeline stages, and the demo above is a full live run.
 - **Honest job pipeline** — per-stage progress from the real backend (including "waiting for GPU slot"), job history in SQLite
 - **RU / EN / 中文 interface** — the switch covers backend-generated texts too (summaries, presets, stage messages)
 
+![The same run in the Chinese interface — dial, protein browser, job history, cross-mutation table](docs/assets/demo_zh.gif)
+
 ## Benchmarks
 
 Measured on the machine this project was built on: **RTX 3050 Laptop 6 GB at a 60 W
