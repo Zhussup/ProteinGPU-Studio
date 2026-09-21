@@ -103,3 +103,17 @@ TRANS_ERRORS: dict[str, dict[str, str]] = {
         "too_long": "序列过长，无法翻译：{n} nt（上限 60000）",
     },
 }
+
+
+# -- inline 422 validations surfaced in the run error box (predict router) ------
+VALIDATION: dict[str, dict[str, str]] = {
+    "ru": {
+        "same_residue": "мутантный остаток совпадает с остатком WT в этой позиции",
+    },
+    "en": {
+        "same_residue": "mutant residue equals WT residue at that position",
+    },
+    "zh": {
+        "same_residue": "突变残基与该位置的 WT 残基相同",
+    },
+}

@@ -27,7 +27,7 @@ export default function BenchmarksPage() {
     for (;;) {
       const s = await api.job(jobId)
       if (s.status === 'done') return
-      if (s.status === 'error') throw new Error(s.error ?? 'job failed')
+      if (s.status === 'error') throw new Error(s.error ?? t('run.jobFailed'))
       await new Promise((r) => setTimeout(r, 1000))
     }
   }

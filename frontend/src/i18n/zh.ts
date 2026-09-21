@@ -43,6 +43,8 @@ export const zh: Dict = {
   'dial.estimateLabel': '耗时估计：',
   'dial.estimateInstant': '< 1 秒（dummy）',
   'dial.estimateWarn': '耗时较长——请减小 K、改用 fp16 或缩短组合',
+  'dial.unit.sec': '秒',
+  'dial.unit.min': '分钟',
   'dial.granthamNote':
     '替换按 Grantham 矩阵（理化距离，Grantham 1974）抽取：τ=0——仅保守半区，' +
     'τ=1——仅激进半区，τ=0.5——全部 19 种均匀抽取',
@@ -63,6 +65,7 @@ export const zh: Dict = {
   'run.profile.cpu': 'CPU',
   'run.dummy': 'dummy（测试）',
   'run.queued': '排队中…',
+  'run.jobFailed': '任务出错',
   'run.running': '运行中…',
   'run.gpu': 'GPU：{name}',
   'run.cpuOnly': '仅 CPU：{reason}',
@@ -89,6 +92,8 @@ export const zh: Dict = {
     '请以突变之间的 local RMSD 相对比较为准，而不是绝对阈值。',
 
   'res.verdict': '判定',
+  'res.plddtWt': 'pLDDT（WT）',
+  'res.plddtMut': 'pLDDT（突变体）',
   'res.alignEngine': '对齐引擎',
   'res.plddtProfile': '逐残基 pLDDT 曲线',
   'res.plddtNote':

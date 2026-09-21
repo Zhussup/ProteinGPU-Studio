@@ -65,7 +65,7 @@ export default function ResultTabs({ result }: { result: MutationResult | null }
       )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric label="Global RMSD" value={`${r.global_rmsd.toFixed(2)} Å`} help="global" onHelp={setHelp} helpTitle={t('res.help.q')} />
+        <Metric label={t('help.global.title')} value={`${r.global_rmsd.toFixed(2)} Å`} help="global" onHelp={setHelp} helpTitle={t('res.help.q')} />
         <Metric
           label={t('res.localRmsd', { a: r.local_window[0], b: r.local_window[1] })}
           value={`${r.local_rmsd.toFixed(2)} Å`}
@@ -73,7 +73,7 @@ export default function ResultTabs({ result }: { result: MutationResult | null }
           onHelp={setHelp}
           helpTitle={t('res.help.q')}
         />
-        <Metric label="TM-score" value={r.tm_score.toFixed(3)} help="tm" onHelp={setHelp} helpTitle={t('res.help.q')} />
+        <Metric label={t('help.tm.title')} value={r.tm_score.toFixed(3)} help="tm" onHelp={setHelp} helpTitle={t('res.help.q')} />
         <div className="border border-neutral-200 bg-white p-3">
           <div className="text-[11px] text-neutral-500">
             {t('res.verdict')} <QuestionMark topic="local" onOpen={setHelp} title={t('res.help.q')} />
@@ -85,9 +85,9 @@ export default function ResultTabs({ result }: { result: MutationResult | null }
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-xs text-neutral-600 lg:grid-cols-4">
-        <MetricSmall label="pLDDT WT" value={r.plddt_wt.toFixed(1)} help="plddt" onHelp={setHelp} helpTitle={t('res.help.q')} />
-        <MetricSmall label="pLDDT mut" value={r.plddt_mut.toFixed(1)} help="plddt" onHelp={setHelp} helpTitle={t('res.help.q')} />
-        <MetricSmall label="ΔpLDDT" value={(r.plddt_mut - r.plddt_wt).toFixed(1)} help="dplddt" onHelp={setHelp} helpTitle={t('res.help.q')} />
+        <MetricSmall label={t('res.plddtWt')} value={r.plddt_wt.toFixed(1)} help="plddt" onHelp={setHelp} helpTitle={t('res.help.q')} />
+        <MetricSmall label={t('res.plddtMut')} value={r.plddt_mut.toFixed(1)} help="plddt" onHelp={setHelp} helpTitle={t('res.help.q')} />
+        <MetricSmall label={t('help.dplddt.title')} value={(r.plddt_mut - r.plddt_wt).toFixed(1)} help="dplddt" onHelp={setHelp} helpTitle={t('res.help.q')} />
         <MetricSmall label={t('res.alignEngine')} value={r.engine} />
       </div>
 
@@ -118,11 +118,11 @@ export default function ResultTabs({ result }: { result: MutationResult | null }
         <summary className="cursor-pointer text-neutral-600">{t('res.sequences')}</summary>
         <div className="mono mt-2 space-y-2 break-all">
           <div>
-            <span className="text-neutral-500">WT </span>
+            <span className="text-neutral-500">{t('run.stage.wt')} </span>
             <span className="text-neutral-800">{result.wt_sequence}</span>
           </div>
           <div>
-            <span className="text-neutral-500">MUT </span>
+            <span className="text-neutral-500">{t('run.stage.mutant')} </span>
             <span className="text-neutral-800">
               {result.mutant_sequence.slice(0, result.position - 1)}
               <b className="bg-red-700 px-0.5 text-white">{result.mutant_sequence[result.position - 1]}</b>

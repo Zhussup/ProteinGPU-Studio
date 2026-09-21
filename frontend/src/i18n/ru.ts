@@ -45,6 +45,8 @@ export const ru = {
   'dial.estimateLabel': 'оценка времени:',
   'dial.estimateInstant': '< 1 с (dummy)',
   'dial.estimateWarn': 'долго — уменьшите K, возьмите fp16 или укоротите ансамбль',
+  'dial.unit.sec': 'с',
+  'dial.unit.min': 'мин',
   'dial.granthamNote':
     'замены выбираются по матрице Грэнтэма (физико-химическая дистанция, Grantham 1974): ' +
     'τ=0 — только консервативные половины, τ=1 — только радикальные, τ=0.5 — равномерно по всем 19',
@@ -67,6 +69,7 @@ export const ru = {
   'run.profile.cpu': 'CPU',
   'run.dummy': 'dummy (тест)',
   'run.queued': 'в очереди…',
+  'run.jobFailed': 'задача завершилась с ошибкой',
   'run.running': 'выполняется…',
   'run.gpu': 'GPU: {name}',
   'run.cpuOnly': 'CPU-only: {reason}',
@@ -94,6 +97,8 @@ export const ru = {
     'Ориентируйтесь на сравнение локального RMSD между мутациями, а не на абсолютные пороги.',
 
   'res.verdict': 'Вердикт',
+  'res.plddtWt': 'pLDDT WT',
+  'res.plddtMut': 'pLDDT мутанта',
   'res.alignEngine': 'Движок выравнивания',
   'res.plddtProfile': 'pLDDT-профиль по остаткам',
   'res.plddtNote':

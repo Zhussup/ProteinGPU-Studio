@@ -26,7 +26,7 @@ from ..services.mutagenesis import (  # noqa: E402
     mutation_label, sample_variants, sensitivity_headline,
 )
 from ..services.pdb_io import parse_ca_coords  # noqa: E402
-from ..services.strings import norm_lang, stage_text  # noqa: E402
+from ..services.strings import VALIDATION, norm_lang, stage_text  # noqa: E402
 
 router = APIRouter(prefix="/api/v1", tags=["folding"])
 
@@ -96,7 +96,7 @@ def _gpu_needed() -> bool:
 def mutate(req: MutateRequest, lang: str = "ru") -> MutationResult:
     seq = req.sequence
     if seq[req.position - 1] == req.mutant_aa:
-        raise HTTPException(422, "mutant residue equals WT residue at that position")
+        raise HTTPException(422, VALIDATION[norm_lang(lang)]["same_residue"])
     job_id = _jm().submit(
         kind="mutate",
         params={"sequence": seq, "position": req.position,

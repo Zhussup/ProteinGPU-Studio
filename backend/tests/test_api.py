@@ -78,10 +78,14 @@ class TestValidation:
         assert "out of range" in r.json()["detail"][0]["msg"]
 
     def test_mutant_equals_wt(self):
-        r = client.post("/api/v1/mutate", json={
-            "sequence": UBIQ, "position": 44, "mutant_aa": "I"})
-        assert r.status_code == 422
-        assert "equals WT" in r.json()["detail"]
+        # 422 detail follows the ?lang= UI language (ru is the default)
+        for lang, needle in (("ru", "совпадает с остатком WT"),
+                             ("en", "equals WT"),
+                             ("zh", "突变残基")):
+            r = client.post(f"/api/v1/mutate?lang={lang}", json={
+                "sequence": UBIQ, "position": 44, "mutant_aa": "I"})
+            assert r.status_code == 422
+            assert needle in r.json()["detail"]
 
 
 class TestPredictJob:

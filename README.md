@@ -29,6 +29,11 @@ fp16-GPU) is benchmarked with median + IQR on a 60 W laptop GPU, and the alignme
 kernel exists in three implementations (NumPy, C++17 OpenMP, CUDA) so you can see
 where the time really goes.
 
+Beyond the single-mutant picture, a **mutagenesis-strength dial** generates
+ensembles of variants around one position and measures the position's sensitivity
+as the **distribution of structural responses** — statistics and histograms, not an
+eyeball comparison of two pictures.
+
 Everything on screen is real: no fake progress bars, no dummy models — the UI shows
 the actual backend pipeline stages, and the demo above is a full live run.
 
@@ -38,10 +43,14 @@ the actual backend pipeline stages, and the demo above is a full live run.
 - **WT vs MUT analysis** — Kabsch-aligned RMSD (global + local window), TM-score, pLDDT WT/mut/Δ, alignment verdict
 - **C++17 / CUDA HPC core** — batched Kabsch + RMSD kernel behind PyBind11, with PCIe-copy vs device-resident paths measured separately
 - **Saturation scan** — all 19 substitutions at one position, ranked table + chart
+- **Mutagenesis strength dial** — ensembles of K variants around one anchor position: μ simultaneous substitutions per variant (anchor + background sites), each substitution drawn from the **Grantham matrix** with temperature τ (conservative ↔ radical). Sensitivity = the **distribution of responses** across the ensemble: median + IQR, histograms of local RMSD and window ΔpLDDT, level/spread badges — no invented 0–100 score. The exhaustive mode ("all 19 substitutions") reproduces the saturation scan exactly — same targets, same artifacts
+- **Protein browser** — a 2D track view over the sequence: per-residue pLDDT, mutation site, scan results and the ensemble sensitivity heat strip (mean |ΔpLDDT| per residue); ±50-residue window mode, minimap, per-residue tooltips
 - **Per-residue pLDDT chart** — WT vs mutant, hoverable
+- **Cross-run comparison** — two tables built from job history on the same protein: mutations ranked by local RMSD; positions compared by percentiles within the compared set, since every window has its own model noise floor
 - **Research presets** — KRAS G12D, p53 R82H, HbB E6V, lysozyme I56T, Trp-cage W6F, Aβ42 E22G, α-syn A53T, GFP S65T
 - **DNA FASTA input** — upload a gene, get the codon→amino-acid translation window
 - **Honest job pipeline** — per-stage progress from the real backend (including "waiting for GPU slot"), job history in SQLite
+- **RU / EN / 中文 interface** — the switch covers backend-generated texts too (summaries, presets, stage messages)
 
 ## Benchmarks
 
@@ -83,7 +92,8 @@ uvicorn backend.app.main:app --port 8077
 cd frontend && npm install && npm run dev
 ```
 
-Open the frontend, pick a preset or paste a FASTA, run WT + mutant.
+Open the frontend, pick a preset or paste a FASTA, then run WT + mutant, a position
+scan or a strength-dial ensemble.
 Full pipeline check: `python scripts/e2e_smoke.py` (ubiquitin + I44A/I3L/P19G).
 
 ## Architecture
@@ -103,7 +113,7 @@ Full pipeline check: `python scripts/e2e_smoke.py` (ubiquitin + I44A/I3L/P19G).
 - `ml/` — folding-model wrappers + CPU/GPU-fp32/fp16 profiles
 - `hpc_core/` — C++17 + CUDA kernel: Kabsch, RMSD, PyBind11 bindings
 - `frontend/` — Vite + React + TypeScript, 3Dmol.js + Plotly.js
-- `scripts/` — environment setup, spike tests, benchmarks, demo recorder
+- `scripts/` — environment setup, spike tests, benchmarks, report figures + presentation generator, demo recorder
 
 The demo GIF is recorded by a Playwright script that drives the real UI end-to-end
 on a real GPU run (`scripts/20_demo_video.py`) — including a check that the recorded

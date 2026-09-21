@@ -3,7 +3,7 @@
 // variant (anchor + background), τ — the Grantham spectrum temperature
 // (conservative ↔ radical), K — ensemble size. Plus a runtime estimate so
 // "the dial" never launches a silent half-hour GPU job.
-import { useI18n } from '../i18n'
+import { useI18n, type TFn } from '../i18n'
 import type { InferenceProfile } from '../lib/types'
 
 export interface MutagenesisDialProps {
@@ -27,10 +27,10 @@ const BASE_S: Record<InferenceProfile, number> = {
   auto: 11.59, 'fp32-gpu': 11.59, 'fp16-gpu': 8.72, cpu: 143.5, dummy: 0.05,
 }
 
-function fmtSeconds(s: number): string {
-  if (s < 90) return `${Math.max(1, Math.round(s))} с`
+function fmtSeconds(t: TFn, s: number): string {
+  if (s < 90) return `${Math.max(1, Math.round(s))} ${t('dial.unit.sec')}`
   const m = Math.round(s / 60)
-  return `${m} мин`
+  return `${m} ${t('dial.unit.min')}`
 }
 
 export default function MutagenesisDial({
@@ -146,7 +146,7 @@ export default function MutagenesisDial({
       <div className="border border-neutral-200 bg-neutral-50 px-3 py-2 text-[11px] text-neutral-600">
         <span className="text-neutral-400">{t('dial.estimateLabel')}</span>{' '}
         <span className={`mono ${long ? 'text-red-700' : 'text-neutral-900'}`}>
-          ≈ {profile === 'dummy' ? t('dial.estimateInstant') : fmtSeconds(estS)}
+          ≈ {profile === 'dummy' ? t('dial.estimateInstant') : fmtSeconds(t, estS)}
         </span>
         {long && <div className="mt-0.5 text-red-700">{t('dial.estimateWarn')}</div>}
       </div>

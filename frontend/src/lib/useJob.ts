@@ -1,9 +1,11 @@
 // useJob: poll a backend job until done/error. Returns live status + result.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api'
+import { useI18n } from '../i18n'
 import type { JobStatus } from './types'
 
 export function useJob() {
+  const { t } = useI18n()
   const [status, setStatus] = useState<JobStatus | null>(null)
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -37,7 +39,7 @@ export function useJob() {
                 return
               }
               if (s.status === 'error') {
-                setError(s.error ?? 'job failed')
+                setError(s.error ?? t('run.jobFailed'))
                 return
               }
               timer.current = setTimeout(poll, 700)
@@ -49,7 +51,7 @@ export function useJob() {
         })
         .catch((e) => setError(String(e)))
     },
-    [stop],
+    [stop, t],
   )
 
   return { status, result, error, run, running: status?.status === 'running' || status?.status === 'queued' }

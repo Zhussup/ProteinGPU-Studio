@@ -44,6 +44,8 @@ export const en: Dict = {
   'dial.estimateLabel': 'runtime estimate:',
   'dial.estimateInstant': '< 1 s (dummy)',
   'dial.estimateWarn': 'long — reduce K, switch to fp16, or shorten the ensemble',
+  'dial.unit.sec': 's',
+  'dial.unit.min': 'min',
   'dial.granthamNote':
     'substitutions are drawn via the Grantham matrix (physico-chemical distance, Grantham 1974): ' +
     'τ=0 — conservative halves only, τ=1 — radical only, τ=0.5 — uniformly over all 19',
@@ -66,6 +68,7 @@ export const en: Dict = {
   'run.profile.cpu': 'CPU',
   'run.dummy': 'dummy (test)',
   'run.queued': 'queued…',
+  'run.jobFailed': 'job failed',
   'run.running': 'running…',
   'run.gpu': 'GPU: {name}',
   'run.cpuOnly': 'CPU-only: {reason}',
@@ -94,6 +97,8 @@ export const en: Dict = {
     'Compare the local RMSD between mutations rather than against absolute thresholds.',
 
   'res.verdict': 'Verdict',
+  'res.plddtWt': 'pLDDT WT',
+  'res.plddtMut': 'pLDDT mut',
   'res.alignEngine': 'Alignment engine',
   'res.plddtProfile': 'Per-residue pLDDT profile',
   'res.plddtNote':

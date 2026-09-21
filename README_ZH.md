@@ -28,6 +28,9 @@ TM-score，以及每条链的 pLDDT。推理栈（CPU / fp32-GPU / fp16-GPU）�
 功耗墙的笔记本 GPU 上做基准测试，统计方式为中位数 + 四分位距（IQR）；比对核
 心有三种实现（NumPy、C++17 OpenMP、CUDA），让你看清时间到底花在了哪里。
 
+在单一突变体的图景之外，**突变强度旋钮**围绕一个位点生成变体组合，并以**结构响应
+的分布**来度量位点的敏感性——用统计量与直方图说话，而不是两张图的目视比较。
+
 屏幕上的一切都是真实的：没有伪造的进度条，没有占位模型 —— UI 显示的是后端
 流水线的真实阶段，上面的演示 GIF 就是一次完整的真实运行。
 
@@ -37,10 +40,14 @@ TM-score，以及每条链的 pLDDT。推理栈（CPU / fp32-GPU / fp16-GPU）�
 - **WT 与突变体对比分析** —— Kabsch 对齐的 RMSD（全局 + 局部窗口）、TM-score、pLDDT WT/mut/Δ、比对结论
 - **C++17 / CUDA 高性能核心** —— 经 PyBind11 暴露的批量 Kabsch + RMSD 核函数；PCIe 拷贝路径与数据驻留设备路径分开计时
 - **饱和突变扫描** —— 同一位点的全部 19 种替换，排序表格 + 图表
+- **突变强度旋钮** —— 围绕一个锚定位点生成 K 个变体的组合：每个变体含 μ 个同步替换（锚点 + 背景位点），替换按 **Grantham 矩阵**以温度 τ（保守 ↔ 激进）抽取。敏感性 = 组合内**响应的分布**：中位数 + IQR、local RMSD 与窗口 ΔpLDDT 的直方图、等级/离散度徽章——不用任何虚构的 0–100 评分。「全部 19 种替换」exhaustive 模式精确复现饱和扫描——相同目标、相同产物
+- **蛋白浏览器** —— 沿序列的 2D 轨道视图：逐残基 pLDDT、突变位点、扫描结果以及组合敏感性热图条（每残基平均 |ΔpLDDT|）；±50 残基窗口模式、缩略导航图、逐残基悬停提示
 - **逐残基 pLDDT 曲线** —— WT 与突变体对比，支持悬停查看
+- **跨运行对比** —— 基于同一蛋白任务历史的两张表：突变按 local RMSD 排序；位点之间按比较集合内的百分位比较——每个窗口都有各自的模型噪声底
 - **科研预设** —— KRAS G12D、p53 R82H、HbB E6V、溶菌酶 I56T、Trp-cage W6F、Aβ42 E22G、α-突触核蛋白 A53T、GFP S65T
 - **DNA FASTA 输入** —— 上传基因序列，展示密码子→氨基酸翻译窗口
 - **诚实的任务流水线** —— 进度条反映后端真实阶段（包括"等待 GPU 时隙"），任务历史存于 SQLite
+- **RU / EN / 中文界面** —— 切换同样覆盖后端生成的文本（汇总、预设、阶段消息）
 
 ## 基准测试
 
@@ -82,7 +89,7 @@ uvicorn backend.app.main:app --port 8077
 cd frontend && npm install && npm run dev
 ```
 
-打开前端，选择预设或粘贴 FASTA，运行 WT + 突变体。
+打开前端，选择预设或粘贴 FASTA，然后运行 WT + 突变体、位点扫描或强度旋钮组合。
 完整流水线自检：`python scripts/e2e_smoke.py`（泛素 + I44A/I3L/P19G）。
 
 ## 架构
@@ -102,7 +109,7 @@ cd frontend && npm install && npm run dev
 - `ml/` —— 折叠模型封装 + CPU/GPU-fp32/fp16 配置
 - `hpc_core/` —— C++17 + CUDA 核心：Kabsch、RMSD、PyBind11 绑定
 - `frontend/` —— Vite + React + TypeScript，3Dmol.js + Plotly.js
-- `scripts/` —— 环境安装、spike 测试、基准测试、演示录制
+- `scripts/` —— 环境安装、spike 测试、基准测试、报告图表与演示文稿生成、演示录制
 
 演示 GIF 由 Playwright 脚本录制：脚本驱动真实 UI 在真实 GPU 上完整跑通一次
 （`scripts/20_demo_video.py`）——其中还包含一项校验，确保录制的任务运行的是
