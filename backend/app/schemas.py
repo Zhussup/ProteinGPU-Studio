@@ -120,6 +120,90 @@ class ScanResponse(BaseModel):
     length: int
 
 
+class EnsembleRequest(BaseModel):
+    """Mutagenesis-strength ensemble (dum.md): K variants sampled by (mu, tau)
+    at one anchor position — the position's sensitivity is the DISTRIBUTION of
+    structural responses across the variants. mode="exhaustive" folds all 19
+    single substitutions (mu=1) — the /scan workload, kept for the lossless
+    migration: its rows/ranking/artifacts are a superset of the scan's."""
+    sequence: str = Field(min_length=10, max_length=600)
+    position: int = Field(ge=1)
+    mode: Literal["sampled", "exhaustive"] = "sampled"
+    mu: int = Field(default=1, ge=1, le=3)           # substitutions per variant
+    tau: float = Field(default=0.5, ge=0.0, le=1.0)  # Grantham spectrum temperature
+    k: int = Field(default=20, ge=2, le=40)          # ensemble size (exhaustive ignores)
+    seed: int | None = None  # None → deterministic derived seed from the config
+    profile: Profile | None = None
+
+    @field_validator("sequence")
+    @classmethod
+    def _check(cls, v: str) -> str:
+        s = "".join(v.split()).upper()
+        if not AA_RE.fullmatch(s):
+            raise ValueError("sequence must contain only standard amino acids")
+        return s
+
+    @model_validator(mode="after")
+    def _normalize(self):
+        if self.position > len(self.sequence):
+            raise ValueError(
+                f"position {self.position} out of range 1..{len(self.sequence)}")
+        if self.mode == "exhaustive":
+            # exhaustive is mu=1 over all 19 substitutions, always
+            self.mu = 1
+            self.k = 19
+        return self
+
+
+class EnsembleMutation(BaseModel):
+    position: int
+    wt_aa: str
+    mut_aa: str
+
+
+class EnsembleRow(BaseModel):
+    label: str                          # "I44A" | "I44A+L3M"
+    mutations: list[EnsembleMutation]   # the anchor is always included
+    mut_aa: str | None = None           # iff a single substitution (ScanRow parity)
+    local_rmsd: float
+    global_rmsd: float
+    tm_score: float
+    plddt_mut: float
+    dplddt: float        # plddt_mut - plddt_wt, structure means (ScanRow parity)
+    dplddt_local: float  # mean ΔpLDDT over the anchor window — the honest metric
+    engine: str
+    interpretation: Literal["stable", "moderate", "critical"]
+    pdb_file: str        # "ens_XX.pdb", pre-aligned to the WT frame
+
+
+class StatsBlock(BaseModel):
+    mean: float
+    std: float
+    median: float
+    iqr: float
+    min: float
+    max: float
+
+
+class EnsembleHeadline(BaseModel):
+    level: Literal["quiet", "moderate", "strong"]
+    width: Literal["narrow", "moderate", "wide"]
+    iqr_ratio: float
+    median_local_rmsd: float
+    median_abs_dplddt_local: float
+
+
+class EnsembleResponse(BaseModel):
+    job_id: str
+    status: str
+    length: int
+    wt_aa: str
+    mode: str
+    mu: int
+    tau: float
+    k: int
+
+
 class BenchmarkProfileRow(BaseModel):
     profile: str
     length: int
@@ -144,7 +228,7 @@ class BenchmarkResponse(BaseModel):
 
 class JobStatus(BaseModel):
     job_id: str
-    kind: str  # predict | mutate | benchmark
+    kind: str  # predict | mutate | scan | ensemble | benchmark
     status: Literal["queued", "running", "done", "error"]
     progress: float = 0.0
     message: str | None = None

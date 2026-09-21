@@ -1,5 +1,6 @@
 // Modal: strict square dialog (backdrop + bordered panel). No frills.
 import { type ReactNode, useEffect } from 'react'
+import { useI18n } from '../i18n'
 
 export interface ModalProps {
   title: string
@@ -9,6 +10,7 @@ export interface ModalProps {
 }
 
 export default function Modal({ title, onClose, children, wide }: ModalProps) {
+  const { t } = useI18n()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -29,7 +31,7 @@ export default function Modal({ title, onClose, children, wide }: ModalProps) {
           <button
             onClick={onClose}
             className="px-2 text-lg leading-none text-neutral-500 hover:text-neutral-900"
-            aria-label="закрыть"
+            aria-label={t('common.close')}
           >
             ×
           </button>

@@ -27,6 +27,22 @@ dist/
 .DS_Store
 __pycache__/
 *.db
+*.sqlite3
 data/jobs/
 backend/tests/_testdata_scan/
 data/jobs.db*
+
+# Demo recordings (the README GIF lives in docs/assets/, raw takes stay local)
+data/demo/
+
+# Local tooling
+.claude/
+
+# Private / scratch — never push
+dum.md
+/notes/
+*.pptx
+
+# docs: keep only assets (README GIF), everything else stays local
+docs/*
+!docs/assets/

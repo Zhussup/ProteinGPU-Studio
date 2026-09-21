@@ -1,8 +1,16 @@
 // Thin API client. All calls go through the Vite dev proxy (/api → :8000).
+// Endpoints whose responses carry backend-generated text take ?lang= so the
+// text arrives in the active UI language (currentLang() reads localStorage).
+import { currentLang } from '../i18n'
 import type {
   GpuInfo, InferenceProfile, JobStatus, JobSummary, MutationResult,
   PredictResponse, Preset, TranslateResponse,
 } from './types'
+
+function withLang(url: string): string {
+  const sep = url.includes('?') ? '&' : '?'
+  return `${url}${sep}lang=${currentLang()}`
+}
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -18,26 +26,26 @@ async function json<T>(res: Response): Promise<T> {
 
 export const api = {
   health: () => fetch('/api/v1/health').then((r) => json<{ status: string }>(r)),
-  gpu: () => fetch('/api/v1/system/gpu').then((r) => json<GpuInfo>(r)),
+  gpu: () => fetch(withLang('/api/v1/system/gpu')).then((r) => json<GpuInfo>(r)),
   presets: () =>
-    fetch('/api/v1/system/presets').then((r) => json<{ presets: Preset[] }>(r)),
+    fetch(withLang('/api/v1/system/presets')).then((r) => json<{ presets: Preset[] }>(r)),
 
   submitPredict: (sequence: string, profile?: InferenceProfile) =>
-    fetch('/api/v1/predict', {
+    fetch(withLang('/api/v1/predict'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sequence, profile }),
     }).then((r) => json<PredictResponse>(r)),
 
   submitMutate: (sequence: string, position: number, mutant_aa: string, profile?: InferenceProfile) =>
-    fetch('/api/v1/mutate', {
+    fetch(withLang('/api/v1/mutate'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sequence, position, mutant_aa, profile }),
     }).then((r) => json<MutationResult>(r)),
 
   submitScan: (sequence: string, position: number, profile?: InferenceProfile) =>
-    fetch('/api/v1/scan', {
+    fetch(withLang('/api/v1/scan'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sequence, position, profile }),
@@ -62,14 +70,14 @@ export const api = {
     fetch(`/api/v1/jobs?limit=${limit}`).then((r) => json<JobSummary[]>(r)),
 
   translate: (fasta: string) =>
-    fetch('/api/v1/translate', {
+    fetch(withLang('/api/v1/translate'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fasta }),
     }).then((r) => json<TranslateResponse>(r)),
 
   result: (jobId: string) =>
-    fetch(`/api/v1/jobs/${jobId}/result`).then((r) =>
+    fetch(withLang(`/api/v1/jobs/${jobId}/result`)).then((r) =>
       json<Record<string, unknown>>(r)),
 
   pdb: async (jobId: string, fn: 'wt.pdb' | 'mut.pdb' | 'mut_aligned.pdb' | `scan_${string}.pdb`) => {

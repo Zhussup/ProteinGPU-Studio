@@ -15,14 +15,25 @@ from ml.folding.base import AA_RE as AA_ALPHABET, mutant_sequence  # noqa: E402
 from ..schemas import (  # noqa: E402
     MutationResult, PredictRequest, PredictResponse, RmsdResult, MutateRequest,
     ScanRequest, ScanResponse, ScanRow, interpret_rmsd,
+    EnsembleRequest, EnsembleResponse,
 )
 from ..config import get_settings  # noqa: E402
 from ..services.align_service import align_pair  # noqa: E402
 from ..services.folding_service import get_folding_service  # noqa: E402
 from ..services.job_manager import Job, get_job_manager  # noqa: E402
+from ..services.mutagenesis import (  # noqa: E402
+    apply_mutations, derived_seed, distribution_stats, exhaustive_mutations,
+    mutation_label, sample_variants, sensitivity_headline,
+)
 from ..services.pdb_io import parse_ca_coords  # noqa: E402
+from ..services.strings import norm_lang, stage_text  # noqa: E402
 
 router = APIRouter(prefix="/api/v1", tags=["folding"])
+
+
+def _lang(job: Job) -> str:
+    """UI language the job was submitted with (stage messages, summaries)."""
+    return norm_lang(job.params.get("lang"))
 
 
 def _stage(job: Job, jm, message: str, progress: float) -> None:
@@ -46,13 +57,14 @@ def _jm():
 def _run_predict(job: Job) -> dict:
     svc = get_folding_service()
     jm = _jm()
+    lang = _lang(job)
     seq = job.params["sequence"]
-    _stage(job, jm, "подготовка модели", 0.03)
+    _stage(job, jm, stage_text("model", lang), 0.03)
     _prepare_model(job, svc)
-    _ = svc.model  # force weight load under the "подготовка" message
-    _stage(job, jm, "инференс WT", 0.1)
+    _ = svc.model  # force weight load under the "model" stage message
+    _stage(job, jm, stage_text("wt", lang), 0.1)
     res, from_cache = svc.predict_cached(seq)
-    _stage(job, jm, "сохранение PDB", 0.9)
+    _stage(job, jm, stage_text("pdb", lang), 0.9)
     out_dir = jm.job_dir(job.job_id)
     (out_dir / "wt.pdb").write_text(res.pdb_text)
     return {
@@ -64,9 +76,10 @@ def _run_predict(job: Job) -> dict:
 
 
 @router.post("/predict", response_model=PredictResponse)
-def predict(req: PredictRequest) -> PredictResponse:
+def predict(req: PredictRequest, lang: str = "ru") -> PredictResponse:
     job_id = _jm().submit(
-        kind="predict", params={"sequence": req.sequence, "profile": req.profile},
+        kind="predict", params={"sequence": req.sequence, "profile": req.profile,
+                                "lang": norm_lang(lang)},
         run_fn=_run_predict,
         use_gpu=bool(req.profile) or _gpu_needed())
     return PredictResponse(job_id=job_id, status="queued",
@@ -80,14 +93,15 @@ def _gpu_needed() -> bool:
 
 
 @router.post("/mutate", response_model=MutationResult)
-def mutate(req: MutateRequest) -> MutationResult:
+def mutate(req: MutateRequest, lang: str = "ru") -> MutationResult:
     seq = req.sequence
     if seq[req.position - 1] == req.mutant_aa:
         raise HTTPException(422, "mutant residue equals WT residue at that position")
     job_id = _jm().submit(
         kind="mutate",
         params={"sequence": seq, "position": req.position,
-                "mutant_aa": req.mutant_aa, "profile": req.profile},
+                "mutant_aa": req.mutant_aa, "profile": req.profile,
+                "lang": norm_lang(lang)},
         run_fn=_run_mutate,
         use_gpu=bool(req.profile) or _gpu_needed())
     return MutationResult(
@@ -101,27 +115,28 @@ def _run_mutate(job: Job) -> dict:
     settings = get_settings()
     svc = get_folding_service()
     jm = _jm()
+    lang = _lang(job)
     seq: str = job.params["sequence"]
     pos: int = job.params["position"]
     mut_aa: str = job.params["mutant_aa"]
     mut_seq = mutant_sequence(seq, pos, mut_aa)
 
-    _stage(job, jm, "подготовка модели", 0.03)
+    _stage(job, jm, stage_text("model", lang), 0.03)
     _prepare_model(job, svc)
-    _ = svc.model  # force weight load under the "подготовка" message
+    _ = svc.model  # force weight load under the "model" stage message
     if svc.cache.get(seq, svc.model_name) is None:
-        _stage(job, jm, "инференс WT", 0.1)  # skipped message if cache hit
+        _stage(job, jm, stage_text("wt", lang), 0.1)  # skipped message if cache hit
     wt, wt_cached = svc.predict_cached(seq)
-    _stage(job, jm, "инференс мутанта", 0.5)
+    _stage(job, jm, stage_text("mutant", lang), 0.5)
     mut = svc.model.predict(mut_seq)
-    _stage(job, jm, "запись PDB-файлов", 0.8)
+    _stage(job, jm, stage_text("pdbs", lang), 0.8)
 
     out_dir = jm.job_dir(job.job_id)
     (out_dir / "wt.pdb").write_text(wt.pdb_text)
     (out_dir / "mut.pdb").write_text(mut.pdb_text)
 
     # Align mutant ONTO WT in the WT frame; write pre-aligned mutant PDB.
-    _stage(job, jm, "наложение Кабша (C++/CUDA)", 0.85)
+    _stage(job, jm, stage_text("kabsch", lang), 0.85)
     al = align_pair(parse_ca_coords(wt.pdb_text), parse_ca_coords(mut.pdb_text),
                     position=pos, radius=settings.local_radius)
     from ..services.align_service import write_aligned_pdb
@@ -130,7 +145,7 @@ def _run_mutate(job: Job) -> dict:
     (out_dir / "mut_aligned.pdb").write_text(
         write_aligned_pdb(mut.pdb_text, full.R, full.t))
 
-    _stage(job, jm, "метрики", 0.95)
+    _stage(job, jm, stage_text("metrics", lang), 0.95)
     rmsd = RmsdResult(
         global_rmsd=al.global_rmsd, local_rmsd=al.local_rmsd,
         local_window=al.local_window, tm_score=al.tm_score,
@@ -144,7 +159,7 @@ def _run_mutate(job: Job) -> dict:
         "position": pos, "wt_aa": seq[pos - 1], "mutant_aa": mut_aa,
         "model": svc.model_name, "wt_from_cache": wt_cached,
         "rmsd": rmsd.model_dump(),
-        "summary": make_summary(rmsd, seq[pos - 1], pos, mut_aa),
+        "summary": make_summary(rmsd, seq[pos - 1], pos, mut_aa, lang),
         "plddt_wt_list": [float(x) for x in wt.plddt],
         "plddt_mut_list": [float(x) for x in mut.plddt],
         "pdb_files": ["wt.pdb", "mut.pdb", "mut_aligned.pdb"],
@@ -153,14 +168,15 @@ def _run_mutate(job: Job) -> dict:
 
 # -- saturation scan: all 19 substitutions at one position --------------------
 @router.post("/scan", response_model=ScanResponse)
-def scan(req: ScanRequest) -> ScanResponse:
+def scan(req: ScanRequest, lang: str = "ru") -> ScanResponse:
     seq = req.sequence
     wt_aa = seq[req.position - 1]
     targets = [aa for aa in AA_ALPHABET if aa != wt_aa]
     job_id = _jm().submit(
         kind="scan",
         params={"sequence": seq, "position": req.position,
-                "targets": targets, "profile": req.profile},
+                "targets": targets, "profile": req.profile,
+                "lang": norm_lang(lang)},
         run_fn=_run_scan,
         use_gpu=bool(req.profile) or _gpu_needed())
     return ScanResponse(job_id=job_id, status="queued",
@@ -176,16 +192,17 @@ def _run_scan(job: Job) -> dict:
     settings = get_settings()
     svc = get_folding_service()
     jm = _jm()
+    lang = _lang(job)
     seq: str = job.params["sequence"]
     pos: int = job.params["position"]
     targets: list[str] = job.params["targets"]
     wt_aa = seq[pos - 1]
 
-    _stage(job, jm, "подготовка модели", 0.02)
+    _stage(job, jm, stage_text("model", lang), 0.02)
     _prepare_model(job, svc)
     _ = svc.model
     if svc.cache.get(seq, svc.model_name) is None:
-        _stage(job, jm, "инференс WT", 0.05)
+        _stage(job, jm, stage_text("wt", lang), 0.05)
     wt, wt_cached = svc.predict_cached(seq)
     wt_ca = wt.coords_ca
 
@@ -199,7 +216,8 @@ def _run_scan(job: Job) -> dict:
     n = len(targets)
     for i, mut_aa in enumerate(targets):
         mut = svc.model.predict(mutant_sequence(seq, pos, mut_aa))
-        _stage(job, jm, f"мутант {wt_aa}{pos}{mut_aa} ({i + 1}/{n})",
+        _stage(job, jm, stage_text("subs", lang, m=f"{wt_aa}{pos}{mut_aa}",
+                                   i=i + 1, n=n),
                0.1 + 0.8 * (i + 1) / n)
         al = align_pair(wt_ca, mut.coords_ca, position=pos,
                         radius=settings.local_radius)
@@ -225,13 +243,12 @@ def _run_scan(job: Job) -> dict:
     rows.sort(key=lambda r: r["local_rmsd"], reverse=True)
     best_aa, best = rows[0]["mut_aa"], rows[0]
     worst = rows[-1]
-    summary = (f"Скан позиции {pos}: {n} замен вокруг {wt_aa}. "
-               f"Сильнейший отклик — {wt_aa}{pos}{best_aa} "
-               f"(local RMSD {best['local_rmsd']:.2f} Å), "
-               f"нейтральнейший — {wt_aa}{pos}{worst['mut_aa']} "
-               f"({worst['local_rmsd']:.2f} Å). "
-               f"Разброс ×{best['local_rmsd'] / max(worst['local_rmsd'], 1e-9):.1f} — "
-               "порядок откликов и есть предиктивный сигнал на детерминированной модели.")
+    from ..services.summary import make_scan_summary
+    summary = make_scan_summary(
+        pos, n, wt_aa,
+        best_aa=best_aa, best_rmsd=best["local_rmsd"],
+        worst_aa=worst["mut_aa"], worst_rmsd=worst["local_rmsd"],
+        lang=lang)
     return {
         "wt_sequence": seq, "position": pos, "wt_aa": wt_aa,
         "model": svc.model_name, "wt_from_cache": wt_cached,
@@ -240,4 +257,139 @@ def _run_scan(job: Job) -> dict:
         "best": best_aa,
         "summary": summary,
         "pdb_files": ["wt.pdb", f"scan_{best_aa}.pdb"],
+    }
+
+
+# -- mutagenesis-strength ensemble: K variants sampled by (mu, tau) ------------
+@router.post("/ensemble", response_model=EnsembleResponse)
+def ensemble(req: EnsembleRequest, lang: str = "ru") -> EnsembleResponse:
+    """The strength dial's run: sample K variants (anchor + background
+    substitutions weighted by the Grantham spectrum) and measure the anchor
+    position's sensitivity as the distribution of responses. mode="exhaustive"
+    folds all 19 substitutions — the /scan workload, kept for migration."""
+    seq = req.sequence
+    seed_eff = req.seed if req.seed is not None else derived_seed(
+        seq, req.position, req.mu, req.tau, req.k)
+    job_id = _jm().submit(
+        kind="ensemble",
+        params={"sequence": seq, "position": req.position, "mode": req.mode,
+                "mu": req.mu, "tau": req.tau, "k": req.k, "seed": req.seed,
+                "effective_seed": seed_eff, "profile": req.profile,
+                "lang": norm_lang(lang)},
+        run_fn=_run_ensemble,
+        use_gpu=bool(req.profile) or _gpu_needed())
+    return EnsembleResponse(
+        job_id=job_id, status="queued", length=len(seq),
+        wt_aa=seq[req.position - 1], mode=req.mode,
+        mu=req.mu, tau=req.tau, k=req.k)
+
+
+def _run_ensemble(job: Job) -> dict:
+    """Fold WT once, then each sampled variant; the anchor's sensitivity is
+    the distribution (median/IQR/spread) of the per-variant responses.
+
+    Mirrors _run_scan: one job, sequential folds with per-variant stage
+    progress, strongest-first ranking, aligned-PDB artifacts. mode="exhaustive"
+    reproduces the scan exactly (same target order, same summary sentence).
+    """
+    settings = get_settings()
+    svc = get_folding_service()
+    jm = _jm()
+    lang = _lang(job)
+    seq: str = job.params["sequence"]
+    pos: int = job.params["position"]
+    mode: str = job.params["mode"]
+    mu: int = job.params["mu"]
+    tau: float = job.params["tau"]
+    k: int = job.params["k"]
+    seed: int = job.params["effective_seed"]
+    wt_aa = seq[pos - 1]
+
+    _stage(job, jm, stage_text("model", lang), 0.02)
+    _prepare_model(job, svc)
+    _ = svc.model
+    if svc.cache.get(seq, svc.model_name) is None:
+        _stage(job, jm, stage_text("wt", lang), 0.05)
+    wt, wt_cached = svc.predict_cached(seq)
+    wt_ca = wt.coords_ca
+    out_dir = jm.job_dir(job.job_id)
+    (out_dir / "wt.pdb").write_text(wt.pdb_text)
+
+    if mode == "exhaustive":
+        muts_list = exhaustive_mutations(seq, pos)
+    else:
+        muts_list = sample_variants(seq, pos, mu, tau, k, seed)
+    n = len(muts_list)
+
+    from ..services.align_service import write_aligned_pdb
+    import hpc_core
+
+    rows = []
+    abs_sum = [0.0] * len(seq)  # per-residue |ΔpLDDT| accumulator (viewer track)
+    for i, muts in enumerate(muts_list):
+        mut = svc.model.predict(apply_mutations(seq, muts))
+        label = mutation_label(muts)
+        _stage(job, jm, stage_text("ens", lang, m=label, i=i + 1, n=n),
+               0.1 + 0.8 * (i + 1) / n)
+        al = align_pair(wt_ca, mut.coords_ca, position=pos,
+                        radius=settings.local_radius)
+        a, b = al.local_window  # 1-based inclusive
+        dplddt_local = float(sum(
+            mut.plddt[j] - wt.plddt[j] for j in range(a - 1, b)) / (b - a + 1))
+        for j in range(len(seq)):
+            abs_sum[j] += abs(mut.plddt[j] - wt.plddt[j])
+        rows.append({
+            "label": label,
+            "mutations": [{"position": p, "wt_aa": w, "mut_aa": m}
+                          for p, w, m in muts],
+            "mut_aa": muts[0][2] if len(muts) == 1 else None,
+            "local_rmsd": al.local_rmsd, "global_rmsd": al.global_rmsd,
+            "tm_score": al.tm_score, "plddt_mut": mut.plddt_mean,
+            "dplddt": float(mut.plddt_mean - wt.plddt_mean),
+            "dplddt_local": dplddt_local,
+            "engine": al.engine,
+            "interpretation": interpret_rmsd(
+                al.local_rmsd, settings.rmsd_stable_below,
+                settings.rmsd_critical_above),
+            # kept out of the persisted row (popped before the result dict)
+            "_coords": mut.coords_ca, "_pdb_text": mut.pdb_text,
+        })
+
+    rows.sort(key=lambda r: r["local_rmsd"], reverse=True)
+    for i, r in enumerate(rows):
+        full = hpc_core.kabsch(r.pop("_coords"), wt_ca)
+        (out_dir / f"ens_{i:02d}.pdb").write_text(
+            write_aligned_pdb(r.pop("_pdb_text"), full.R, full.t))
+        r["pdb_file"] = f"ens_{i:02d}.pdb"
+
+    stats = {
+        "local_rmsd": distribution_stats([r["local_rmsd"] for r in rows]),
+        "dplddt": distribution_stats([r["dplddt"] for r in rows]),
+        "dplddt_local": distribution_stats([r["dplddt_local"] for r in rows]),
+    }
+    med_abs = distribution_stats([abs(r["dplddt_local"]) for r in rows])["median"]
+    headline = sensitivity_headline(stats["local_rmsd"], med_abs)
+
+    from ..services.summary import make_ensemble_summary, make_scan_summary
+    if mode == "exhaustive":
+        summary = make_scan_summary(
+            pos, n, wt_aa,
+            best_aa=rows[0]["mut_aa"], best_rmsd=rows[0]["local_rmsd"],
+            worst_aa=rows[-1]["mut_aa"], worst_rmsd=rows[-1]["local_rmsd"],
+            lang=lang)
+    else:
+        summary = make_ensemble_summary(pos, wt_aa, mu, tau, n, stats,
+                                        headline, lang)
+    return {
+        "wt_sequence": seq, "position": pos, "wt_aa": wt_aa,
+        "model": svc.model_name, "wt_from_cache": wt_cached, "mode": mode,
+        "params": {"mu": mu, "tau": tau, "k": k, "seed": seed},
+        "variants": rows,
+        "stats": stats, "headline": headline,
+        "dplddt_abs_mean_list": [s / n for s in abs_sum],
+        "plddt_wt": wt.plddt_mean,
+        "plddt_wt_list": [float(x) for x in wt.plddt],
+        "best": 0,
+        "summary": summary,
+        "pdb_files": ["wt.pdb"] + [f"ens_{i:02d}.pdb" for i in range(n)],
     }

@@ -1,6 +1,7 @@
 // MutationPicker: position + residue selectors, demo preset chips, live seq preview.
 import { AA_RE } from './SequenceInput'
 import type { Preset } from '../lib/types'
+import { useI18n } from '../i18n'
 
 const AAS = 'ACDEFGHIKLMNPQRSTVWY'.split('')
 
@@ -16,15 +17,16 @@ export interface MutationPickerProps {
 export default function MutationPicker({
   sequence, position, mutantAA, onChange, presets, onApplyPreset,
 }: MutationPickerProps) {
+  const { t } = useI18n()
   const wtAA = position >= 1 && position <= sequence.length ? sequence[position - 1] : '?'
   const posOk = position >= 1 && position <= sequence.length && AA_RE.test(sequence)
 
   const demoPresets = presets.filter((p) => p.position && p.mutant_aa)
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-demo="mutation">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-neutral-900">Мутация</label>
+        <label className="text-sm font-medium text-neutral-900">{t('mut.title')}</label>
         <span className="mono text-xs text-neutral-700">
           {posOk ? `${wtAA}${position}${mutantAA}` : '—'}
         </span>
@@ -32,7 +34,7 @@ export default function MutationPicker({
 
       <div className="flex items-end gap-2">
         <div>
-          <div className="mb-1 text-[11px] text-neutral-500">Позиция (1-based)</div>
+          <div className="mb-1 text-[11px] text-neutral-500">{t('mut.position')}</div>
           <input
             type="number"
             min={1}
@@ -44,7 +46,7 @@ export default function MutationPicker({
         </div>
         <div className="pb-2 text-neutral-400">→</div>
         <div>
-          <div className="mb-1 text-[11px] text-neutral-500">Новый остаток</div>
+          <div className="mb-1 text-[11px] text-neutral-500">{t('mut.newResidue')}</div>
           <select
             value={mutantAA}
             onChange={(e) => onChange(position, e.target.value)}
@@ -62,7 +64,7 @@ export default function MutationPicker({
       )}
 
       <div>
-        <div className="mb-1.5 text-[11px] text-neutral-500">Демо-пресеты (убиквитин, литературно обоснованные):</div>
+        <div className="mb-1.5 text-[11px] text-neutral-500">{t('mut.demoPresets')}</div>
         <div className="flex flex-wrap gap-1.5">
           {demoPresets.map((p) => (
             <button

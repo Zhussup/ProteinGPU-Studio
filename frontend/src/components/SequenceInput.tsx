@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react'
 import type { Preset, TranslateResponse } from '../lib/types'
 import { api } from '../lib/api'
+import { useI18n } from '../i18n'
 import Modal from './Modal'
 import TranslationPanel from './TranslationPanel'
 
@@ -26,6 +27,7 @@ export interface SequenceInputProps {
 }
 
 export default function SequenceInput({ value, onChange, presets, minLen, maxLen }: SequenceInputProps) {
+  const { t } = useI18n()
   const raw = useMemo(() => stripFasta(value), [value])
   const valid = AA_RE.test(raw)
   const len = raw.length
@@ -63,9 +65,9 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-neutral-900">Последовательность (FASTA или raw)</label>
+        <label className="text-sm font-medium text-neutral-900">{t('seq.label')}</label>
         <span className={`mono text-xs ${valid && lenOk ? 'text-neutral-900' : 'text-red-700'}`}>
-          {len} aa {valid ? '' : '· недопустимые символы'} {lenOk ? '' : `· ${minLen}–${maxLen}`}
+          {len} aa {valid ? '' : t('seq.invalidChars')} {lenOk ? '' : t('seq.lenRange', { min: minLen, max: maxLen })}
         </span>
       </div>
       <textarea
@@ -73,6 +75,7 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
         onChange={(e) => onChange(e.target.value)}
         rows={4}
         spellCheck={false}
+        data-demo="sequence"
         placeholder={">sp|P0CG48 ubiquitin\nMQIFVKTLTGK..."}
         className="mono w-full resize-y border border-neutral-300 bg-white p-3 text-xs text-neutral-900 outline-none focus:border-neutral-900"
       />
@@ -99,7 +102,7 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
           onClick={() => fileRef.current?.click()}
           className="border border-neutral-300 px-2.5 py-1 text-xs text-neutral-700 transition hover:border-neutral-900 hover:text-neutral-900"
         >
-          {translating ? 'загружаю…' : 'Загрузить FASTA (ДНК или белок)'}
+          {translating ? t('seq.uploading') : t('seq.uploadFasta')}
         </button>
       </div>
 
@@ -108,11 +111,11 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
       )}
 
       {translation && (
-        <Modal title="Трансляция: ДНК → кодоны → аминокислоты" onClose={() => setTranslation(null)} wide>
+        <Modal title={t('seq.translateTitle')} onClose={() => setTranslation(null)} wide>
           <TranslationPanel
             data={translation}
             onUseProtein={(protein, dnaLen) => {
-              onChange(`>переведено из ДНК (${dnaLen} nt)\n${protein}`)
+              onChange(`${t('seq.translatedFromDna', { len: dnaLen })}\n${protein}`)
               setTranslation(null)
             }}
           />

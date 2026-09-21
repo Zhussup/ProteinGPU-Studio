@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from ..services.strings import TRANS_ERRORS, norm_lang
 from ..services.translate import clean_dna, translate
 
 router = APIRouter(prefix="/api/v1", tags=["translate"])
@@ -29,13 +30,15 @@ class TranslateResponse(BaseModel):
 
 
 @router.post("/translate", response_model=TranslateResponse)
-def translate_fasta(req: TranslateRequest) -> TranslateResponse:
-    dna, warnings = clean_dna(req.fasta)
+def translate_fasta(req: TranslateRequest, lang: str = "ru") -> TranslateResponse:
+    lg = norm_lang(lang)
+    err = TRANS_ERRORS[lg]
+    dna, warnings = clean_dna(req.fasta, lg)
     if len(dna) < 3:
-        raise HTTPException(422, "не найдено ни одного полного кодона (нужны A/C/G/T)")
+        raise HTTPException(422, err["no_codon"])
     if len(dna) > 60_000:
-        raise HTTPException(422, f"цепь слишком длинная для трансляции: {len(dna)} nt (максимум 60000)")
-    res = translate(dna)
+        raise HTTPException(422, err["too_long"].format(n=len(dna)))
+    res = translate(dna, lg)
     return TranslateResponse(
         dna=dna,
         protein=res["protein"].rstrip("*"),

@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import type { JobSummary, MutationResult } from '../lib/types'
+import { useI18n, type Key } from '../i18n'
 
 interface Row {
   jobId: string
@@ -20,11 +21,17 @@ const BADGE_CLS: Record<string, string> = {
   moderate: 'bg-neutral-600 text-white',
   critical: 'bg-red-700 text-white',
 }
+const VERDICT_KEYS: Record<string, Key> = {
+  stable: 'scan.v.stable',
+  moderate: 'scan.v.moderate',
+  critical: 'scan.v.critical',
+}
 
 export default function MutationsCompare({ jobs, wtSequence }: {
   jobs: JobSummary[]
   wtSequence: string
 }) {
+  const { t } = useI18n()
   const [rows, setRows] = useState<Row[] | null>(null)
 
   useEffect(() => {
@@ -62,17 +69,17 @@ export default function MutationsCompare({ jobs, wtSequence }: {
 
   return (
     <div className="panel p-4">
-      <h3 className="mb-3 text-sm font-medium text-neutral-900">Сравнение мутаций одного белка</h3>
+      <h3 className="mb-3 text-sm font-medium text-neutral-900">{t('cmp.title')}</h3>
       <div className="border border-neutral-200">
         <table className="w-full text-xs">
           <thead className="bg-neutral-100 text-neutral-600">
             <tr>
-              <th className="px-2 py-1.5 text-left">мутация</th>
-              <th className="px-2 py-1.5 text-right">local RMSD, Å</th>
-              <th className="px-2 py-1.5 text-right">global</th>
-              <th className="px-2 py-1.5 text-right">TM</th>
-              <th className="px-2 py-1.5 text-right">ΔpLDDT</th>
-              <th className="px-2 py-1.5 text-center">вердикт</th>
+              <th className="px-2 py-1.5 text-left">{t('scan.h.mutation')}</th>
+              <th className="px-2 py-1.5 text-right">{t('scan.h.local')}</th>
+              <th className="px-2 py-1.5 text-right">{t('scan.h.global')}</th>
+              <th className="px-2 py-1.5 text-right">{t('scan.h.tm')}</th>
+              <th className="px-2 py-1.5 text-right">{t('scan.h.dplddt')}</th>
+              <th className="px-2 py-1.5 text-center">{t('scan.h.verdict')}</th>
             </tr>
           </thead>
           <tbody>
@@ -85,7 +92,7 @@ export default function MutationsCompare({ jobs, wtSequence }: {
                 <td className="mono px-2 py-1.5 text-right text-neutral-500">{r.dplddt >= 0 ? `+${r.dplddt.toFixed(1)}` : r.dplddt.toFixed(1)}</td>
                 <td className="px-2 py-1.5 text-center">
                   <span className={`mono px-1.5 py-0.5 text-[10px] ${BADGE_CLS[r.interpretation] ?? ''}`}>
-                    {r.interpretation === 'stable' ? 'стаб.' : r.interpretation === 'moderate' ? 'умерен.' : 'крит.'}
+                    {t(VERDICT_KEYS[r.interpretation] ?? 'scan.v.moderate')}
                   </span>
                 </td>
               </tr>
@@ -94,8 +101,7 @@ export default function MutationsCompare({ jobs, wtSequence }: {
         </table>
       </div>
       <div className="mt-1 text-[10px] text-neutral-400">
-        собрано из истории прогонов на той же WT-последовательности; сортировка по локальному
-        RMSD — самый отзывчивый участок, наименее отзывчивый внизу
+        {t('cmp.note')}
       </div>
     </div>
   )

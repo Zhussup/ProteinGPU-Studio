@@ -2,6 +2,7 @@
 // The backend does the genetic-code translation (POST /api/v1/translate);
 // this is purely presentational.
 import type { TranslateResponse } from '../lib/types'
+import { renderBold, useI18n } from '../i18n'
 
 export interface TranslationPanelProps {
   data: TranslateResponse
@@ -9,6 +10,7 @@ export interface TranslationPanelProps {
 }
 
 export default function TranslationPanel({ data, onUseProtein }: TranslationPanelProps) {
+  const { t } = useI18n()
   // cap rendering: thousands of cells would freeze the tab
   const shown = data.codons.slice(0, 400)
   const proteinLen = data.protein.length
@@ -16,18 +18,18 @@ export default function TranslationPanel({ data, onUseProtein }: TranslationPane
   return (
     <div className="space-y-4 text-sm">
       <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-600">
-        <span><b className="text-neutral-900">{data.dna.length}</b> нуклеотидов</span>
+        <span>{renderBold(t('tr.nucleotides', { n: data.dna.length }))}</span>
         <span>·</span>
-        <span><b className="text-neutral-900">{proteinLen}</b> аминокислот до стоп-кодона</span>
+        <span>{renderBold(t('tr.aaToStop', { n: proteinLen }))}</span>
         <span>·</span>
-        <span>трансляция с нуклеотида <b className="text-neutral-900">{data.orf_start + 1}</b></span>
+        <span>{renderBold(t('tr.orfStart', { n: data.orf_start + 1 }))}</span>
         <button
           onClick={() => onUseProtein(data.protein, data.dna.length)}
           disabled={proteinLen < 10}
           className="ml-auto bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-neutral-700 disabled:opacity-40"
-          title={proteinLen < 10 ? 'слишком короткий белок (минимум 10 остатков)' : 'отправить белок в рабочую область'}
+          title={proteinLen < 10 ? t('tr.tooShort') : t('tr.sendToWorkspace')}
         >
-          → использовать белок ({proteinLen} aa)
+          {t('tr.useProtein', { n: proteinLen })}
         </button>
       </div>
 
@@ -45,7 +47,7 @@ export default function TranslationPanel({ data, onUseProtein }: TranslationPane
             <div
               key={c.index}
               className={`bg-white px-1.5 py-1 text-center ${stop ? 'bg-red-50' : ''}`}
-              title={`кодон ${c.index}: ${c.codon} → ${stop ? 'СТОП' : c.aa}`}
+              title={t('tr.codonTitle', { i: c.index, codon: c.codon, aa: stop ? t('tr.stop') : c.aa })}
             >
               <div className="mono text-[11px] text-neutral-500">#{c.index}</div>
               <div className="mono text-sm font-medium text-neutral-900">{c.codon}</div>
@@ -58,12 +60,12 @@ export default function TranslationPanel({ data, onUseProtein }: TranslationPane
       </div>
       {data.codons.length > shown.length && (
         <div className="text-xs text-neutral-500">
-          показаны первые {shown.length} кодонов из {data.codons.length} — белок считается по ним
+          {t('tr.shownFirst', { n: shown.length, m: data.codons.length })}
         </div>
       )}
 
       <div className="border border-neutral-200 bg-neutral-50 p-3">
-        <div className="mb-1 text-[11px] text-neutral-500">Белковая последовательность (можно скопировать):</div>
+        <div className="mb-1 text-[11px] text-neutral-500">{t('tr.proteinSeq')}</div>
         <div className="mono break-all text-xs text-neutral-900">{data.protein}</div>
       </div>
     </div>

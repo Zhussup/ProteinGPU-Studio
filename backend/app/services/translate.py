@@ -1,9 +1,12 @@
 """DNA (FASTA) → protein translation: standard genetic code.
 
 Pure functions, no state: parse a FASTA-ish text into a clean DNA string,
-translate it codon by codon. The frontend renders the codon table.
+translate it codon by codon. The frontend renders the codon table. Warnings
+come back in the requested UI language (ru default) — see strings.py.
 """
 from __future__ import annotations
+
+from .strings import TRANS_WARNINGS, norm_lang
 
 # Standard genetic code (DNA triplets). Stop codons map to "*".
 CODON_TABLE: dict[str, str] = {
@@ -26,11 +29,12 @@ CODON_TABLE: dict[str, str] = {
 }
 
 
-def clean_dna(text: str) -> tuple[str, list[str]]:
+def clean_dna(text: str, lang: str | None = None) -> tuple[str, list[str]]:
     """Strip FASTA headers/digits/whitespace, U→T, uppercase.
 
     Returns (dna, warnings). Non-ACGTU letters are removed and reported.
     """
+    w = TRANS_WARNINGS[norm_lang(lang)]
     warnings: list[str] = []
     lines = []
     for line in text.splitlines():
@@ -48,25 +52,26 @@ def clean_dna(text: str) -> tuple[str, list[str]]:
             dropped.add(ch)
     if dropped:
         warnings.append(
-            "удалены посторонние символы: " + ", ".join(f"'{c}'" for c in sorted(dropped)))
+            w["dropped"].format(chars=", ".join(f"'{c}'" for c in sorted(dropped))))
     return "".join(dna), warnings
 
 
-def translate(dna: str) -> dict:
+def translate(dna: str, lang: str | None = None) -> dict:
     """Translate DNA in-frame from the first ATG (or start if none).
 
     Returns {codons: [{index, codon, aa}], protein, orf_start, warnings}.
     aa == "*" marks a stop codon; translation stops after the first stop.
     An incomplete trailing codon is reported and ignored.
     """
+    w = TRANS_WARNINGS[norm_lang(lang)]
     warnings: list[str] = []
     orf_start = dna.find("ATG")  # 0-based; -1 → translate from the start
     if orf_start == -1:
         orf_start = 0
         if dna:
-            warnings.append("старт-кодон ATG не найден — трансляция с первого нуклеотида")
+            warnings.append(w["no_atg"])
     if (len(dna) - orf_start) % 3 != 0:
-        warnings.append("хвост цепи не кратен 3 — неполный кодон проигнорирован")
+        warnings.append(w["tail3"])
 
     codons: list[dict] = []
     protein: list[str] = []

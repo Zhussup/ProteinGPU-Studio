@@ -10,7 +10,7 @@ for p in (str(REPO),):
         sys.path.insert(0, p)
 
 from backend.app.schemas import RmsdResult  # noqa: E402
-from backend.app.services.summary import make_summary  # noqa: E402
+from backend.app.services.summary import make_scan_summary, make_summary  # noqa: E402
 from backend.app.services.translate import clean_dna, translate  # noqa: E402
 
 
@@ -95,3 +95,29 @@ def test_summary_band_edges(lr, expected):
     s = make_summary(_rmsd(lr, 0.99, 90, 90, interp), "A", 1, "V")
     phrases = ["поглощена", "умеренная", "существенно"]
     assert phrases[expected] in s
+
+
+# -- language variants ---------------------------------------------------------
+def test_summary_languages():
+    r = _rmsd(0.21, 0.997, 92.0, 91.9, "stable")
+    en = make_summary(r, "I", 44, "A", "en")
+    assert "Mutation I44A" in en
+    assert "Verdict: the structure is stable" in en
+    zh = make_summary(r, "I", 44, "A", "zh")
+    assert "突变 I44A" in zh
+    assert "结论：" in zh
+    # unknown language falls back to ru (the source of truth)
+    ru = make_summary(r, "I", 44, "A", "xx")
+    assert "Мутация I44A" in ru
+
+
+def test_scan_summary_languages():
+    en = make_scan_summary(44, 19, "I", "A", 2.0, "L", 0.5, "en")
+    assert "Scan of position 44" in en and "I44A" in en
+    zh = make_scan_summary(44, 19, "I", "A", 2.0, "L", 0.5, "zh")
+    assert "位置 44" in zh
+
+
+def test_clean_dna_warnings_localized():
+    _, warns = clean_dna(">x\natg a?g\n", "en")
+    assert any("removed" in w for w in warns)

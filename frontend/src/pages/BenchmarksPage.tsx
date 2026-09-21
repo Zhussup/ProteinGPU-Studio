@@ -3,6 +3,7 @@
 import { Suspense, lazy, useState } from 'react'
 import { api } from '../lib/api'
 import type { BenchmarkRow, KernelRow } from '../lib/types'
+import { useI18n } from '../i18n'
 
 const Plot = lazy(() => import('../components/PlotlyChart'))
 
@@ -12,6 +13,7 @@ const PROFILES = ['fp32-gpu', 'fp16-gpu', 'cpu', 'dummy']
 const COLORS = ['#111111', '#6b7280', '#b91c1c', '#9ca3af', '#374151']
 
 export default function BenchmarksPage() {
+  const { t } = useI18n()
   const [seq] = useState('MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG')
   const [repeats, setRepeats] = useState(5)
   const [rows, setRows] = useState<BenchmarkRow[]>([])
@@ -65,40 +67,40 @@ export default function BenchmarksPage() {
       )}
 
       <div className="panel space-y-4 p-4">
-        <h2 className="text-sm font-medium text-neutral-900">Инференс: CPU vs GPU</h2>
+        <h2 className="text-sm font-medium text-neutral-900">{t('bench.inference')}</h2>
         <div className="flex flex-wrap items-end gap-3 text-xs">
           <label className="flex flex-col gap-1">
-            <span className="text-neutral-500">repeats (2 warmup отбрасываются)</span>
+            <span className="text-neutral-500">{t('bench.repeats')}</span>
             <input type="number" min={3} max={20} value={repeats}
               onChange={(e) => setRepeats(parseInt(e.target.value, 10) || 5)}
               className="mono w-24 border border-neutral-300 bg-white px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900" />
           </label>
           <button onClick={runInference} disabled={busy || seq.length < 10}
             className="bg-neutral-900 px-4 py-2 font-medium text-white transition hover:bg-neutral-700 disabled:opacity-40">
-            {busy ? 'Считаю…' : 'Запустить бенчмарк'}
+            {busy ? t('bench.busy') : t('bench.runBenchmark')}
           </button>
         </div>
         {rows.length > 0 && <InferenceChart rows={rows} />}
       </div>
 
       <div className="panel space-y-4 p-4">
-        <h2 className="text-sm font-medium text-neutral-900">Kabsch-ядро: numpy vs C++ vs CUDA</h2>
+        <h2 className="text-sm font-medium text-neutral-900">{t('bench.kernels')}</h2>
         <div className="flex flex-wrap items-end gap-3 text-xs">
           <label className="flex flex-col gap-1">
-            <span className="text-neutral-500">пар (B)</span>
+            <span className="text-neutral-500">{t('bench.pairs')}</span>
             <input type="number" min={1} max={65536} value={kPairs}
               onChange={(e) => setKPairs(parseInt(e.target.value, 10) || 1024)}
               className="mono w-28 border border-neutral-300 bg-white px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900" />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-neutral-500">атомов (N)</span>
+            <span className="text-neutral-500">{t('bench.atoms')}</span>
             <input type="number" min={2} max={10000} value={kAtoms}
               onChange={(e) => setKAtoms(parseInt(e.target.value, 10) || 512)}
               className="mono w-28 border border-neutral-300 bg-white px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900" />
           </label>
           <button onClick={runKernels} disabled={busy}
             className="border border-neutral-300 px-4 py-2 text-neutral-800 transition hover:border-neutral-900 disabled:opacity-40">
-            Прогнать ядро
+            {t('bench.runKernel')}
           </button>
         </div>
         {kernelRows.length > 0 && <KernelChart rows={kernelRows} />}
@@ -108,6 +110,7 @@ export default function BenchmarksPage() {
 }
 
 function InferenceChart({ rows }: { rows: BenchmarkRow[] }) {
+  const { t } = useI18n()
   const profiles = [...new Set(rows.map((r) => r.profile))]
   const data = profiles.map((p, i) => {
     const rr = rows.filter((r) => r.profile === p).sort((a, b) => a.length - b.length)
@@ -130,18 +133,19 @@ function InferenceChart({ rows }: { rows: BenchmarkRow[] }) {
     margin: { t: 10, r: 10, b: 40, l: 60 },
     paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
     font: { color: '#525252', size: 11 },
-    xaxis: { title: { text: 'длина (aa)' }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
-    yaxis: { title: { text: 'latency, с (median±IQR/2)' }, type: 'log' as const, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    xaxis: { title: { text: t('bench.xaxis.length') }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    yaxis: { title: { text: t('bench.yaxis.latency') }, type: 'log' as const, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
     legend: { orientation: 'h' as const },
   }
   return (
-    <Suspense fallback={<div className="text-xs text-neutral-400">график загружается…</div>}>
+    <Suspense fallback={<div className="text-xs text-neutral-400">{t('common.chartLoading')}</div>}>
       <Plot data={data} layout={layout} />
     </Suspense>
   )
 }
 
 function KernelChart({ rows }: { rows: KernelRow[] }) {
+  const { t } = useI18n()
   const data = [{
     x: rows.map((r) => r.engine),
     y: rows.map((r) => r.wall_median_s * 1000),
@@ -153,11 +157,11 @@ function KernelChart({ rows }: { rows: KernelRow[] }) {
     margin: { t: 10, r: 10, b: 40, l: 60 },
     paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
     font: { color: '#525252', size: 11 },
-    yaxis: { title: { text: 'мс (median±IQR/2)' }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    yaxis: { title: { text: t('bench.yaxis.ms') }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
   }
-  const info = rows[0] ? `${rows[0].pairs} пар × ${rows[0].atoms} атомов` : ''
+  const info = rows[0] ? t('bench.kernelInfo', { pairs: rows[0].pairs, atoms: rows[0].atoms }) : ''
   return (
-    <Suspense fallback={<div className="text-xs text-neutral-400">график загружается…</div>}>
+    <Suspense fallback={<div className="text-xs text-neutral-400">{t('common.chartLoading')}</div>}>
       <div className="text-xs text-neutral-500">{info}</div>
       <Plot data={data} layout={layout} />
     </Suspense>

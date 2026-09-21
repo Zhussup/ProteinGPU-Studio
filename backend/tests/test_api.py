@@ -160,6 +160,20 @@ class TestMutateJob:
         # conservative mutation is more stable than loop glycine in the dummy
         assert res1["rmsd"]["local_rmsd"] < res2["rmsd"]["local_rmsd"]
 
+    def test_summary_follows_lang_param(self):
+        # submit-time lang drives the stored summary...
+        r = client.post("/api/v1/mutate?lang=en", json={
+            "sequence": UBIQ, "position": 44, "mutant_aa": "A"})
+        job_id = wait_done(r.json()["job_id"])["job_id"]
+        res = client.get(f"/api/v1/jobs/{job_id}/result").json()
+        assert res["summary"].startswith("Mutation I44A")
+        # ...and read-time lang retranslates it (history follows active UI lang)
+        zh = client.get(f"/api/v1/jobs/{job_id}/result?lang=zh").json()
+        assert zh["summary"].startswith("突变 I44A")
+        # unknown lang → ru source of truth
+        ru = client.get(f"/api/v1/jobs/{job_id}/result?lang=xx").json()
+        assert ru["summary"].startswith("Мутация I44A")
+
 
 class TestBenchmark:
     def test_dummy_benchmark(self):

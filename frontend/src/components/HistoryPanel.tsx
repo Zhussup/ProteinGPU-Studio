@@ -1,6 +1,7 @@
 // HistoryPanel: recent jobs (from SQLite via GET /api/v1/jobs). Click a done
 // job to restore its result into the workspace — sequence, mutation, PDBs.
 import type { JobSummary } from '../lib/types'
+import { useI18n, type Key } from '../i18n'
 
 export interface HistoryPanelProps {
   jobs: JobSummary[]
@@ -16,26 +17,33 @@ const STATUS_MARK: Record<JobSummary['status'], string> = {
   queued: 'bg-neutral-300',
 }
 
+const KIND_KEYS: Record<JobSummary['kind'], Key> = {
+  predict: 'hist.kind.predict',
+  mutate: 'hist.kind.mutate',
+  scan: 'hist.kind.scan',
+}
+
 // "2026-09-11T14:23:05" → "11.09 14:23"
 function shortTime(iso: string): string {
   return `${iso.slice(8, 10)}.${iso.slice(5, 7)} ${iso.slice(11, 16)}`
 }
 
 export default function HistoryPanel({ jobs, currentJobId, onRestore, onRefresh }: HistoryPanelProps) {
+  const { t } = useI18n()
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-neutral-900">История</label>
+        <label className="text-sm font-medium text-neutral-900">{t('hist.title')}</label>
         <button
           onClick={onRefresh}
           className="text-[11px] text-neutral-500 underline hover:text-neutral-900"
         >
-          обновить
+          {t('hist.refresh')}
         </button>
       </div>
 
       {jobs.length === 0 ? (
-        <div className="text-xs text-neutral-400">пока задач не было</div>
+        <div className="text-xs text-neutral-400">{t('hist.empty')}</div>
       ) : (
         <div className="max-h-56 overflow-y-auto border border-neutral-200">
           {jobs.map((j) => {
@@ -46,7 +54,7 @@ export default function HistoryPanel({ jobs, currentJobId, onRestore, onRefresh 
                 key={j.job_id}
                 onClick={() => restorable && onRestore(j)}
                 disabled={!restorable}
-                title={j.error ?? `${j.kind} · ${restorable ? 'нажмите, чтобы восстановить результат' : 'нет результата'}`}
+                title={j.error ?? `${t(KIND_KEYS[j.kind])} · ${restorable ? t('hist.restoreHint') : t('hist.noResult')}`}
                 className={`flex w-full items-center gap-2 border-b border-neutral-100 px-2.5 py-1.5 text-left text-xs last:border-b-0 ${
                   restorable ? 'hover:bg-neutral-100' : 'cursor-default'
                 } ${current ? 'bg-neutral-100' : 'bg-white'}`}
@@ -56,7 +64,11 @@ export default function HistoryPanel({ jobs, currentJobId, onRestore, onRefresh 
                   {j.kind === 'mutate' ? j.label : 'WT'}
                 </span>
                 <span className="flex-1 truncate text-neutral-500">
-                  {j.status === 'error' ? (j.error ?? 'ошибка') : j.kind === 'predict' ? `предсказание · ${j.label}` : `${j.sequence.length} aa`}
+                  {j.status === 'error'
+                    ? (j.error ?? t('hist.error'))
+                    : j.kind === 'predict'
+                      ? t('hist.prediction', { label: j.label })
+                      : `${j.sequence.length} aa`}
                 </span>
                 <span className="mono shrink-0 text-neutral-400">{shortTime(j.created_at)}</span>
               </button>

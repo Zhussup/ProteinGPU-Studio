@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..config import get_settings
+from .strings import stage_text
 
 
 class Job:
@@ -95,7 +96,7 @@ class JobManager:
             if use_gpu:
                 # honest queue feedback: report contention before blocking
                 if not self.gpu_sem.acquire(blocking=False):
-                    job.message = "ожидание GPU-слота (занята другой задачей)"
+                    job.message = stage_text("gpu_wait", job.params.get("lang"))
                     self._persist(job)
                     self.gpu_sem.acquire()
                 try:
@@ -132,12 +133,19 @@ class JobManager:
                 label = f"{seq[pos - 1]}{pos}{mut_aa}"
             elif kind == "scan" and pos and 1 <= pos <= len(seq):
                 label = f"{seq[pos - 1]}{pos}×19"
+            elif kind == "ensemble" and pos and 1 <= pos <= len(seq):
+                label = f"{seq[pos - 1]}{pos} μ{params.get('mu')}×{params.get('k')}"
             else:
                 label = f"{len(seq)} aa"
             out.append({
                 "job_id": job_id, "kind": kind, "status": status,
                 "label": label, "sequence": seq,
                 "position": pos, "mutant_aa": mut_aa,
+                # dial params (ensemble; None elsewhere) — the UI restores
+                # μ/τ/K/mode from these; the seed is derived from the same
+                # config, so it needs no separate field
+                "mu": params.get("mu"), "tau": params.get("tau"),
+                "k": params.get("k"), "mode": params.get("mode"),
                 "error": error, "created_at": created, "finished_at": finished,
             })
         return out
@@ -147,10 +155,11 @@ class JobManager:
             job = self._jobs.get(job_id)
         if job is not None:
             return job
-        row = self._db.execute(
-            "SELECT job_id, kind, status, progress, params, result, error, "
-            "created_at, finished_at FROM jobs WHERE job_id=?", (job_id,)
-        ).fetchone()
+        with self._db_lock:
+            row = self._db.execute(
+                "SELECT job_id, kind, status, progress, params, result, error, "
+                "created_at, finished_at FROM jobs WHERE job_id=?", (job_id,)
+            ).fetchone()
         if row is None:
             return None
         job = Job(row[0], row[1], json.loads(row[4]))
