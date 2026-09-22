@@ -135,6 +135,9 @@ class JobManager:
                 label = f"{seq[pos - 1]}{pos}×19"
             elif kind == "ensemble" and pos and 1 <= pos <= len(seq):
                 label = f"{seq[pos - 1]}{pos} μ{params.get('mu')}×{params.get('k')}"
+            elif kind == "scan_map":
+                n_pos = len(params.get("positions") or [])
+                label = f"map {n_pos}×19"  # language-neutral; i18n lives in the UI
             else:
                 label = f"{len(seq)} aa"
             out.append({

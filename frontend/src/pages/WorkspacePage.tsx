@@ -5,7 +5,7 @@ import { useJob } from '../lib/useJob'
 import { useI18n } from '../i18n'
 import type {
   EnsembleResult, GpuInfo, InferenceProfile, JobSummary, MutationResult,
-  Preset, ScanResult,
+  Preset, ScanMapResult, ScanResult,
 } from '../lib/types'
 import SequenceInput, { stripFasta } from '../components/SequenceInput'
 import MutationPicker from '../components/MutationPicker'
@@ -13,6 +13,7 @@ import MutagenesisDial from '../components/MutagenesisDial'
 import RunPanel from '../components/RunPanel'
 import ResultTabs from '../components/ResultTabs'
 import ScanPanel from '../components/ScanPanel'
+import ScanMapPanel, { type PaintMetric } from '../components/ScanMapPanel'
 import EnsemblePanel from '../components/EnsemblePanel'
 import MoleculeViewer from '../components/MoleculeViewer'
 import ProteinViewer from '../components/ProteinViewer'
@@ -34,6 +35,11 @@ export default function WorkspacePage() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null)
   const [ensembleResult, setEnsembleResult] = useState<EnsembleResult | null>(null)
   const [pickedEnsIdx, setPickedEnsIdx] = useState<number | null>(null)
+  // the sensitivity map (dum.md §5): per-position 19-vectors + the 3D paint
+  const [mapResult, setMapResult] = useState<ScanMapResult | null>(null)
+  const [mapPaint, setMapPaint] = useState<{ scores: (number | null)[]; metric: PaintMetric } | null>(null)
+  const [mapFrom, setMapFrom] = useState(1)
+  const [mapTo, setMapTo] = useState(76)
   // the mutagenesis dial (dum.md §2): μ = simultaneous substitutions, τ = the
   // Grantham spectrum temperature, K = ensemble size; exhaustive = all 19 subs
   const [dialExhaustive, setDialExhaustive] = useState(false)
@@ -72,6 +78,12 @@ export default function WorkspacePage() {
     if (position < 1 && seq.length >= 1) setPosition(1)
   }, [seq.length, position])
 
+  // the scan-map range follows the sequence: it is a range of ITS positions
+  useEffect(() => {
+    setMapFrom(1)
+    setMapTo(seq.length)
+  }, [seq.length])
+
   const applyPreset = useCallback((p: Preset) => {
     setInput(`>${p.name}\n${p.sequence}`)
     if (p.position) setPosition(p.position)
@@ -97,6 +109,11 @@ export default function WorkspacePage() {
           setMutPdb(await api.pdb(jobId, res.variants[0].pdb_file as `ens_${string}.pdb`))
         }
         setResultJob({ id: jobId, kind })
+      } else if (kind === 'scan_map') {
+        const res = await api.result(jobId) as unknown as ScanMapResult
+        setMapResult(res)
+        setMapPaint(null)
+        setResultJob({ id: jobId, kind })
       }
       setWtPdb(await api.pdb(jobId, 'wt.pdb'))
     } catch { /* files may be missing for predict-only runs */ }
@@ -105,24 +122,28 @@ export default function WorkspacePage() {
   const runPredict = () => {
     setResult(null); setMutPdb(null); setScanResult(null)
     setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
+    setMapResult(null); setMapPaint(null)
     job.run(() => api.submitPredict(seq, profile === 'auto' ? undefined : profile))
   }
 
   const runMutate = () => {
     setResult(null); setScanResult(null)
     setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
+    setMapResult(null); setMapPaint(null)
     job.run(() => api.submitMutate(seq, position, mutantAA, profile === 'auto' ? undefined : profile))
   }
 
   const runScan = () => {
     setResult(null); setScanResult(null); setMutPdb(null)
     setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
+    setMapResult(null); setMapPaint(null)
     job.run(() => api.submitScan(seq, position, profile === 'auto' ? undefined : profile))
   }
 
   const runEnsemble = () => {
     setResult(null); setScanResult(null); setMutPdb(null)
     setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
+    setMapResult(null); setMapPaint(null)
     const mode = dialExhaustive ? 'exhaustive' as const : 'sampled' as const
     job.run(() => api.submitEnsemble(
       seq, position, mode,
@@ -132,6 +153,19 @@ export default function WorkspacePage() {
       dialSeed,
       profile === 'auto' ? undefined : profile,
     ))
+  }
+
+  // the sensitivity map: 19 folds per position in [mapFrom..mapTo]; the result
+  // is data-only (no mutant PDBs), the WT structure comes from the same job
+  const runMap = () => {
+    setResult(null); setScanResult(null); setMutPdb(null)
+    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
+    setMapResult(null); setMapPaint(null)
+    const positions = Array.from(
+      { length: Math.max(0, mapTo - mapFrom + 1) },
+      (_, i) => mapFrom + i,
+    )
+    job.run(() => api.submitScanMap(seq, positions, profile === 'auto' ? undefined : profile))
   }
 
   // poll completion: fetch artifacts once done, refresh history
@@ -177,6 +211,8 @@ export default function WorkspacePage() {
     setScanResult(null)
     setEnsembleResult(null)
     setPickedEnsIdx(null)
+    setMapResult(null)
+    setMapPaint(null)
     try {
       if (j.kind === 'mutate') {
         setResult(await api.result(j.job_id) as unknown as MutationResult)
@@ -203,6 +239,10 @@ export default function WorkspacePage() {
         if (j.k) setDialK(j.k)
         setDialSeed(null)
         setResultJob({ id: j.job_id, kind: j.kind })
+      } else if (j.kind === 'scan_map') {
+        const res = await api.result(j.job_id) as unknown as ScanMapResult
+        setMapResult(res)
+        setResultJob({ id: j.job_id, kind: j.kind })
       }
       setWtPdb(await api.pdb(j.job_id, 'wt.pdb'))
     } catch { /* artifacts may be gone */ }
@@ -212,7 +252,7 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (!resultJob) return
     const kind = resultJob.kind
-    if (kind !== 'mutate' && kind !== 'scan' && kind !== 'ensemble') return
+    if (kind !== 'mutate' && kind !== 'scan' && kind !== 'ensemble' && kind !== 'scan_map') return
     let live = true
     api.result(resultJob.id).then((res) => {
       if (!live) return
@@ -224,10 +264,15 @@ export default function WorkspacePage() {
         setScanResult(res as unknown as ScanResult)
         setResult(null)
         setEnsembleResult(null)
-      } else {
+      } else if (kind === 'ensemble') {
         setEnsembleResult(res as unknown as EnsembleResult)
         setResult(null)
         setScanResult(null)
+      } else {
+        setMapResult(res as unknown as ScanMapResult)
+        setResult(null)
+        setScanResult(null)
+        setEnsembleResult(null)
       }
     }).catch(() => { /* job artifacts may be gone */ })
     return () => { live = false }
@@ -271,9 +316,15 @@ export default function WorkspacePage() {
           onRunMutate={runMutate}
           onRunScan={runScan}
           onRunEnsemble={runEnsemble}
+          onRunMap={runMap}
+          mapFrom={mapFrom}
+          mapTo={mapTo}
+          seqLen={seq.length}
+          onMapRangeChange={(a, b) => { setMapFrom(a); setMapTo(Math.max(a, b)) }}
           onReset={() => {
             setResult(null); setWtPdb(null); setMutPdb(null); setScanResult(null)
             setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
+            setMapResult(null); setMapPaint(null)
           }}
         />
         <HistoryPanel
@@ -290,6 +341,8 @@ export default function WorkspacePage() {
           mutPdb={mutPdb}
           aligned={true}
           mutationPosition={position}
+          residueScores={mapPaint?.scores ?? null}
+          scoreLabel={mapPaint ? t('viewer.legendSensitivity') : undefined}
         />
         <ProteinViewer
           sequence={seqOk ? seq : ''}
@@ -300,7 +353,20 @@ export default function WorkspacePage() {
           scan={scanResult}
           ensemble={ensembleResult}
         />
-        {scanResult ? (
+        {mapResult ? (
+          <div className="panel p-4">
+            <h3 className="mb-3 text-sm font-medium text-neutral-900">
+              {t('ws.mapTitle', { n: mapResult.n_positions })}
+            </h3>
+            <ScanMapPanel
+              result={mapResult}
+              jobId={resultJob?.id ?? job.status?.job_id ?? null}
+              paintedMetric={mapPaint?.metric ?? null}
+              onPaint={(scores, metric) => setMapPaint({ scores, metric })}
+              onClearPaint={() => setMapPaint(null)}
+            />
+          </div>
+        ) : scanResult ? (
           <div className="panel p-4">
             <h3 className="mb-3 text-sm font-medium text-neutral-900">
               {t('ws.scanTitle', { pos: scanResult.position })}

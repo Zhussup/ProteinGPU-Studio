@@ -41,6 +41,7 @@ data/demo/
 # Private / scratch — never push
 dum.md
 /notes/
+/engagement/
 *.pptx
 
 # docs: keep only assets (README GIF), everything else stays local

@@ -36,8 +36,9 @@ def _retranslated_summary(res: dict, lang: str) -> dict:
     history restores in whatever UI language is active right now. Falls back
     to the stored text for results it cannot regenerate.
     """
-    from ..services.summary import (make_ensemble_summary, make_scan_summary,
-                                    make_summary)
+    from ..services.summary import (make_ensemble_summary, make_scan_map_summary,
+                                    make_scan_summary, make_summary)
+    from ..services.sensitivity import most_fragile, quadrant_counts
     try:
         out = dict(res)
         if res.get("rmsd") and "wt_aa" in res:
@@ -69,6 +70,12 @@ def _retranslated_summary(res: dict, lang: str) -> dict:
                     res["position"], res["wt_aa"],
                     p.get("mu", 1), p.get("tau", 0.5), len(res["variants"]),
                     res["stats"], res["headline"], lang=lang)
+        elif res.get("positions") and res.get("petal_dirs"):
+            frag = most_fragile(res["positions"])
+            out["summary"] = make_scan_map_summary(
+                n=len(res["positions"]), folds=res.get("n_folds", 0),
+                fragile=frag, counts=quadrant_counts(res["positions"]),
+                lang=lang)
         return out
     except (KeyError, TypeError, ValueError):
         return res
@@ -93,10 +100,13 @@ def job_file(job_id: str, fn: str) -> PlainTextResponse:
     _job_or_404(job_id)
     is_scan_artifact = fn.startswith("scan_") and fn.endswith(".pdb") and len(fn) == 10
     is_ens_artifact = fn.startswith("ens_") and fn.endswith(".pdb") and len(fn) == 10
+    is_map_artifact = fn in {"scan_map.json", "scan_map.csv",
+                             "scan_map_partial.json"}
     if fn not in {"wt.pdb", "mut.pdb", "mut_aligned.pdb"} and not (
-            is_scan_artifact or is_ens_artifact):
+            is_scan_artifact or is_ens_artifact or is_map_artifact):
         raise HTTPException(404, "unknown artifact")
     path = get_job_manager().job_dir(job_id) / fn
     if not path.exists():
         raise HTTPException(404, f"artifact {fn} not written yet")
-    return PlainTextResponse(path.read_text(), media_type="chemical/x-pdb")
+    media_type = "chemical/x-pdb" if fn.endswith(".pdb") else "text/plain"
+    return PlainTextResponse(path.read_text(), media_type=media_type)

@@ -117,6 +117,58 @@ export interface PredictResponse {
   length: number
 }
 
+// POST /api/v1/scan_map — the sensitivity map / "wind rose" (dum.md §5):
+// every position characterized by a 19-vector of structural responses. The
+// scalar from the vector paints the 3D view; the vector itself is drawn as a
+// rose glyph; one row = one row of the future DMS dataset.
+export interface MapRow {
+  mut_aa: string
+  grantham: number
+  local_rmsd: number
+  global_rmsd: number
+  tm_score: number
+  plddt_mut: number
+  dplddt: number
+  dplddt_local: number
+  abs_dplddt_local: number
+  pctl: number // rank of abs_dplddt_local within the protein's responses
+  engine: string
+  interpretation: 'stable' | 'moderate' | 'critical'
+}
+
+export interface MapStats {
+  median_local_rmsd: number
+  max_local_rmsd: number
+  mean_local_rmsd: number
+  median_abs_dplddt_local: number
+  sharpness: number
+  quadrant: 'hedgehog' | 'needle' | 'disk' | 'clover'
+  pctl_v_max: number // within-protein percentile of max_local_rmsd
+  pctl_v_med: number // within-protein percentile of median_local_rmsd
+}
+
+export interface MapPosition {
+  pos: number
+  wt_aa: string
+  rows: MapRow[]
+  stats: MapStats
+}
+
+export interface ScanMapResult {
+  wt_sequence: string
+  model?: string
+  wt_from_cache?: boolean
+  n_positions: number
+  n_folds: number
+  plddt_wt?: number
+  plddt_wt_list?: number[]
+  petal_dirs: string
+  positions: MapPosition[]
+  summary: string
+  pdb_files?: string[]
+  artifact_files?: string[]
+}
+
 export interface JobStatus {
   job_id: string
   kind: string

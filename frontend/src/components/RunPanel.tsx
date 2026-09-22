@@ -20,6 +20,11 @@ export interface RunPanelProps {
   onRunMutate: () => void
   onRunScan: () => void
   onRunEnsemble: () => void
+  onRunMap: () => void
+  mapFrom: number
+  mapTo: number
+  seqLen: number
+  onMapRangeChange: (from: number, to: number) => void
   onReset: () => void
 }
 
@@ -45,6 +50,11 @@ const STAGE_KEYS: Record<string, { at: number; label: Key }[]> = {
     { at: 0.1, label: 'run.stage.wt' },
     { at: 0.9, label: 'run.stage.ens' },
     { at: 0.95, label: 'run.stage.summary' },
+  ],
+  map: [
+    { at: 0.05, label: 'run.stage.wt' },
+    { at: 0.9, label: 'run.stage.map' },
+    { at: 0.99, label: 'run.stage.summary' },
   ],
 }
 
@@ -76,7 +86,8 @@ const PROFILE_OPTIONS: { id: InferenceProfile; label: Key }[] = [
 
 export default function RunPanel({
   canRun, running, status, error, gpu, profile, onProfileChange,
-  onRunPredict, onRunMutate, onRunScan, onRunEnsemble, onReset,
+  onRunPredict, onRunMutate, onRunScan, onRunEnsemble, onRunMap,
+  mapFrom, mapTo, seqLen, onMapRangeChange, onReset,
 }: RunPanelProps) {
   const { t } = useI18n()
   const [elapsed, setElapsed] = useState(0)
@@ -128,6 +139,14 @@ export default function RunPanel({
         >
           {t('run.ensemble')}
         </button>
+        <button
+          onClick={onRunMap}
+          disabled={!canRun || running}
+          title={t('run.mapTitle')}
+          className="bg-red-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-40"
+        >
+          {t('run.map')}
+        </button>
         {!running && status && (
           <button onClick={onReset} className="text-xs text-neutral-500 underline hover:text-neutral-900">
             {t('run.reset')}
@@ -157,6 +176,38 @@ export default function RunPanel({
         </select>
         <span className="text-[10px] text-neutral-400">
           {t('run.profileHint')}
+        </span>
+      </div>
+
+      {/* scan-map range: 19 folds per position — the honest cost is shown */}
+      <div className="flex items-center gap-2 text-xs text-neutral-600">
+        <label htmlFor="map-from">{t('run.mapRange')}</label>
+        <input
+          id="map-from"
+          type="number"
+          min={1}
+          max={seqLen}
+          value={mapFrom}
+          onChange={(e) => onMapRangeChange(Math.max(1, Math.min(seqLen, Number(e.target.value) || 1)), mapTo)}
+          disabled={running}
+          className="mono w-16 border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 focus:border-neutral-900"
+        />
+        <span>—</span>
+        <input
+          id="map-to"
+          type="number"
+          min={1}
+          max={seqLen}
+          value={mapTo}
+          onChange={(e) => onMapRangeChange(mapFrom, Math.max(1, Math.min(seqLen, Number(e.target.value) || 1)))}
+          disabled={running}
+          className="mono w-16 border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 focus:border-neutral-900"
+        />
+        <span className="text-[10px] text-neutral-400">
+          {t('run.mapCount', {
+            n: Math.max(0, Math.min(mapTo, seqLen) - Math.min(mapFrom, seqLen) + 1),
+            folds: Math.max(0, Math.min(mapTo, seqLen) - Math.min(mapFrom, seqLen) + 1) * 19,
+          })}
         </span>
       </div>
 

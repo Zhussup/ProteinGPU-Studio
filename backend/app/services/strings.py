@@ -29,6 +29,7 @@ STAGES: dict[str, dict[str, str]] = {
         "metrics": "метрики",
         "subs": "мутант {m} ({i}/{n})",
         "ens": "вариант {m} ({i}/{n})",
+        "map": "карта: {m} ({i}/{n})",
         "gpu_wait": "ожидание GPU-слота (занята другой задачей)",
     },
     "en": {
@@ -41,6 +42,7 @@ STAGES: dict[str, dict[str, str]] = {
         "metrics": "computing metrics",
         "subs": "mutant {m} ({i}/{n})",
         "ens": "variant {m} ({i}/{n})",
+        "map": "map: {m} ({i}/{n})",
         "gpu_wait": "waiting for a GPU slot (busy with another job)",
     },
     "zh": {
@@ -53,6 +55,7 @@ STAGES: dict[str, dict[str, str]] = {
         "metrics": "计算指标",
         "subs": "突变体 {m}（{i}/{n}）",
         "ens": "变体 {m}（{i}/{n}）",
+        "map": "图谱：{m}（{i}/{n}）",
         "gpu_wait": "等待 GPU 槽位（被其他任务占用）",
     },
 }

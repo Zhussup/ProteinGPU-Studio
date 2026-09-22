@@ -7,6 +7,9 @@ import type {
   PredictResponse, Preset, TranslateResponse,
 } from './types'
 
+// artifact names served by GET /api/v1/files/{job_id}/{fn}
+export type MapArtifact = 'scan_map.json' | 'scan_map.csv' | 'scan_map_partial.json'
+
 function withLang(url: string): string {
   const sep = url.includes('?') ? '&' : '?'
   return `${url}${sep}lang=${currentLang()}`
@@ -50,6 +53,20 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sequence, position, profile }),
     }).then((r) => json<{ job_id: string; status: string }>(r)),
+
+  // positions: null → every position of the sequence (expensive: 19 folds each)
+  submitScanMap: (sequence: string, positions: number[] | null, profile?: InferenceProfile) =>
+    fetch(withLang('/api/v1/scan_map'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sequence, positions, profile }),
+    }).then((r) => json<{ job_id: string; status: string }>(r)),
+
+  mapArtifact: async (jobId: string, fn: MapArtifact) => {
+    const res = await fetch(`/api/v1/files/${jobId}/${fn}`)
+    if (!res.ok) throw new Error(`${res.status}: artifact fetch failed`)
+    return res.text()
+  },
 
   submitEnsemble: (
     sequence: string, position: number, mode: 'sampled' | 'exhaustive',

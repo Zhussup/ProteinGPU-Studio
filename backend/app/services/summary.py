@@ -270,3 +270,36 @@ def make_ensemble_summary(pos: int, wt_aa: str, mu: int, tau: float, n: int,
         width=_WIDTH_WORDS[lg][headline["width"]],
         level=_LEVEL_WORDS[lg][headline["level"]],
     )
+
+
+# scan map summary: the map's headline is its most fragile position plus the
+# quadrant census (dum.md §5 shape signatures) — a distribution verdict again,
+# never a two-structure comparison.
+_SCAN_MAP_TPL: dict[str, str] = {
+    "ru": ("Карта чувствительности: {n} позиций × 19 замен ({folds} фолдов). "
+           "Самая хрупкая — {wt}{pos}{best} (max local RMSD {best_r:.2f} Å). "
+           "Квадранты: ежей: {h}, игл: {nd}, дисков: {d}, клеверов: {c}."),
+    "en": ("Sensitivity map: {n} positions × 19 substitutions ({folds} folds). "
+           "Most fragile — {wt}{pos}{best} (max local RMSD {best_r:.2f} Å). "
+           "Quadrants: hedgehogs: {h}, needles: {nd}, disks: {d}, clovers: {c}."),
+    "zh": ("敏感性图谱：{n} 个位置 × 19 种替换（{folds} 次折叠）。"
+           "最脆弱——{wt}{pos}{best}（max local RMSD {best_r:.2f} Å）。"
+           "象限：海胆：{h}，尖针：{nd}，圆盘：{d}，三叶草：{c}。"),
+}
+
+
+def make_scan_map_summary(n: int, folds: int, fragile: dict | None,
+                          counts: dict, lang: str | None = None) -> str:
+    """Headline for a sensitivity map run."""
+    lg = norm_lang(lang)
+    if fragile is None:
+        return _SCAN_MAP_TPL[lg].format(
+            n=n, folds=folds, wt="—", pos="—", best="—", best_r=0.0,
+            h=counts["hedgehog"], nd=counts["needle"],
+            d=counts["disk"], c=counts["clover"])
+    best = max(fragile["rows"], key=lambda r: r["local_rmsd"])
+    return _SCAN_MAP_TPL[lg].format(
+        n=n, folds=folds, wt=fragile["wt_aa"], pos=fragile["pos"],
+        best=best["mut_aa"], best_r=best["local_rmsd"],
+        h=counts["hedgehog"], nd=counts["needle"],
+        d=counts["disk"], c=counts["clover"])

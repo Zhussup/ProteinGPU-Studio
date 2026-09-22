@@ -204,6 +204,45 @@ class EnsembleResponse(BaseModel):
     k: int
 
 
+class ScanMapRequest(BaseModel):
+    """Sensitivity map (dum.md §5): the 19-vector at EVERY position.
+
+    This is the expensive honest job: 19*L folds (WT once from cache). A
+    position subset keeps the demo bounded — the full map is the same loop.
+    positions=None means "all".
+    """
+    sequence: str = Field(min_length=10, max_length=600)
+    positions: list[int] | None = None  # None → all; 1-based, deduped on run
+    profile: Profile | None = None
+
+    @field_validator("sequence")
+    @classmethod
+    def _check(cls, v: str) -> str:
+        s = "".join(v.split()).upper()
+        if not AA_RE.fullmatch(s):
+            raise ValueError("sequence must contain only standard amino acids")
+        return s
+
+    @model_validator(mode="after")
+    def _positions_in_range(self):
+        if self.positions:
+            if len(set(self.positions)) != len(self.positions):
+                raise ValueError("duplicate positions")
+            bad = [p for p in self.positions if not (1 <= p <= len(self.sequence))]
+            if bad:
+                raise ValueError(
+                    f"positions out of range 1..{len(self.sequence)}: {bad}")
+        return self
+
+
+class ScanMapResponse(BaseModel):
+    job_id: str
+    status: str
+    length: int
+    n_positions: int
+    n_folds: int
+
+
 class BenchmarkProfileRow(BaseModel):
     profile: str
     length: int

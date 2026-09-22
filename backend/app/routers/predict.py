@@ -16,6 +16,7 @@ from ..schemas import (  # noqa: E402
     MutationResult, PredictRequest, PredictResponse, RmsdResult, MutateRequest,
     ScanRequest, ScanResponse, ScanRow, interpret_rmsd,
     EnsembleRequest, EnsembleResponse,
+    ScanMapRequest, ScanMapResponse,
 )
 from ..config import get_settings  # noqa: E402
 from ..services.align_service import align_pair  # noqa: E402
@@ -23,9 +24,13 @@ from ..services.folding_service import get_folding_service  # noqa: E402
 from ..services.job_manager import Job, get_job_manager  # noqa: E402
 from ..services.mutagenesis import (  # noqa: E402
     apply_mutations, derived_seed, distribution_stats, exhaustive_mutations,
-    mutation_label, sample_variants, sensitivity_headline,
+    grantham, mutation_label, sample_variants, sensitivity_headline,
 )
 from ..services.pdb_io import parse_ca_coords  # noqa: E402
+from ..services.sensitivity import (  # noqa: E402
+    PETAL_DIRS, SECTOR_OF, build_csv, most_fragile, normalize_protein,
+    petal_dirs, position_stats, quadrant_counts,
+)
 from ..services.strings import VALIDATION, norm_lang, stage_text  # noqa: E402
 
 router = APIRouter(prefix="/api/v1", tags=["folding"])
@@ -392,4 +397,116 @@ def _run_ensemble(job: Job) -> dict:
         "best": 0,
         "summary": summary,
         "pdb_files": ["wt.pdb"] + [f"ens_{i:02d}.pdb" for i in range(n)],
+    }
+
+
+# -- sensitivity map: the 19-vector at every position (dum.md §5) ---------------
+@router.post("/scan_map", response_model=ScanMapResponse)
+def scan_map(req: ScanMapRequest, lang: str = "ru") -> ScanMapResponse:
+    """The wind-rose job: fold WT once, then every requested position's 19
+    substitutions (all positions by default) — 19*L folds, the honest map.
+    A position subset keeps a demo bounded; the full map is the same loop."""
+    seq = req.sequence
+    positions = req.positions or list(range(1, len(seq) + 1))
+    job_id = _jm().submit(
+        kind="scan_map",
+        params={"sequence": seq, "positions": positions,
+                "profile": req.profile, "lang": norm_lang(lang)},
+        run_fn=_run_scan_map,
+        use_gpu=bool(req.profile) or _gpu_needed())
+    return ScanMapResponse(job_id=job_id, status="queued", length=len(seq),
+                           n_positions=len(positions),
+                           n_folds=19 * len(positions))
+
+
+def _run_scan_map(job: Job) -> dict:
+    """Fold WT once, then each position's 19 substitutions in the fixed compass
+    order; the position's sensitivity is its 19-vector (the rose).
+
+    Rows are emitted in rose order (PETAL_DIRS minus the WT slot) so the UI
+    draws the glyph straight from the artifact; ranking scalars live in stats.
+    One checkpoint per finished position — the GPU-hours survive an error
+    (scan_map_partial.json), and the fold cache makes an identical rerun free.
+    Mutant PDBs are NOT kept: this is a data job, not a structure job — the
+    aligned strongest mutant comes from /scan on demand.
+    """
+    import json
+    settings = get_settings()
+    svc = get_folding_service()
+    jm = _jm()
+    lang = _lang(job)
+    seq: str = job.params["sequence"]
+    positions: list[int] = job.params["positions"]
+    n = len(positions)
+    total_folds = 19 * n
+
+    _stage(job, jm, stage_text("model", lang), 0.02)
+    _prepare_model(job, svc)
+    _ = svc.model
+    if svc.cache.get(seq, svc.model_name) is None:
+        _stage(job, jm, stage_text("wt", lang), 0.05)
+    wt, wt_cached = svc.predict_cached(seq)
+    wt_ca = wt.coords_ca
+    out_dir = jm.job_dir(job.job_id)
+    (out_dir / "wt.pdb").write_text(wt.pdb_text)
+
+    results = []
+    for i, pos in enumerate(positions):
+        _stage(job, jm, stage_text("map", lang, m=f"{seq[pos - 1]}{pos}",
+                                   i=i + 1, n=n),
+               0.1 + 0.85 * (i + 1) / n)
+        rows = []
+        for mut_aa in petal_dirs(seq[pos - 1]):
+            mut = svc.model.predict(mutant_sequence(seq, pos, mut_aa))
+            al = align_pair(wt_ca, mut.coords_ca, position=pos,
+                            radius=settings.local_radius)
+            a, b = al.local_window  # 1-based inclusive
+            dplddt_local = float(sum(
+                mut.plddt[j] - wt.plddt[j] for j in range(a - 1, b)) / (b - a + 1))
+            rows.append({
+                "mut_aa": mut_aa,
+                "grantham": grantham(seq[pos - 1], mut_aa),
+                "local_rmsd": al.local_rmsd, "global_rmsd": al.global_rmsd,
+                "tm_score": al.tm_score, "plddt_mut": mut.plddt_mean,
+                "dplddt": float(mut.plddt_mean - wt.plddt_mean),
+                "dplddt_local": dplddt_local,
+                "abs_dplddt_local": abs(dplddt_local),
+                "engine": al.engine,
+                "interpretation": interpret_rmsd(
+                    al.local_rmsd, settings.rmsd_stable_below,
+                    settings.rmsd_critical_above),
+            })
+        stats = position_stats([r["local_rmsd"] for r in rows],
+                               [r["abs_dplddt_local"] for r in rows])
+        results.append({"pos": pos, "wt_aa": seq[pos - 1], "rows": rows,
+                        "stats": stats})
+        # checkpoint: every finished position is already the user's property
+        (out_dir / "scan_map_partial.json").write_text(json.dumps(
+            {"sequence": seq, "done": len(results), "total": n,
+             "positions": results}, ensure_ascii=False))
+
+    normalize_protein(results)
+    from ..services.summary import make_scan_map_summary
+    fragile = most_fragile(results)
+    summary = make_scan_map_summary(
+        n=n, folds=total_folds + 1, fragile=fragile,
+        counts=quadrant_counts(results), lang=lang)
+
+    (out_dir / "scan_map.json").write_text(json.dumps(
+        {"sequence": seq, "model": svc.model_name,
+         "petal_dirs": PETAL_DIRS, "positions": results},
+        ensure_ascii=False))
+    (out_dir / "scan_map.csv").write_text(build_csv(results))
+
+    return {
+        "wt_sequence": seq, "model": svc.model_name,
+        "wt_from_cache": wt_cached,
+        "n_positions": n, "n_folds": total_folds + 1,
+        "plddt_wt": wt.plddt_mean,
+        "plddt_wt_list": [float(x) for x in wt.plddt],
+        "petal_dirs": PETAL_DIRS,
+        "positions": results,
+        "summary": summary,
+        "pdb_files": ["wt.pdb"],
+        "artifact_files": ["scan_map.json", "scan_map.csv"],
     }

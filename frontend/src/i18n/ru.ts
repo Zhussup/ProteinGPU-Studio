@@ -299,6 +299,57 @@ export const ru = {
   'track.scan': 'Скан позиции (19 замен)',
   'track.domains': 'Домены UniProt',
   'track.variants': 'Чувствительность (ансамбль)',
+
+  // Карта чувствительности / «роза ветров» (dum.md §5)
+  'run.map': 'Карта (роза)',
+  'run.mapTitle':
+    'карта чувствительности: позиции диапазона × 19 замен — вектор откликов каждой позиции; ' +
+    'самая дорогая задача (19 фолдов на позицию)',
+  'run.stage.map': 'карта',
+  'run.mapRange': 'Позиции карты',
+  'run.mapCount': '{n} поз. × 19 = {folds} фолдов',
+  'ws.mapTitle': 'Карта чувствительности — {n} позиций × 19 замен',
+  'hist.kind.map': 'карта',
+  'viewer.legendSensitivity': 'Чувствительность (0–1)',
+
+  'map.metricLabel': 'Скаляр для окраски 3D:',
+  'map.metric.vmax': 'max local RMSD',
+  'map.metric.vmed': 'медиана local RMSD',
+  'map.paint': 'Окрасить 3D',
+  'map.paintTitle': 'окрасить WT-структуру перцентилями выбранного скаляра',
+  'map.clearPaint': 'снять окраску',
+  'map.painted': '3D окрашено: {metric} (перцентили внутри белка)',
+  'map.csv': 'CSV (датасет)',
+  'map.json': 'JSON',
+  'map.heatmap': 'Тепловая карта: позиции × направления компаса (цвет = перцентиль |ΔpLDDT|)',
+  'map.heatTip': '{m} · перц. |ΔpLDDT| {pctl} · RMSD {rmsd} Å',
+  'map.heatLegend': 'горячее = больнее',
+  'map.h.pos': 'позиция',
+  'map.h.rose': 'роза',
+  'map.h.quadrant': 'квадрант',
+  'map.h.max': 'max local RMSD, Å',
+  'map.h.med': 'мед. local RMSD, Å',
+  'map.h.pctl': 'перцентиль',
+  'map.roseTitle': 'роза позиции {m}',
+  'map.detailTitle': 'Роза позиции {m}',
+  'map.detailMax': 'max local RMSD {v} Å',
+  'map.detailMed': 'медиана {v} Å',
+  'map.detailSharp': 'резкость {v}',
+  'map.lenChannel': 'длина лепестка — перцентиль |ΔpLDDT| внутри белка',
+  'map.colorChannel': 'цвет — перцентиль local RMSD внутри позиции',
+  'map.petalTip': '{m} · перц. |ΔpLDDT| {pctl} · RMSD {rmsd} Å',
+  'map.quad.hedgehog': 'ёж',
+  'map.quad.needle': 'игла',
+  'map.quad.disk': 'диск',
+  'map.quad.clover': 'клевер',
+  'map.quad.hedgehogTitle': 'ломается любая замена',
+  'map.quad.needleTitle': 'больно в одном химическом направлении',
+  'map.quad.diskTitle': 'толерантная позиция',
+  'map.quad.cloverTitle': 'сильно, но рвано — несколько ярких лепестков',
+  'map.note':
+    'длина и цвет — перцентили (внутри белка / внутри позиции): абсолютные числа разных окон ' +
+    'несравнимы напрямую; клик по строке — большая роза этой позиции; CSV — ровно строки ' +
+    'будущего датасета (одна строка на позицию × замену)',
 }
 
 export type Dict = typeof ru

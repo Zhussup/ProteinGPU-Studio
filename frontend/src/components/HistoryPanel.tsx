@@ -22,6 +22,7 @@ const KIND_KEYS: Record<string, Key> = {
   mutate: 'hist.kind.mutate',
   scan: 'hist.kind.scan',
   ensemble: 'hist.kind.ensemble',
+  scan_map: 'hist.kind.map',
 }
 
 // "2026-09-11T14:23:05" → "11.09 14:23"
@@ -62,7 +63,7 @@ export default function HistoryPanel({ jobs, currentJobId, onRestore, onRefresh 
               >
                 <span className={`inline-block h-2 w-2 shrink-0 ${STATUS_MARK[j.status] ?? 'bg-neutral-300'}`} />
                 <span className="mono w-16 shrink-0 font-medium text-neutral-900">
-                  {j.kind === 'mutate' || j.kind === 'ensemble' ? j.label : 'WT'}
+                  {j.kind === 'mutate' || j.kind === 'ensemble' || j.kind === 'scan_map' ? j.label : 'WT'}
                 </span>
                 <span className="flex-1 truncate text-neutral-500">
                   {j.status === 'error'

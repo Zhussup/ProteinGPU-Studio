@@ -3,8 +3,10 @@
 
 Writes data/report/env.json — the machine record referenced by the diploma report.
 """
+import hashlib
 import json
 import shutil
+import site
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -12,6 +14,31 @@ from pathlib import Path
 
 REPORT = Path(__file__).resolve().parent.parent / "data" / "report"
 REPORT.mkdir(parents=True, exist_ok=True)
+
+# Pinned upstream snapshot of omegafold (Helixon/OmegaFold, Apache-2.0). The
+# package is not on PyPI, so scripts/00_setup_env.sh vendors the tree at this
+# commit and check_env verifies every file against a sha256 manifest: internal
+# APIs are not a contract, so an unnoticed drift (a half-applied copy, an
+# accidental edit) must fail loudly instead of quietly skewing predictions.
+OMEGAFOLD_SHA = "313c873ad190b64506a497c926649e15fcd88fcd"
+OMEGAFOLD_TREE_SHA256 = "a04905e7b08afee6c922f40e76fa6eace73fa187b6571cb9744c851da716e67b"
+
+
+def omegafold_tree_digest(pkg_dir: Path) -> str | None:
+    """Content manifest of the vendored tree: sha256 over sorted (path, file-hash).
+
+    __pycache__/ artifacts are excluded — they appear and disappear at
+    runtime and say nothing about the source.
+    """
+    if not pkg_dir.is_dir():
+        return None
+    h = hashlib.sha256()
+    for f in sorted(p for p in pkg_dir.rglob("*")
+                    if p.is_file() and "__pycache__" not in p.parts):
+        h.update(f.relative_to(pkg_dir).as_posix().encode())
+        h.update(b"\0")
+        h.update(hashlib.sha256(f.read_bytes()).digest())
+    return h.hexdigest()
 
 
 def _cmd_output(cmd: list[str]) -> str | None:
@@ -69,6 +96,14 @@ def main() -> int:
         ok = False
         env["omegafold_import"] = False
         env["omegafold_error"] = repr(e)
+
+    # provenance pin: the vendored tree must byte-match the pinned snapshot
+    digest = omegafold_tree_digest(Path(site.getsitepackages()[0]) / "omegafold")
+    env["omegafold_sha"] = OMEGAFOLD_SHA
+    env["omegafold_tree_sha256"] = digest
+    env["omegafold_tree_ok"] = digest == OMEGAFOLD_TREE_SHA256
+    if not env["omegafold_tree_ok"]:
+        ok = False
 
     try:
         import Bio  # noqa: PLC0415
