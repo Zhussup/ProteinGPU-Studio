@@ -17,8 +17,8 @@ from typing import Any
 class TelemetrySample:
     """One measured call."""
     wall_s: float
-    max_vram_mb: float | None = None   # torch.cuda.max_memory_allocated delta
-    max_rss_mb: float | None = None    # process RSS peak during the call
+    max_vram_mb: float | None = None   # дельта torch.cuda.max_memory_allocated | torch.cuda.max_memory_allocated 增量
+    max_rss_mb: float | None = None    # пик RSS процесса за время вызова | 调用期间进程 RSS 峰值
     meta: dict[str, Any] = field(default_factory=dict)
 
 
@@ -30,7 +30,8 @@ class TelemetrySampler:
         self._baseline_vram = self._current_vram()
         self._baseline_rss = self._current_rss()
 
-    # -- context manager ----------------------------------------------------
+    # -- контекстный менеджер ------------------------------------------------
+    # -- 上下文管理器 ---------------------------------------------------------
     @contextmanager
     def measure(self, **meta: Any):
         import threading
@@ -45,7 +46,7 @@ class TelemetrySampler:
                 r = self._current_rss()
                 if r > peak:
                     peak = r
-                stop.wait(0.02)  # 20 ms as per the plan
+                stop.wait(0.02)  # 20 мс по плану | 按计划 20 ms
             return peak
 
         watcher = None
@@ -73,7 +74,8 @@ class TelemetrySampler:
                 meta=meta,
             ))
 
-    # -- summaries ------------------------------------------------------------
+    # -- сводки ----------------------------------------------------------------
+    # -- 汇总 -------------------------------------------------------------------
     def summary(self, drop_warmup: int = 2) -> dict[str, Any]:
         """median + IQR of wall time (first `drop_warmup` samples discarded)."""
         s = self.samples[drop_warmup:] if len(self.samples) > drop_warmup else self.samples
@@ -95,7 +97,8 @@ class TelemetrySampler:
             "rss_median_mb": statistics.median(rss) if rss else None,
         }
 
-    # -- helpers ------------------------------------------------------------
+    # -- вспомогательные ------------------------------------------------------
+    # -- 辅助方法 ----------------------------------------------------------------
     @staticmethod
     def _current_vram() -> float:
         torch = _try_import_torch()

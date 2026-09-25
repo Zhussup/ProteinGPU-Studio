@@ -1,5 +1,8 @@
-// HistoryPanel: recent jobs (from SQLite via GET /api/v1/jobs). Click a done
-// job to restore its result into the workspace — sequence, mutation, PDBs.
+// HistoryPanel: недавние задачи (из SQLite через GET /api/v1/jobs). Клик по
+// выполненной задаче восстанавливает её результат в рабочей области —
+// последовательность, мутацию, PDB.
+// HistoryPanel：最近任务（经 GET /api/v1/jobs 取自 SQLite）。点击已完成
+// 的任务可将其结果恢复到工作台——序列、突变、PDB。
 import type { JobSummary } from '../lib/types'
 import { useI18n, type Key } from '../i18n'
 
@@ -25,6 +28,7 @@ const KIND_KEYS: Record<string, Key> = {
   scan_map: 'hist.kind.map',
 }
 
+// "2026-09-11T14:23:05" → "11.09 14:23"
 // "2026-09-11T14:23:05" → "11.09 14:23"
 function shortTime(iso: string): string {
   return `${iso.slice(8, 10)}.${iso.slice(5, 7)} ${iso.slice(11, 16)}`

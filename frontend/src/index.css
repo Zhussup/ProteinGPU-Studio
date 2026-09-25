@@ -12,7 +12,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* strict panel look: square corners, hairline border */
+/* строгая панель: прямые углы, волосяная граница */
+/* 严格面板风格：方角、细边框 */
 .panel {
   border: 1px solid #d4d4d4;
   background: #ffffff;
@@ -27,13 +28,15 @@ body {
   color: #fff;
 }
 
-/* thin scrollbars */
+/* тонкие скроллбары */
+/* 细滚动条 */
 * {
   scrollbar-width: thin;
   scrollbar-color: #c4c4c4 transparent;
 }
 
-/* square form controls: remove native rounding */
+/* квадратные контролы форм: убрать нативное скругление */
+/* 方角表单控件：去掉原生圆角 */
 input,
 select,
 textarea,
@@ -41,7 +44,8 @@ button {
   border-radius: 0;
 }
 
-/* indeterminate stage marker (real activity, no fake %) */
+/* маркер этапа без точного процента (реальная активность, без выдуманных %) */
+/* 无精确百分比的阶段标记（真实活动，无编造 %） */
 @keyframes stagePulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -50,8 +54,10 @@ button {
   animation: stagePulse 1.2s ease-in-out infinite;
 }
 
-/* the mutagenesis dial's τ slider: square thumb, hairline track — same strict
-   geometry as every other control (no native rounded look) */
+/* слайдер τ ручки мутагенеза: квадратный ползунок, волосяная дорожка — та же
+   строгая геометрия, что у всех прочих контролов (без нативного скругления) */
+/* 突变旋钮的 τ 滑块：方形滑钮、细轨道——与其他控件相同的
+   严格几何（无原生圆角外观） */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;

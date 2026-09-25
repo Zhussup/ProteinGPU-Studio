@@ -1,4 +1,5 @@
-// Thin Plotly wrapper, lazy-loaded so plotly.js stays out of the main chunk.
+// Тонкая обёртка Plotly, ленивая загрузка, чтобы plotly.js не попадал в основной чанк.
+// 轻量 Plotly 封装，懒加载以避免 plotly.js 进入主 chunk。
 import { useEffect, useRef } from 'react'
 import Plotly from 'plotly.js-dist-min'
 
@@ -16,7 +17,7 @@ export default function PlotlyChart({ data, layout }: PlotProps) {
       responsive: true,
       ...layout,
     } as never)
-    return () => { /* Plotly.purge on unmount handled by react() reuse */ }
+    return () => { /* повторное использование react() обрабатывает purge при размонтировании */ }
   }, [data, layout])
 
   useEffect(() => {

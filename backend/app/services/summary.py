@@ -12,10 +12,12 @@ from .strings import norm_lang
 
 from ..schemas import RmsdResult
 
-# band phrases per language: 3 bands each, thresholds fixed by interpret_rmsd
+# фразы полос по языкам: по 3 полосы, пороги фиксированы interpret_rmsd
+# 各语言的区间短语：各 3 档，阈值由 interpret_rmsd 固定
 _BANDS: dict[str, dict[str, tuple[str, ...]]] = {
     "ru": {
-        # local RMSD bands (same thresholds as interpret_rmsd: 1.0 / 2.0 Å)
+        # полосы локального RMSD (те же пороги, что в interpret_rmsd: 1.0 / 2.0 Å)
+        # 局部 RMSD 区间（阈值同 interpret_rmsd：1.0 / 2.0 Å）
         "local": (
             "замена поглощена структурой без локальной перестройки",
             "наблюдается умеренная локальная перестройка конформации",
@@ -27,13 +29,15 @@ _BANDS: dict[str, dict[str, tuple[str, ...]]] = {
             "",
             "",
         ),
-        # TM-score bands: <0.5 / 0.5–0.9 / >0.9
+        # полосы TM-score: <0.5 / 0.5–0.9 / >0.9
+        # TM-score 区间：<0.5 / 0.5–0.9 / >0.9
         "tm": (
             "глобальная укладка изменена — цепи сворачиваются по-разному",
             "глобальная укладка в целом сохранена, но деформирована",
             "глобальная укладка сохранена",
         ),
-        # ΔpLDDT bands: ≤−1 / −1..+1 / ≥+1
+        # полосы ΔpLDDT: ≤−1 / −1..+1 / ≥+1
+        # ΔpLDDT 区间：≤−1 / −1..+1 / ≥+1
         "plddt": (
             "модель стала менее уверена в структуре мутанта — мутация попала в структурно значимый регион",
             "уверенность модели практически не изменилась",
@@ -87,7 +91,8 @@ _BANDS: dict[str, dict[str, tuple[str, ...]]] = {
     },
 }
 
-# interpretation → final verdict phrase
+# interpretation → финальная фраза-вердикт
+# interpretation → 最终结论短语
 _VERDICTS: dict[str, dict[str, str]] = {
     "ru": {
         "stable": "структура стабильна: эффект мутации в пределах шума модели",
@@ -106,7 +111,8 @@ _VERDICTS: dict[str, dict[str, str]] = {
     },
 }
 
-# line templates, one per language; {placeholders} filled in make_summary
+# шаблоны строк, по одному на язык; {плейсхолдеры} заполняются в make_summary
+# 行模板，每种语言一份；{占位符} 在 make_summary 中填充
 _SUMMARY_TPL: dict[str, tuple[str, ...]] = {
     "ru": (
         "Мутация {m}:",
@@ -131,7 +137,8 @@ _SUMMARY_TPL: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# scan summary: one sentence per language (moved here from predict.py)
+# сводка скана: по одному предложению на язык (перенесено из predict.py)
+# 扫描摘要：每种语言一句（自 predict.py 迁移而来）
 _SCAN_TPL: dict[str, str] = {
     "ru": ("Скан позиции {pos}: {n} замен вокруг {wt}. "
            "Сильнейший отклик — {wt}{pos}{best} "
@@ -202,9 +209,11 @@ def make_scan_summary(pos: int, n: int, wt_aa: str,
     )
 
 
-# ensemble summary: the dial's output is the distribution of responses, so the
-# sentence reports the distribution (median + IQR of local RMSD, median |ΔpLDDT|
-# of the anchor window) and its verdict — not a two-structure comparison.
+# сводка ансамбля: выход ручки — распределение откликов, поэтому предложение
+# сообщает распределение (медиана + IQR локального RMSD, медиана |ΔpLDDT| окна
+# якоря) и вердикт — а не сравнение двух структур.
+# 集成摘要：转盘的输出是响应分布，因此句子报告分布（局部 RMSD 的中位数 + IQR、
+# 锚定窗口的 |ΔpLDDT| 中位数）及其结论——而非两结构比较。
 _ENSEMBLE_TPL: dict[str, str] = {
     "ru": ("Ансамбль позиции {pos} ({wt}): {n} вариантов, μ={mu}, τ={tau}. "
            "Медианный local RMSD {lr:.2f} Å (IQR {iqr:.2f} Å), "
@@ -272,9 +281,11 @@ def make_ensemble_summary(pos: int, wt_aa: str, mu: int, tau: float, n: int,
     )
 
 
-# scan map summary: the map's headline is its most fragile position plus the
-# quadrant census (dum.md §5 shape signatures) — a distribution verdict again,
-# never a two-structure comparison.
+# сводка карты: заголовок карты — самая хрупкая позиция плюс перепись квадрантов
+# (dum.md §5, сигнатуры форм) — снова вердикт по распределению,
+# а не сравнение двух структур.
+# 图谱摘要：图谱标题为最脆弱位点加象限统计（dum.md §5 形态签名）——
+# 同样是基于分布的结论，绝非两结构比较。
 _SCAN_MAP_TPL: dict[str, str] = {
     "ru": ("Карта чувствительности: {n} позиций × 19 замен ({folds} фолдов). "
            "Самая хрупкая — {wt}{pos}{best} (max local RMSD {best_r:.2f} Å). "

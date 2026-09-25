@@ -52,12 +52,14 @@ class TestScan:
         rows = res["rows"]
         assert len(rows) == 19
         assert {r["mut_aa"] for r in rows} == set("ACDEFGHIKLMNPQRSTVWY") - {"I"}
-        # sorted strongest-first
+        # сортировка: сильнейшие первыми
+        # 排序：最强优先
         loc = [r["local_rmsd"] for r in rows]
         assert loc == sorted(loc, reverse=True)
         assert res["best"] == rows[0]["mut_aa"]
         assert "Скан позиции 44" in res["summary"]
-        # artifacts
+        # артефакты
+        # 工件
         assert client.get(f"/api/v1/files/{job_id}/wt.pdb").status_code == 200
         aa = res["best"]
         assert client.get(f"/api/v1/files/{job_id}/scan_{aa}.pdb").status_code == 200
@@ -80,6 +82,7 @@ class TestScan:
         assert s["status"] == "done", s.get("error")
         res = client.get(f"/api/v1/jobs/{r.json()['job_id']}/result").json()
         assert "dummy" in res["model"]
-        # per-residue pLDDT arrays present for the chart
+        # массивы pLDDT по остаткам присутствуют для графика
+        # 存在逐残基 pLDDT 数组，供图表使用
         assert len(res["plddt_wt_list"]) == len(UBIQ)
         assert len(res["plddt_mut_list"]) == len(UBIQ)

@@ -1,4 +1,5 @@
-// Modal: strict square dialog (backdrop + bordered panel). No frills.
+// Modal: строгий квадратный диалог (затемнение + окаймлённая панель). Без излишеств.
+// Modal：严格方角对话框（遮罩 + 带边框面板）。不花哨。
 import { type ReactNode, useEffect } from 'react'
 import { useI18n } from '../i18n'
 

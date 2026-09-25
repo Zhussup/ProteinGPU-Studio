@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from .strings import TRANS_WARNINGS, norm_lang
 
-# Standard genetic code (DNA triplets). Stop codons map to "*".
+# Стандартный генетический код (триплеты ДНК). Стоп-кодоны → "*".
+# 标准遗传密码（DNA 三联体）。终止密码子映射为 "*"。
 CODON_TABLE: dict[str, str] = {
     "TTT": "F", "TTC": "F", "TTA": "L", "TTG": "L",
     "CTT": "L", "CTC": "L", "CTA": "L", "CTG": "L",
@@ -65,7 +66,7 @@ def translate(dna: str, lang: str | None = None) -> dict:
     """
     w = TRANS_WARNINGS[norm_lang(lang)]
     warnings: list[str] = []
-    orf_start = dna.find("ATG")  # 0-based; -1 → translate from the start
+    orf_start = dna.find("ATG")  # 0-based; -1 → транслируем с начала | 0 基索引；-1 → 从开头翻译
     if orf_start == -1:
         orf_start = 0
         if dna:

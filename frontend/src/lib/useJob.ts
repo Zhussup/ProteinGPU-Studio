@@ -1,4 +1,5 @@
-// useJob: poll a backend job until done/error. Returns live status + result.
+// useJob: опрашивает backend-задачу до done/error. Возвращает живой статус + результат.
+// useJob：轮询后端任务直至完成/出错。返回实时状态 + 结果。
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import { useI18n } from '../i18n'

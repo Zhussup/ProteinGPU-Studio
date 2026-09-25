@@ -31,7 +31,7 @@ def test_translate_ubiquitin_start_codon():
     # GGGACC ATG AAA TTT CCC TAA → M K F
     res = translate("GGGACCATGAAATTTCCCTAA")
     assert res["orf_start"] == 6
-    assert res["protein"] == "MKFP*"  # stop marker included, loop stops at TAA
+    assert res["protein"] == "MKFP*"  # стоп-маркер включён, цикл останавливается на TAA | 包含终止符，循环在 TAA 停止
     assert res["codons"][0] == {"index": 1, "codon": "ATG", "aa": "M"}
     assert res["codons"][4] == {"index": 5, "codon": "TAA", "aa": "*"}
 
@@ -45,7 +45,7 @@ def test_translate_no_start_codon_warns():
 
 def test_translate_incomplete_tail():
     res = translate("ATGAAAT")
-    assert len(res["codons"]) == 2  # ATG AAA; lone T ignored
+    assert len(res["codons"]) == 2  # ATG AAA; одиночный T игнорируется | ATG AAA；单独的 T 被忽略
     assert any("кратен 3" in w for w in res["warnings"])
 
 
@@ -63,16 +63,16 @@ def test_summary_stable_band():
     assert "Мутация I44A" in s
     assert "поглощена" in s
     assert "укладка сохранена" in s
-    assert "±0.1" not in s  # no fake precision phrases
+    assert "±0.1" not in s  # без фальшивой точности | 不假装过高的精度
     assert "Итог: структура стабильна" in s
-    assert "сравнением между собой" in s  # determinism caveat in stable band
+    assert "сравнением между собой" in s  # оговорка о детерминизме в полосе stable | stable 区间的确定性说明
 
 
 def test_summary_moderate_band():
     s = make_summary(_rmsd(1.5, 0.8, 92.0, 90.5, "moderate"), "P", 19, "G")
     assert "умеренная локальная перестройка" in s
     assert "в целом сохранена, но деформирована" in s
-    assert "менее уверена" in s  # ΔpLDDT = −1.5
+    assert "менее уверена" in s  # ΔpLDDT = −1.5 | ΔpLDDT = −1.5
     assert "Итог" in s
 
 
@@ -90,14 +90,15 @@ def test_summary_never_mentions_engine():
 
 @pytest.mark.parametrize("lr,expected", [(0.99, 0), (1.0, 1), (1.99, 1), (2.0, 2)])
 def test_summary_band_edges(lr, expected):
-    # band edges must match interpret_rmsd: <1 stable, 1–2 moderate, ≥2 critical
+    # края полос совпадают с interpret_rmsd: <1 stable, 1–2 moderate, ≥2 critical
+    # 条带边界须与 interpret_rmsd 一致：<1 stable、1–2 moderate、≥2 critical
     interp = {0: "stable", 1: "moderate", 2: "critical"}[expected]
     s = make_summary(_rmsd(lr, 0.99, 90, 90, interp), "A", 1, "V")
     phrases = ["поглощена", "умеренная", "существенно"]
     assert phrases[expected] in s
 
 
-# -- language variants ---------------------------------------------------------
+# -- языковые варианты / 语言变体 ----------------------------------------------
 def test_summary_languages():
     r = _rmsd(0.21, 0.997, 92.0, 91.9, "stable")
     en = make_summary(r, "I", 44, "A", "en")
@@ -106,7 +107,8 @@ def test_summary_languages():
     zh = make_summary(r, "I", 44, "A", "zh")
     assert "突变 I44A" in zh
     assert "结论：" in zh
-    # unknown language falls back to ru (the source of truth)
+    # неизвестный язык → откат на ru (источник истины)
+    # 未知语言回退到 ru（事实标准）
     ru = make_summary(r, "I", 44, "A", "xx")
     assert "Мутация I44A" in ru
 

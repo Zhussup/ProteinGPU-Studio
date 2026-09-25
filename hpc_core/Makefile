@@ -1,8 +1,13 @@
-# Build for the Kabsch/RMSD HPC core.
-#   make cpu   — pure C++17 + OpenMP (no CUDA needed)
-#   make gpu   — adds CUDA kernels (requires nvcc, sm_86 for RTX 3050)
-#   make test  — standalone C++ tests
-#   make pytest — Python bindings tests
+# Сборка ядра HPC Kabsch/RMSD.
+#   make cpu   — чистый C++17 + OpenMP (CUDA не нужен)
+#   make gpu   — добавляет CUDA-кернелы (нужен nvcc, sm_86 для RTX 3050)
+#   make test  — автономные C++-тесты
+#   make pytest — тесты Python-биндингов
+# 构建 Kabsch/RMSD HPC 核心。
+#   make cpu   —— 纯 C++17 + OpenMP（无需 CUDA）
+#   make gpu   —— 加入 CUDA 核函数（需要 nvcc，RTX 3050 用 sm_86）
+#   make test  —— 独立 C++ 测试
+#   make pytest —— Python 绑定测试
 PYTHON ?= $(shell ls ../.venv/bin/python 2>/dev/null || which python3)
 PY_EXT     := $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
 PB_INCLUDES := $(shell $(PYTHON) -m pybind11 --includes 2>/dev/null)

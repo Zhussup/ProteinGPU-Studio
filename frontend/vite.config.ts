@@ -6,7 +6,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    // proxy /api to the FastAPI backend during development
+    // проксируем /api на FastAPI-бэкенд в разработке
+    // 开发期将 /api 代理到 FastAPI 后端
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8077',

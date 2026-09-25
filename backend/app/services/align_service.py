@@ -22,7 +22,7 @@ for p in (str(REPO / "hpc_core" / "python"), str(REPO / "ml")):
 class AlignOutput:
     global_rmsd: float
     local_rmsd: float
-    local_window: tuple[int, int]  # 1-based inclusive
+    local_window: tuple[int, int]  # нумерация с 1, включительно | 从 1 开始、含端点
     tm_score: float
     engine: str
 

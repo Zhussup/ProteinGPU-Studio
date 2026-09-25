@@ -1,7 +1,10 @@
-// EnsemblePanel: results of a mutagenesis-strength ensemble run (dum.md §2/§6).
-// The position's sensitivity is the DISTRIBUTION of responses across K variants
-// — medians, IQR, histograms — never a two-structure eyeball comparison.
-// Clicking a row overlays that variant's aligned PDB on the WT in 3D.
+// EnsemblePanel: результаты ансамблевого прогона ручки силы мутагенеза (dum.md §2/§6).
+// Чувствительность позиции — это РАСПРЕДЕЛЕНИЕ откликов по K вариантам
+// — медианы, IQR, гистограммы — никогда сравнение двух структур «на глаз».
+// Клик по строке накладывает выровненный PDB этого варианта на WT в 3D.
+// EnsemblePanel：突变强度 ensemble 运行的结果（dum.md §2/§6）。
+// 位点敏感性是 K 个变体响应的分布——中位数、IQR、直方图——
+// 绝非两张结构的肉眼对比。点击行可在 3D 中把该变体的对齐 PDB 叠加到 WT 上。
 import { Suspense, lazy, useState } from 'react'
 import type { EnsembleResult, EnsembleRow } from '../lib/types'
 import { renderBold, useI18n, type Key } from '../i18n'
@@ -53,7 +56,8 @@ export default function EnsemblePanel({ result, onPickRow, pickedIndex }: Ensemb
         {result.summary}
       </div>
 
-      {/* the dial configuration that produced this ensemble */}
+      {/* конфигурация диска, породившая этот ансамбль */}
+      {/* 生成该 ensemble 的旋钮配置 */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
         {exhaustive ? (
           <span>{t('ens.exhaustiveNote')}</span>
@@ -82,7 +86,8 @@ export default function EnsemblePanel({ result, onPickRow, pickedIndex }: Ensemb
         </span>
       </div>
 
-      {/* the four honest numbers: medians + spread, no invented 0-100 score */}
+      {/* четыре честных числа: медианы + разброс, без выдуманной шкалы 0-100 */}
+      {/* 四个诚实的数字：中位数 + 离散度，没有编造的 0-100 评分 */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="border border-neutral-200 bg-white p-3">
           <div className="text-[11px] text-neutral-500">{t('ens.card.medLocal')}</div>
@@ -195,7 +200,8 @@ export default function EnsemblePanel({ result, onPickRow, pickedIndex }: Ensemb
   )
 }
 
-// Histogram of one response metric across the ensemble (Plotly, canonical idiom).
+// Гистограмма одной метрики отклика по ансамблю (Plotly, канонический идиом).
+// ensemble 内某一响应指标的直方图（Plotly，标准写法）。
 function Hist({ title, values, xTitle, yTitle }: {
   title: string; values: number[]; xTitle: string; yTitle: string
 }) {

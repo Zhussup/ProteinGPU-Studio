@@ -1,5 +1,7 @@
-// SequenceInput: FASTA/RAW sequence entry (protein or DNA file upload),
-// demo presets, and a DNA→codon→amino-acid translation window.
+// SequenceInput: ввод последовательности FASTA/RAW (загрузка белка или ДНК),
+// демо-пресеты и окно трансляции ДНК→кодон→аминокислота.
+// SequenceInput：FASTA/RAW 序列输入（蛋白或 DNA 文件上传）、
+// 演示预设，以及 DNA→密码子→氨基酸的翻译窗口。
 import { useMemo, useRef, useState } from 'react'
 import type { Preset, TranslateResponse } from '../lib/types'
 import { api } from '../lib/api'
@@ -33,7 +35,8 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
   const len = raw.length
   const lenOk = len >= minLen && len <= maxLen
 
-  // DNA FASTA upload → codon/translation modal
+  // загрузка ДНК FASTA → модалка кодонов/трансляции
+  // 上传 DNA FASTA → 密码子/翻译弹窗
   const fileRef = useRef<HTMLInputElement>(null)
   const [translation, setTranslation] = useState<TranslateResponse | null>(null)
   const [translating, setTranslating] = useState(false)
@@ -44,8 +47,10 @@ export default function SequenceInput({ value, onChange, presets, minLen, maxLen
     setTranslating(true); setTransError(null)
     try {
       const text = await f.text()
-      // distinguish DNA (mostly ACGTU) from protein FASTA: protein files go
-      // straight into the sequence box, DNA opens the codon/translation view
+      // отличаем ДНК (в основном ACGTU) от белкового FASTA: белковые файлы
+      // попадают прямо в поле последовательности, ДНК открывает вид кодонов
+      // 区分 DNA（主要含 ACGTU）与蛋白 FASTA：蛋白文件直接填入序列框，
+      // DNA 则打开密码子/翻译视图
       const body = stripFasta(text).replace(/[^A-Z]/g, '')
       const dnaish = body.length > 0 &&
         [...body].filter((c) => 'ACGTU'.includes(c)).length / body.length >= 0.9

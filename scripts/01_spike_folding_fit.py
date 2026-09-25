@@ -92,7 +92,7 @@ def run_worker(profile: str, lengths: list[int], out_path: Path) -> int:
                     res = model.predict(seq)
                 if rep == 0:
                     pdb_ok, pdb_msg = check_pdb(res.pdb_text, n)
-            except RuntimeError as exc:  # OOM etc.
+            except RuntimeError as exc:  # OOM и т.п. | OOM 等
                 error = f"{type(exc).__name__}: {str(exc)[:300]}"
                 break
         if error is None:
@@ -117,7 +117,7 @@ def run_worker(profile: str, lengths: list[int], out_path: Path) -> int:
         print(f"  {profile:12s} n={n:4d}  {row.get('wall_median_s', '--'):>8} s  "
               f"vram={row['vram_peak_mb']:>8} MB  pdb={row['pdb_ok']}  -> {row['status']}"
               + (f"  [{row['error'][:120]}]" if error else ""), flush=True)
-        if error:  # allocator state is poisoned — stop this profile here
+        if error:  # состояние аллокатора отравлено — останавливаем профиль здесь | 分配器状态已损坏——就此停止该配置
             break
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -133,7 +133,8 @@ def main() -> int:
     ap.add_argument("--_out")
     args = ap.parse_args()
 
-    # worker mode: run one profile in this (fresh) process
+    # режим worker: один профиль в этом (свежем) процессе
+    # worker 模式：在本（全新）进程中运行一个配置
     if args._worker:
         assert args._out, "--_worker requires --_out"
         return run_worker(args._worker, args.lengths, Path(args._out))
@@ -171,7 +172,8 @@ def main() -> int:
     OUT.write_text(json.dumps(decision, indent=2))
     print(f"\n{decision['decision']}")
     print(f"written: {OUT}")
-    # clean up side files
+    # подчищаем side-файлы
+    # 清理临时文件
     for p in OUT.parent.glob("_spike_*.json"):
         p.unlink()
     return 0 if decision["decision"].startswith("PASS") else 1

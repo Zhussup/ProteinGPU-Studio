@@ -64,7 +64,8 @@ def main() -> int:
         mut_seq = UBIQ[:pos - 1] + aa + UBIQ[pos:]
         mut = model.predict(mut_seq)
         al = align_pair(wt.coords_ca, mut.coords_ca, pos, radius=10)
-        # PDB sanity
+        # проверка PDB на вменяемость
+        # PDB 健全性检查
         with tempfile.NamedTemporaryFile("w", suffix=".pdb", delete=False) as f:
             f.write(mut.pdb_text)
             path = f.name
@@ -95,13 +96,17 @@ def main() -> int:
     wall_ok = wall <= WALL_BUDGET_S
     if not args.skip_thresholds:
         by = {r["demo"]: r for r in results}
-        # I3L (conservative) stays sub-Å (the ТЗ's "<1 A stable" band).
+        # I3L (консервативная) остаётся суб-Å (полоса "<1 Å stable" из ТЗ).
+        # I3L（保守替换）保持亚埃（ТЗ 的 "<1 Å stable" 区间）。
         i3l = by["I3L"]["global_rmsd"] < 1.0
-        # ТЗ expected P19G >= 2 A ("critical"). The real model turned out to be
-        # near-deterministic on a stable fold: point mutations move the
-        # predicted structure sub-Å. What DOES hold — and what we assert — is
-        # the response ORDERING from the literature: the loop proline
-        # mutation produces the largest structural response of the three.
+        # ТЗ ожидало P19G >= 2 Å ("critical"). Реальная модель оказалась
+        # почти детерминированной на стабильном фолде: точечные мутации
+        # сдвигают предсказание суб-Å. Что ДЕЙСТВИТЕЛЬНО держится — и что мы
+        # проверяем — это ПОРЯДОК откликов из литературы: мутация пролина в
+        # петле даёт наибольший структурный отклик из трёх.
+        # ТЗ 曾预期 P19G ≥ 2 Å（"critical"）。真实模型在稳定折叠上近乎确定性：
+        # 点突变只移动亚埃级。真正成立、且我们断言的是文献中的响应排序：
+        # 环区脯氨酸突变产生三者中最大的结构响应。
         p19g = (by["P19G"]["global_rmsd"] > 2.0 * by["I3L"]["global_rmsd"]
                 and by["P19G"]["global_rmsd"] > 2.0 * by["I44A"]["global_rmsd"])
         print(f"I3L<1A: {i3l}  P19G strongest response: {p19g}")

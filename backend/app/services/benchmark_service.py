@@ -11,7 +11,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 for p in (str(REPO), str(REPO / "hpc_core" / "python")):
-    # REPO (parent), not REPO/"ml": `import ml` needs the parent dir on path
+    # REPO (родитель), а не REPO/"ml": `import ml` требует родительский каталог в path
+    # 用 REPO（父目录）而非 REPO/"ml"：`import ml` 需要把父目录加入 path
     if p not in sys.path:
         sys.path.insert(0, p)
 
@@ -51,7 +52,8 @@ def bench_inference(sequence: str, profiles: list[str], lengths: list[int] | Non
             elif profile == "fp32-gpu" and on_gpu and hasattr(model, "to_fp32"):
                 model.to_fp32()
             elif profile == "cpu" and on_gpu:
-                # move resident model to CPU for the reference row, then back
+                # переносим резидентную модель на CPU для эталонной строки, потом обратно
+                # 把常驻模型移到 CPU 跑基准行，之后再移回
                 inner = getattr(model, "_model", None)
                 if inner is not None:
                     inner.float().to("cpu")
@@ -75,7 +77,8 @@ def bench_inference(sequence: str, profiles: list[str], lengths: list[int] | Non
                 "repeats": s["n"],
             })
 
-        # restore resident state between profiles
+        # восстанавливаем резидентное состояние между профилями
+        # 在不同配置之间恢复常驻状态
         if profile != "dummy" and on_gpu:
             inner = getattr(model, "_model", None)
             if inner is not None:
@@ -99,7 +102,8 @@ def bench_kernels(B: int = 2048, N: int = 512, repeats: int = 9) -> list[dict]:
 
     rows = []
 
-    # numpy reference (median of repeats)
+    # numpy-эталон (медиана по повторам)
+    # numpy 参照（重复取中位数）
     import time
 
     def kabsch_numpy_batch(P, Q):
@@ -113,7 +117,7 @@ def bench_kernels(B: int = 2048, N: int = 512, repeats: int = 9) -> list[dict]:
         return out
 
     walls = []
-    for _ in range(3):  # warmup
+    for _ in range(3):  # прогрев | 预热
         kabsch_numpy_batch(P[:2], Q[:2])
     for _ in range(repeats):
         t0 = time.perf_counter()
@@ -141,7 +145,8 @@ def bench_kernels(B: int = 2048, N: int = 512, repeats: int = 9) -> list[dict]:
             walls.append(time.perf_counter() - t0)
         rows.append(_kernel_row("cuda-pcie", B, N, walls))
 
-        # zero-copy path: tensors resident on GPU
+        # путь без копирования: тензоры постоянно на GPU
+        # 零拷贝路径：张量常驻 GPU
         if _try_torch() is not None and _try_torch().cuda.is_available():
             torch = _try_torch()
             Pt = torch.from_numpy(P).cuda()

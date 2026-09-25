@@ -40,7 +40,8 @@ def benchmark(req: BenchmarkRequest) -> BenchmarkResponse:
     if bad:
         from fastapi import HTTPException
         raise HTTPException(422, f"unknown profiles: {sorted(bad)}")
-    # CPU-only profiles (and dummy) don't need the GPU slot.
+    # Профили только-CPU (и dummy) не занимают GPU-слот.
+    # 仅 CPU 的配置（及 dummy）不需要 GPU 名额。
     use_gpu = bool(set(req.profiles) - {"cpu", "dummy"}) and "omegafold" in get_folding_service().model_name
     jm = get_job_manager()
     job_id = jm.submit(kind="benchmark",

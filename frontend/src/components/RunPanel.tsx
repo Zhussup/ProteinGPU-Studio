@@ -1,9 +1,15 @@
-// RunPanel: run buttons (WT only / WT+мутант), honest stage progress, GPU badge.
+// RunPanel: кнопки запуска (только WT / WT+мутант), честный прогресс этапов, бейдж GPU.
 //
-// The progress bar is deliberately NOT a smooth fake: the backend reports real
-// pipeline stages (progress jumps + message via GET /jobs/{id}); we render one
-// segment per stage — filled when passed, pulsing while active — plus a live
-// elapsed timer. No interpolation, no invented percentages.
+// Прогресс-бар намеренно НЕ плавная подделка: бэкенд сообщает реальные этапы
+// конвейера (progress скачками + message через GET /jobs/{id}); мы рисуем один
+// сегмент на этап — заполнен, когда пройден, пульсирует, когда активен — плюс
+// живой таймер прошедшего времени. Без интерполяции, без выдуманных процентов.
+// RunPanel：运行按钮（仅 WT / WT+突变体）、诚实的阶段进度、GPU 徽章。
+//
+// 进度条刻意不做平滑假象：后端报告真实流水线阶段
+//（progress 跳跃 + GET /jobs/{id} 的 message）；每个阶段一段——
+// 已过则填满，进行中则脉冲——外加实时耗时计时器。
+// 无插值，无编造的百分比。
 import { useEffect, useState } from 'react'
 import type { InferenceProfile, JobStatus, GpuInfo } from '../lib/types'
 import { useI18n, type Key } from '../i18n'
@@ -28,8 +34,10 @@ export interface RunPanelProps {
   onReset: () => void
 }
 
-// Stage thresholds mirror backend/app/routers/predict.py progress values.
-// Labels come from the dictionary (built per render, see buildStages below).
+// Пороги этапов зеркалят значения progress из backend/app/routers/predict.py.
+// Подписи берутся из словаря (строятся на каждый рендер, см. buildStages ниже).
+// 阶段阈值与 backend/app/routers/predict.py 的 progress 值保持一致。
+// 标签取自字典（每次渲染时构建，见下方 buildStages）。
 const STAGE_KEYS: Record<string, { at: number; label: Key }[]> = {
   predict: [
     { at: 0.05, label: 'run.stage.model' },
@@ -58,8 +66,10 @@ const STAGE_KEYS: Record<string, { at: number; label: Key }[]> = {
   ],
 }
 
-// 'run.stage.pdb' / 'run.stage.wt' are language-neutral, but the Dict type
-// requires every key to exist in all three locales — so they live there too.
+// 'run.stage.pdb' / 'run.stage.wt' не зависят от языка, но тип Dict требует,
+// чтобы каждый ключ существовал во всех трёх локалях — поэтому они и там.
+// 'run.stage.pdb' / 'run.stage.wt' 与语言无关，但 Dict 类型要求
+// 每个键在三种语言中都存在——所以它们也在那里。
 function buildStages(t: (k: Key) => string): Record<string, { at: number; label: string }[]> {
   return Object.fromEntries(
     Object.entries(STAGE_KEYS).map(([kind, stages]) => [
@@ -75,7 +85,8 @@ function fmtElapsed(s: number): string {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-// Labels for the runtime profile selector (backend _prepare_model semantics).
+// Подписи селектора профиля исполнения (семантика _prepare_model бэкенда).
+// 运行配置选择器的标签（后端 _prepare_model 的语义）。
 const PROFILE_OPTIONS: { id: InferenceProfile; label: Key }[] = [
   { id: 'auto', label: 'run.auto' },
   { id: 'fp32-gpu', label: 'run.profile.fp32' },
@@ -179,7 +190,8 @@ export default function RunPanel({
         </span>
       </div>
 
-      {/* scan-map range: 19 folds per position — the honest cost is shown */}
+      {/* диапазон scan-map: 19 фолдов на позицию — честная цена показана */}
+      {/* scan-map 范围：每个位置 19 次折叠——如实显示代价 */}
       <div className="flex items-center gap-2 text-xs text-neutral-600">
         <label htmlFor="map-from">{t('run.mapRange')}</label>
         <input
@@ -222,7 +234,8 @@ export default function RunPanel({
             <span className="mono text-neutral-500">{fmtElapsed(elapsed)}</span>
           </div>
 
-          {/* one segment per real pipeline stage */}
+          {/* один сегмент на реальный этап конвейера */}
+          {/* 每个真实流水线阶段一段 */}
           <div className="flex gap-1">
             {stages.map((st) => {
               const passed = progress >= st.at && status?.status !== 'queued'

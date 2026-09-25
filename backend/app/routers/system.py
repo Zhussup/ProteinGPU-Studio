@@ -15,9 +15,11 @@ from ..services.strings import GPU_REASON, norm_lang  # noqa: E402
 
 router = APIRouter(prefix="/api/v1", tags=["system"])
 
-# Demo presets from the plan: literature-motivated ubiquitin mutations.
-# name/description are per-language dicts; the endpoint resolves them by the
-# requested ?lang= (ru is the source of truth).
+# Демо-пресеты из плана: мутации убиквитина, мотивированные литературой.
+# name/description — словари по языкам; эндпоинт выбирает язык по
+# запрошенному ?lang= (ru — источник истины).
+# 计划中的演示预设：有文献依据的泛素突变。
+# name/description 是按语言的字典；端点按请求的 ?lang= 取对应语言（ru 为基准）。
 UBIQ = ("MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG")
 
 PRESETS = [
@@ -64,7 +66,8 @@ PRESETS = [
             "zh": "Pro19→Gly 丢失刚性环；预期 RMSD ≥ 2 Å（严重）",
         },
     },
-    # Curated research proteins (UniProt-verified sequences, data/examples/).
+    # Отобранные исследовательские белки (последовательности сверены с UniProt, data/examples/).
+    # 精选的研究蛋白（序列经 UniProt 校验，见 data/examples/）。
     {
         "id": "kras-g12d", "name": {"ru": "KRAS G12D", "en": "KRAS G12D", "zh": "KRAS G12D"},
         "sequence": "MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNTKSFEDIHHYREQIKRVKDSEDVPMVLVGNKCDLPSRTVDTKQAQDLARSYGIPFIETSAKTRQRVEDAFYTLVREIRQYRLKKISKEEKTPGCVKIKKCIIM",

@@ -1,4 +1,5 @@
-// WorkspacePage: sequence → mutation → run → 3D overlay + RMSD cards + history.
+// WorkspacePage: последовательность → мутация → запуск → 3D-оверлей + карточки RMSD + история.
+// WorkspacePage：序列 → 突变 → 运行 → 3D 叠加 + RMSD 卡片 + 历史。
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { useJob } from '../lib/useJob'
@@ -35,13 +36,16 @@ export default function WorkspacePage() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null)
   const [ensembleResult, setEnsembleResult] = useState<EnsembleResult | null>(null)
   const [pickedEnsIdx, setPickedEnsIdx] = useState<number | null>(null)
-  // the sensitivity map (dum.md §5): per-position 19-vectors + the 3D paint
+  // карта чувствительности (dum.md §5): 19-векторы по позициям + 3D-раскраска
+  // 敏感性图谱（dum.md §5）：逐位点 19 维向量 + 3D 着色
   const [mapResult, setMapResult] = useState<ScanMapResult | null>(null)
   const [mapPaint, setMapPaint] = useState<{ scores: (number | null)[]; metric: PaintMetric } | null>(null)
   const [mapFrom, setMapFrom] = useState(1)
   const [mapTo, setMapTo] = useState(76)
-  // the mutagenesis dial (dum.md §2): μ = simultaneous substitutions, τ = the
-  // Grantham spectrum temperature, K = ensemble size; exhaustive = all 19 subs
+  // ручка мутагенеза (dum.md §2): μ = одновременных замен, τ = температура
+  // спектра Грэнтэма, K = размер ансамбля; exhaustive = все 19 замен
+  // 突变旋钮（dum.md §2）：μ = 同时替换数，τ = Grantham 谱温度，
+  // K = ensemble 大小；exhaustive = 全部 19 种替换
   const [dialExhaustive, setDialExhaustive] = useState(false)
   const [dialMu, setDialMu] = useState(1)
   const [dialTau, setDialTau] = useState(0.5)
@@ -50,7 +54,8 @@ export default function WorkspacePage() {
   const [wtPdb, setWtPdb] = useState<string | null>(null)
   const [mutPdb, setMutPdb] = useState<string | null>(null)
   const [history, setHistory] = useState<JobSummary[]>([])
-  // the done job whose result/scan panel is shown — retranslated on lang switch
+  // выполненная задача, чью панель результата/скана показываем — перезапрашивается при смене языка
+  // 正在展示结果/扫描面板的已完成任务——切换语言时重新请求
   const [resultJob, setResultJob] = useState<{ id: string; kind: string } | null>(null)
   const job = useJob()
 
@@ -61,7 +66,7 @@ export default function WorkspacePage() {
   useEffect(() => {
     api.presets().then((r) => setPresets(r.presets)).catch(() => {})
     api.gpu().then(setGpu).catch(() => {})
-  }, [loadHistory, lang]) // refetch on language switch: preset texts are backend-side
+  }, [loadHistory, lang]) // повторный запрос при смене языка: тексты пресетов приходят с бэкенда | 切换语言时重新请求：预设文本由后端返回
 
   useEffect(() => {
     loadHistory()
@@ -72,13 +77,15 @@ export default function WorkspacePage() {
   const posOk = position >= 1 && position <= seq.length
   const canRun = seqOk && posOk
 
-  // keep the mutation position valid when a shorter/longer sequence arrives
+  // держим позицию мутации валидной, когда приходит более короткая/длинная последовательность
+  // 序列变长/变短时，保持突变位置有效
   useEffect(() => {
     if (seq.length >= 1 && position > seq.length) setPosition(seq.length)
     if (position < 1 && seq.length >= 1) setPosition(1)
   }, [seq.length, position])
 
-  // the scan-map range follows the sequence: it is a range of ITS positions
+  // диапазон scan-map следует за последовательностью: это диапазон ЕЁ позиций
+  // scan-map 范围跟随序列：它是序列自身位置的区间
   useEffect(() => {
     setMapFrom(1)
     setMapTo(seq.length)
@@ -116,7 +123,7 @@ export default function WorkspacePage() {
         setResultJob({ id: jobId, kind })
       }
       setWtPdb(await api.pdb(jobId, 'wt.pdb'))
-    } catch { /* files may be missing for predict-only runs */ }
+    } catch { /* файлы могут отсутствовать для прогонов только-WT */ }
   }, [])
 
   const runPredict = () => {
@@ -155,8 +162,10 @@ export default function WorkspacePage() {
     ))
   }
 
-  // the sensitivity map: 19 folds per position in [mapFrom..mapTo]; the result
-  // is data-only (no mutant PDBs), the WT structure comes from the same job
+  // карта чувствительности: 19 фолдов на позицию в [mapFrom..mapTo]; результат
+  // только с данными (без PDB мутантов), структура WT приходит из той же задачи
+  // 敏感性图谱：[mapFrom..mapTo] 内每个位置 19 次折叠；结果仅含数据
+  //（无突变体 PDB），WT 结构取自同一任务
   const runMap = () => {
     setResult(null); setScanResult(null); setMutPdb(null)
     setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
@@ -168,7 +177,8 @@ export default function WorkspacePage() {
     job.run(() => api.submitScanMap(seq, positions, profile === 'auto' ? undefined : profile))
   }
 
-  // poll completion: fetch artifacts once done, refresh history
+  // опрос завершения: по готовности забираем артефакты, обновляем историю
+  // 完成轮询：完成后取工件，刷新历史
   useEffect(() => {
     const st = job.status?.status
     if (st === 'done') {
@@ -177,19 +187,22 @@ export default function WorkspacePage() {
     if (st === 'done' || st === 'error') loadHistory()
   }, [job.status?.status, job.status?.job_id, job.status?.kind]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // show a scan mutant's overlay in the viewer (scan_<AA>.pdb is Kabsch-aligned)
+  // показываем оверлей мутанта скана во вьюере (scan_<AA>.pdb выровнен по Kabsch)
+  // 在查看器中显示扫描突变体的叠加（scan_<AA>.pdb 已按 Kabsch 对齐）
   const pickScanRow = useCallback(async (mutAA: string) => {
     const jobId = job.status?.job_id
     if (!jobId) return
     try {
       setMutPdb(await api.pdb(jobId, `scan_${mutAA}.pdb`))
       setPosition(scanResult?.position ?? position)
-    } catch { /* artifact may be gone */ }
+    } catch { /* артефакт мог исчезнуть */ }
   }, [job.status?.job_id, scanResult?.position, position])
 
-  // show an ensemble variant's overlay in the viewer (ens_XX.pdb, aligned to WT)
+  // показываем оверлей варианта ансамбля во вьюере (ens_XX.pdb, выровнен к WT)
+  // 在查看器中显示 ensemble 变体的叠加（ens_XX.pdb，已对齐到 WT）
   const pickEnsembleRow = useCallback(async (i: number) => {
-    // resultJob covers restored jobs too (job.status only knows the current run)
+    // resultJob покрывает и восстановленные задачи (job.status знает только текущий прогон)
+    // resultJob 也覆盖恢复的任务（job.status 只知道当前运行）
     const jobId = resultJob?.id ?? job.status?.job_id
     const res = ensembleResult
     const row = res?.variants[i]
@@ -201,7 +214,8 @@ export default function WorkspacePage() {
     } catch { /* artifact may be gone */ }
   }, [resultJob, job.status?.job_id, ensembleResult])
 
-  // restore a past job: sequence + mutation back into inputs, artifacts into viewer
+  // восстановление прошлой задачи: последовательность + мутация обратно в поля, артефакты во вьюер
+  // 恢复历史任务：序列 + 突变回填到输入框，工件放回查看器
   const restore = useCallback(async (j: JobSummary) => {
     if (j.sequence) setInput(j.sequence)
     if (j.position) setPosition(j.position)
@@ -230,9 +244,11 @@ export default function WorkspacePage() {
         if (res.variants[0]) {
           setMutPdb(await api.pdb(j.job_id, res.variants[0].pdb_file as `ens_${string}.pdb`))
         }
-        // the dial reads back the configuration that produced this ensemble;
-        // the seed needs no field — the derived seed reproduces from the config
-        // (an explicit override is cleared, it would otherwise leak into reruns)
+        // диск читает обратно конфигурацию, породившую этот ансамбль;
+        // seed в поле не нужен — производный seed воспроизводится из конфига
+        // (явный оверрайд сбрасываем: иначе он протёк бы в повторные прогоны)
+        // 旋钮读回生成该 ensemble 的配置；seed 无需回填——派生 seed
+        // 可由配置复现（显式覆盖会被清空，否则会泄漏到后续重跑中）
         if (j.mode) setDialExhaustive(j.mode === 'exhaustive')
         if (j.mu) setDialMu(j.mu)
         if (typeof j.tau === 'number') setDialTau(j.tau)
@@ -245,10 +261,11 @@ export default function WorkspacePage() {
         setResultJob({ id: j.job_id, kind: j.kind })
       }
       setWtPdb(await api.pdb(j.job_id, 'wt.pdb'))
-    } catch { /* artifacts may be gone */ }
+    } catch { /* артефакты могли исчезнуть */ }
   }, [])
 
-  // language switch → backend texts (summary) arrive in the new language
+  // смена языка → тексты бэкенда (сводка) приходят на новом языке
+  // 切换语言 → 后端文本（摘要）以新语言重新获取
   useEffect(() => {
     if (!resultJob) return
     const kind = resultJob.kind
@@ -274,9 +291,9 @@ export default function WorkspacePage() {
         setScanResult(null)
         setEnsembleResult(null)
       }
-    }).catch(() => { /* job artifacts may be gone */ })
+    }).catch(() => { /* артефакты задачи могли исчезнуть */ })
     return () => { live = false }
-  }, [lang]) // eslint-disable-line react-hooks/exhaustive-deps -- resultJob read, not a trigger
+  }, [lang]) // eslint-disable-line react-hooks/exhaustive-deps -- resultJob читается, а не триггер
 
   return (
     <div className="grid gap-5 lg:grid-cols-[400px_1fr]">

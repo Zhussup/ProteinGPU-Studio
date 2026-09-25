@@ -1,8 +1,13 @@
-// SensitivityCompare: cross-position table over ALREADY-COMPUTED ensembles from
-// history (dum.md §5). No auto-scanning — only positions the user actually ran.
-// The composite "sensitivity" is percentile-normalized WITHIN the compared set
-// (each window has its own model noise floor, dum.md §6): raw medians sit next
-// to it so the honest numbers stay visible.
+// SensitivityCompare: межпозиционная таблица по УЖЕ ВЫЧИСЛЕННЫМ ансамблям
+// из истории (dum.md §5). Без автосканирования — только позиции, которые
+// пользователь реально запускал. Композитная «чувствительность» нормируется
+// перцентилями ВНУТРИ сравниваемого набора (у каждого окна свой шумовой пол
+// модели, dum.md §6): сырые медианы лежат рядом, чтобы честные числа
+// оставались видимыми.
+// SensitivityCompare：跨位点表格，基于历史中已算好的 ensemble（dum.md §5）。
+// 不做自动扫描——只覆盖用户实际运行过的位点。复合“敏感性”在比较集合内
+// 按百分位归一化（每个窗口有自己的模型噪声底，dum.md §6）：
+// 原始中位数并列显示，让诚实的数字保持可见。
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import type { EnsembleResult, JobSummary } from '../lib/types'
@@ -18,7 +23,7 @@ interface Row {
   medLocal: number
   medAbsDplddt: number
   width: string
-  sensitivity: number // 0..1, percentile within the compared set
+  sensitivity: number // 0..1, перцентиль внутри сравниваемого набора | 0..1，比较集合内的百分位
 }
 
 const WIDTH_CLS: Record<string, string> = {
@@ -32,7 +37,8 @@ const WIDTH_KEYS: Record<string, Key> = {
   wide: 'ens.width.wide',
 }
 
-// rank of x within arr, 0..1 (fraction of values strictly below)
+// ранг x внутри arr, 0..1 (доля значений строго меньших)
+// x 在 arr 中的排名，0..1（严格小于的比例）
 const rank = (x: number, arr: number[]): number => {
   const below = arr.filter((v) => v < x).length
   return arr.length > 1 ? below / (arr.length - 1) : 0.5
@@ -67,7 +73,7 @@ export default function SensitivityCompare({ jobs, wtSequence }: {
             medLocal: res.stats.local_rmsd.median,
             medAbsDplddt: res.headline.median_abs_dplddt_local,
             width: res.headline.width,
-            sensitivity: 0, // set after the ranks are known
+            sensitivity: 0, // присвоим, когда ранги известны | 等排名算出后再赋值
           }
         } catch { return null }
       }),

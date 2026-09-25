@@ -11,13 +11,17 @@ from __future__ import annotations
 
 import math
 
-# Same alphabet as mutagenesis.AA / ml.folding.base.AA_RE.
+# Тот же алфавит, что mutagenesis.AA / ml.folding.base.AA_RE.
+# 与 mutagenesis.AA / ml.folding.base.AA_RE 相同的字母表。
 AA = "ACDEFGHIKLMNPQRSTVWY"
 
-# Fixed rose compass (dum.md §5): physico-chemical sectors in a fixed order,
-# alphabetical within a sector. The order is position-INDEPENDENT so roses of
-# different positions are directly comparable; a position's WT residue leaves
-# an empty slot (the notch) instead of reshuffling the compass.
+# Фиксированный компас розы (dum.md §5): физико-химические секторы в
+# фиксированном порядке, внутри сектора — по алфавиту. Порядок не зависит
+# от позиции, поэтому розы разных позиций сравнимы напрямую; WT-остаток
+# позиции оставляет пустой слот (выемку), а не пересортировку компаса.
+# 固定的玫瑰罗盘（dum.md §5）：理化扇区按固定顺序排列，扇区内按字母序。
+# 该顺序与位点无关，不同位点的玫瑰可直接比较；位点的 WT 残基留空槽（缺口），
+# 而不是打乱罗盘。
 SECTORS: dict[str, str] = {
     "hydrophobic": "AVILM",
     "aromatic": "FWY",
@@ -36,14 +40,17 @@ def petal_dirs(wt_aa: str) -> list[str]:
     return [aa for aa in PETAL_DIRS if aa != wt_aa]
 
 
-# -- per-position scalars and quadrant -----------------------------------------
+# -- скаляры по позициям и квадрант ---------------------------------------------
+# -- 位点标量与象限 ---------------------------------------------------------------
 
-# Quadrant thresholds, pinned to the existing honesty bands: 1.0/2.0 Å are the
-# interpret_rmsd stable/critical edges; a needle must actually stick out past
-# the stable band to be called one.
-STRONG_MED = 1.0      # median local RMSD (Å) separating quiet from responding
-SHARP_RATIO = 2.0     # max/median ratio that marks one dominant direction
-NEEDLE_MIN_MAX = 1.0  # a needle needs max >= this (Å), else the bump is noise
+# Пороги квадрантов привязаны к существующим полосам честности: 1.0/2.0 Å —
+# границы stable/critical в interpret_rmsd; игла должна реально выступать
+# за полосу stable, чтобы считаться иглой.
+# 象限阈值绑定于现有诚实区间：1.0/2.0 Å 即 interpret_rmsd 的 stable/critical 边界；
+# 尖针必须真正超出 stable 区间才算尖针。
+STRONG_MED = 1.0      # медиана локального RMSD (Å): quiet ↔ отклик | 局部 RMSD 中位数（Å）：quiet 与有响应的分界
+SHARP_RATIO = 2.0     # отношение max/median, отмечающее одно доминирующее направление | 标记单一主导方向的 max/median 比值
+NEEDLE_MIN_MAX = 1.0  # игла требует max >= этого (Å), иначе это шум | 尖针需 max ≥ 该值（Å），否则只是噪声
 
 QUADRANTS = ("hedgehog", "needle", "disk", "clover")
 
@@ -81,12 +88,13 @@ def position_stats(local_rmsd: list[float],
     if len(local_rmsd) != 19 or len(abs_dplddt_local) != 19:
         raise ValueError("a sensitivity vector has exactly 19 responses")
     xs = sorted(local_rmsd)
-    med = xs[9]  # median of 19 = the 10th smallest, no float ambiguity
+    med = xs[9]  # медиана из 19 = 10-е по счёту, без float-неоднозначности | 19 个值的中位数 = 第 10 小，无浮点歧义
     mx = xs[-1]
     mean = sum(xs) / len(xs)
     med_dp = sorted(abs_dplddt_local)[9]
 
-    # No-signal guard: nothing moves anywhere -> disk regardless of the ratio.
+    # Защита от отсутствия сигнала: ничего не двигается → disk независимо от отношения.
+    # 无信号保护：处处不动 → disk，与比值无关。
     if mx < 1e-9:
         quadrant = "disk"
     elif med < STRONG_MED:
@@ -103,7 +111,8 @@ def position_stats(local_rmsd: list[float],
     }
 
 
-# -- within-protein normalization ----------------------------------------------
+# -- нормировка внутри белка ----------------------------------------------------
+# -- 蛋白内归一化 -----------------------------------------------------------------
 
 def percentile_rank(x: float, arr: list[float]) -> float:
     """Rank of x in arr, 0..1 — fraction of values strictly below, over n-1.
@@ -138,7 +147,8 @@ def normalize_protein(positions: list[dict]) -> None:
             r["pctl"] = percentile_rank(r["abs_dplddt_local"], pool)
 
 
-# -- dataset projection ---------------------------------------------------------
+# -- проекция в датасет ----------------------------------------------------------
+# -- 数据集投影 -------------------------------------------------------------------
 
 CSV_HEADER = ("position,wt_aa,mut_aa,sector,grantham,local_rmsd,global_rmsd,"
               "tm_score,plddt_mut,dplddt,dplddt_local,abs_dplddt_local,pctl,"

@@ -15,9 +15,12 @@ def norm_lang(lang: str | None) -> str:
     return lang if lang in LANGS else "ru"
 
 
-# -- pipeline stage messages (predict router + job_manager GPU wait) ----------
-# ru values must stay byte-identical to the pre-i18n strings (tests assert on
-# them); {m}/{i}/{n} are interpolated via stage_text().
+# -- сообщения этапов конвейера (predict router + ожидание GPU в job_manager) --
+# значения ru должны остаться побайтно равными строкам до i18n (тесты сверяют
+# их); {m}/{i}/{n} подставляются через stage_text().
+# -- 流水线阶段消息（predict 路由 + job_manager 的 GPU 等待）---------------------
+# ru 值必须与引入 i18n 前的字符串逐字节一致（测试有断言）；
+# {m}/{i}/{n} 经 stage_text() 插值。
 STAGES: dict[str, dict[str, str]] = {
     "ru": {
         "model": "подготовка модели",
@@ -65,7 +68,8 @@ def stage_text(key: str, lang: str | None, **params: object) -> str:
     return STAGES[norm_lang(lang)][key].format(**params)
 
 
-# -- GPU badge reason (system router) ------------------------------------------
+# -- причина в GPU-бейдже (system router) --------------------------------------
+# -- GPU 徽标原因（system 路由）-------------------------------------------------
 GPU_REASON: dict[str, str] = {
     "ru": "torch/CUDA недоступен — dummy-модель",
     "en": "torch/CUDA unavailable — dummy model",
@@ -73,7 +77,8 @@ GPU_REASON: dict[str, str] = {
 }
 
 
-# -- DNA translation warnings (service) and 422 errors (router) ---------------
+# -- предупреждения трансляции ДНК (service) и ошибки 422 (router) -------------
+# -- DNA 翻译警告（service）与 422 错误（router）---------------------------------
 TRANS_WARNINGS: dict[str, dict[str, str]] = {
     "ru": {
         "dropped": "удалены посторонние символы: {chars}",
@@ -108,7 +113,8 @@ TRANS_ERRORS: dict[str, dict[str, str]] = {
 }
 
 
-# -- inline 422 validations surfaced in the run error box (predict router) ------
+# -- inline-валидации 422 в окне ошибки запуска (predict router) ---------------
+# -- 内联 422 校验，显示在运行错误框中（predict 路由）-----------------------------
 VALIDATION: dict[str, dict[str, str]] = {
     "ru": {
         "same_residue": "мутантный остаток совпадает с остатком WT в этой позиции",

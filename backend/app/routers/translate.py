@@ -11,20 +11,21 @@ router = APIRouter(prefix="/api/v1", tags=["translate"])
 
 
 class TranslateRequest(BaseModel):
-    # full file text (with optional FASTA headers) or bare DNA
+    # полный текст файла (с опциональными FASTA-заголовками) или чистая ДНК
+    # 完整文件文本（可含 FASTA 标头）或纯 DNA
     fasta: str = Field(min_length=3, max_length=200_000)
 
 
 class Codon(BaseModel):
-    index: int  # 1-based codon number
-    codon: str  # DNA triplet
-    aa: str     # one-letter amino acid, "*" = stop
+    index: int  # номер кодона с 1 | 密码子序号，从 1 起
+    codon: str  # триплет ДНК | DNA 三联体
+    aa: str     # аминокислота одной буквой, "*" = стоп | 单字母氨基酸，"*" = 终止
 
 
 class TranslateResponse(BaseModel):
     dna: str
-    protein: str          # up to (and excluding) the first stop
-    orf_start: int        # 0-based index in dna where translation starts
+    protein: str          # до первой стоп-кодон (не включая её) | 至第一个终止密码子（不含）
+    orf_start: int        # 0-based индекс начала трансляции в dna | 翻译起点在 dna 中的 0 基索引
     codons: list[Codon]
     warnings: list[str] = []
 

@@ -1,6 +1,8 @@
-// MutationsCompare: cross-mutation table built from completed mutate jobs on
-// the same WT sequence. The point: absolute RMSD thresholds don't hold for a
-// near-deterministic model — relative ordering between mutations does.
+// MutationsCompare: межмутационная таблица из завершённых mutate-задач на одной
+// и той же WT-последовательности. Суть: абсолютные пороги RMSD не держатся для
+// почти детерминированной модели — держится относительный порядок мутаций.
+// MutationsCompare：基于同一 WT 序列上已完成 mutate 任务的跨突变表格。
+// 要点：对近乎确定性的模型，绝对 RMSD 阈值不成立——成立的是突变间的相对排序。
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import type { JobSummary, MutationResult } from '../lib/types'
@@ -8,7 +10,7 @@ import { useI18n, type Key } from '../i18n'
 
 interface Row {
   jobId: string
-  label: string          // I44A etc.
+  label: string          // I44A и т.п. | I44A 等
   local: number
   global: number
   tm: number

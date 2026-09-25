@@ -59,7 +59,7 @@ class TestScanMap:
         assert s["status"] == "done", s.get("error")
 
         res = client.get(f"/api/v1/jobs/{body['job_id']}/result").json()
-        assert res["n_folds"] == 39  # 38 mutants + 1 WT
+        assert res["n_folds"] == 39  # 38 мутантов + 1 WT | 38 个突变体 + 1 个 WT
         assert res["petal_dirs"] == PETAL_DIRS
         positions = res["positions"]
         assert [p["pos"] for p in positions] == [20, 44]
@@ -69,10 +69,12 @@ class TestScanMap:
             p = by_pos[pos]
             assert p["wt_aa"] == wt_aa
             rows = p["rows"]
-            # compass order, WT slot skipped
+            # порядок компаса, слот WT пропущен
+            # 罗盘顺序，跳过 WT 槽位
             assert [r["mut_aa"] for r in rows] == \
                 [aa for aa in PETAL_DIRS if aa != wt_aa]
-            # every row carries the full metric set
+            # каждая строка несёт полный набор метрик
+            # 每行都带完整指标集
             for row in rows:
                 assert row["engine"]
                 assert row["grantham"] >= 1
@@ -81,9 +83,11 @@ class TestScanMap:
             assert st["quadrant"] in ("hedgehog", "needle", "disk", "clover")
             assert 0.0 <= st["pctl_v_max"] <= 1.0
             assert 0.0 <= st["pctl_v_med"] <= 1.0
-        # percentiles span the protein: someone is the 1.0
+        # перцентили распределены по белку: у кого-то ровно 1.0
+        # 百分位数覆盖整个蛋白：有人达到 1.0
         assert max(p["stats"]["pctl_v_max"] for p in positions) == 1.0
-        # summary names the census and the model stays tagged
+        # сводка называет перепись, модель остаётся с тегом
+        # 摘要写出统计结果，模型保持带标签
         assert "Квадранты" in res["summary"]
         assert res["model"]
 
@@ -92,32 +96,38 @@ class TestScanMap:
                         json={"sequence": UBIQ, "positions": [2, 3, 4]})
         job_id = r.json()["job_id"]
         assert wait_job(job_id)["status"] == "done"
-        # JSON artifact: the rose-ready store
+        # JSON-артефакт: хранилище, готовое для розы
+        # JSON 工件：罗盘图就绪的数据存储
         fj = client.get(f"/api/v1/files/{job_id}/scan_map.json")
         assert fj.status_code == 200
         art = json.loads(fj.json() if isinstance(fj.json(), str) else fj.text)
         assert art["petal_dirs"] == PETAL_DIRS
         assert len(art["positions"]) == 3
-        # CSV artifact: header + 19*3 rows, valid CSV
+        # CSV-артефакт: заголовок + 19*3 строк, валидный CSV
+        # CSV 工件：表头 + 19*3 行，合法 CSV
         fc = client.get(f"/api/v1/files/{job_id}/scan_map.csv")
         assert fc.status_code == 200
         rows = list(csv.reader(io.StringIO(fc.text)))
         assert len(rows) == 1 + 57
         assert rows[0][:3] == ["position", "wt_aa", "mut_aa"]
-        # checkpoint exists and is a valid prefix of the same data
+        # чекпоинт существует и является валидным префиксом тех же данных
+        # 检查点存在，且是同一数据的有效前缀
         fp = client.get(f"/api/v1/files/{job_id}/scan_map_partial.json")
         assert fp.status_code == 200
         partial = json.loads(fp.text)
         assert partial["done"] == 3
 
     def test_validation(self):
-        # out of range
+        # вне диапазона
+        # 超出范围
         assert client.post("/api/v1/scan_map",
                            json={"sequence": UBIQ, "positions": [500]}).status_code == 422
-        # duplicates
+        # дубликаты
+        # 重复
         assert client.post("/api/v1/scan_map",
                            json={"sequence": UBIQ, "positions": [2, 2]}).status_code == 422
-        # no positions key -> all positions of the sequence
+        # нет ключа positions → все позиции последовательности
+        # 缺少 positions 键 → 序列的所有位置
         r = client.post("/api/v1/scan_map", json={"sequence": UBIQ})
         assert r.status_code == 200
         body = r.json()

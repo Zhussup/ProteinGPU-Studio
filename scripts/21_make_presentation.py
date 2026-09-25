@@ -27,11 +27,12 @@ WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 SLIDE_W = Inches(13.333)
 SLIDE_H = Inches(7.5)
 MARGIN = Inches(0.6)
-FONT = "Arial"           # базовый; для CJK PowerPoint сам подставит системный
+FONT = "Arial"           # базовый; для CJK PowerPoint сам подставит системный | 基础字体；CJK 由 PowerPoint 自动回退系统字体
 CJK_FONT = "Microsoft YaHei"
 
 # ---------------------------------------------------------------------------
 # Контент: каждый элемент — пара (русский, китайский). Структура деки общая.
+# 内容：每个元素都是（俄语，中文）对。整套幻灯片结构共用。
 # ---------------------------------------------------------------------------
 
 TITLE = {
@@ -45,6 +46,8 @@ TITLE = {
 
 # (заголовок, [(тезис или None для пропуска, ...)], таблица или None)
 #   таблица: (headers, rows) — тоже парами языков
+# （标题、[要点列表，None 表示跳过]、表格或 None）
+#   表格：(headers, rows)——同样成对双语
 SLIDES = [
     (
         {"ru": "Проблема", "zh": "问题"},
@@ -262,6 +265,7 @@ QUESTIONS = {"ru": "Вопросы?", "zh": "提问环节"}
 
 # ---------------------------------------------------------------------------
 # Рендер
+# 渲染
 # ---------------------------------------------------------------------------
 
 def _style_text(tf, size, color=BLACK, bold=False, align=PP_ALIGN.LEFT):
@@ -275,7 +279,7 @@ def _style_text(tf, size, color=BLACK, bold=False, align=PP_ALIGN.LEFT):
 
 
 def title_slide(prs, lang):
-    s = prs.slides.add_slide(prs.slide_layouts[6])  # blank
+    s = prs.slides.add_slide(prs.slide_layouts[6])  # пустой слайд | 空白版式
     t, sub, foot = TITLE[lang]
     box = s.shapes.add_textbox(MARGIN, Inches(2.3), SLIDE_W - 2 * MARGIN, Inches(1.2))
     box.text_frame.text = t

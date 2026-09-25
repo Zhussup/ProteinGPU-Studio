@@ -1,14 +1,19 @@
-// MoleculeViewer: 3Dmol.js wrapper on a white canvas.
-// WT — translucent grey cartoon; mutant — dark grey/blue spectrum; mutated
-// residue — red sticks. The backend serves an already-aligned mutant PDB
-// (alignment is done by the C++/CUDA core) — no client-side math.
+// MoleculeViewer: обёртка 3Dmol.js на белом холсте.
+// WT — полупрозрачный серый cartoon; мутант — тёмно-серый/спектр; мутированный
+// остаток — красные стики. Бэкенд отдаёт уже выровненный PDB мутанта
+// (выравнивание делает ядро C++/CUDA) — никакой математики на клиенте.
+// MoleculeViewer：白底画布上的 3Dmol.js 封装。
+// WT 为半透明灰色 cartoon；突变体为深灰/渐变谱；突变残基为红色棍棒。
+// 后端返回已对齐的突变体 PDB（对齐由 C++/CUDA 核心完成）——客户端不做任何计算。
 import { useEffect, useRef } from 'react'
-// UMD bundle: importing defines window.$3Dmol
+// UMD-бандл: импорт определяет window.$3Dmol
+// UMD 包：导入后即定义 window.$3Dmol
 import '3dmol'
 import { useI18n } from '../i18n'
 import { bucketColor, bucketOf, HEAT_BUCKETS } from './RoseGlyph'
 
-// 3dmol ships a UMD bundle; declare the minimal surface we use.
+// 3dmol поставляет UMD-бандл; объявляем минимальную поверхность, которую используем.
+// 3dmol 提供 UMD 包；这里仅声明我们用到的最小接口。
 declare global {
   interface Window {
     $3Dmol?: {
@@ -37,24 +42,27 @@ declare global {
   }
 }
 
-const WT_COLOR = '#9ca3af' // light grey, translucent
-const MUT_COLOR = '#1f2937' // near-black
-const MUT_COLOR_ALT = '#374151' // fallback when not aligned
-const MUTATION_COLOR = '#b91c1c' // strict red
+const WT_COLOR = '#9ca3af' // светло-серый, полупрозрачный | 浅灰、半透明
+const MUT_COLOR = '#1f2937' // почти чёрный | 近黑
+const MUT_COLOR_ALT = '#374151' // фолбэк, когда выравнивания нет | 未对齐时的回退色
+const MUTATION_COLOR = '#b91c1c' // строгий красный | 严格红
 
 export interface ViewerProps {
   wtPdb: string | null
   mutPdb: string | null
-  aligned: boolean // true → mutPdb is the aligned variant
-  mutationPosition?: number // 1-based
+  aligned: boolean // true → mutPdb — выровненный вариант | true → mutPdb 为已对齐版本
+  mutationPosition?: number // с 1 | 从 1 起
   height?: number
-  // sensitivity paint (scan map): per-residue scalar 0..1 (null = unmeasured),
-  // index 0 = residue 1; colors the WT cartoon by quantized heat buckets
+  // раскраска чувствительности (scan map): скаляр 0..1 на остаток (null = не измерено),
+  // индекс 0 = остаток 1; раскрашивает WT-cartoon квантованными "тепловыми" корзинами
+  // 敏感性着色（scan map）：逐残基标量 0..1（null = 未测），
+  // 索引 0 = 残基 1；按分档热度给 WT cartoon 着色
   residueScores?: (number | null)[] | null
   scoreLabel?: string
 }
 
-// group measured residues into contiguous same-bucket runs → resi ranges
+// группируем измеренные остатки в непрерывные пробеги одной корзины → диапазоны resi
+// 将已测残基分组为连续的同档区间 → resi 范围
 export function scoreRuns(scores: (number | null)[]): { start: number; end: number; bucket: number }[] {
   const runs: { start: number; end: number; bucket: number }[] = []
   let cur: { start: number; end: number; bucket: number } | null = null
@@ -83,8 +91,10 @@ export default function MoleculeViewer({
     if (!host || !window.$3Dmol) return
     const gl = window.$3Dmol.createViewer(host, { backgroundColor: '#ffffff' })
     glRef.current = gl
-    // e2e hook (?e2e in the URL): demo recordings drive rotate/zoom through
-    // the viewer API — synthetic wheel events don't zoom in headless capture
+    // e2e-хук (?e2e в URL): демо-записи гоняют rotate/zoom через API вьюера —
+    // синтетические события wheel не зумят в headless-захвате
+    // e2e 钩子（URL 带 ?e2e）：演示录制通过查看器 API 驱动 rotate/zoom——
+    // 无头截屏中合成 wheel 事件无法缩放
     if (new URLSearchParams(window.location.search).has('e2e')) {
       ;(window as unknown as { __mol?: $3DmolViewer }).__mol = gl
     }
@@ -99,9 +109,11 @@ export default function MoleculeViewer({
     if (!gl || !wtPdb) return
     gl.clear()
 
-    // WT: translucent grey cartoon backbone — or the sensitivity paint when
-    // the scan map pushed per-residue scores (model: 0 keeps the mutant model
-    // untouched; nulls stay on the base grey)
+    // WT: полупрозрачный серый cartoon-бэкбон — или раскраска чувствительности,
+    // когда scan map прислал оценки по остаткам (model: 0 не трогает модель
+    // мутанта; null остаются базовым серым)
+    // WT：半透明灰色 cartoon 骨架——或敏感性着色（当 scan map 传入逐残基
+    // 分数时）（model: 0 不触碰突变体模型；null 保持基础灰色）
     gl.addModel(wtPdb, 'pdb')
     gl.addStyle({}, { cartoon: { color: WT_COLOR, opacity: 0.55 } })
     if (residueScores) {
@@ -113,7 +125,8 @@ export default function MoleculeViewer({
       }
     }
 
-    // Mutant: aligned (or raw) model, dark cartoon — contrast on white
+    // Мутант: выровненная (или сырая) модель, тёмный cartoon — контраст на белом
+    // 突变体：对齐（或原始）模型，深色 cartoon——在白底上有对比度
     const mut = mutPdb
     if (mut) {
       gl.addModel(mut, 'pdb')
@@ -123,7 +136,8 @@ export default function MoleculeViewer({
       } else {
         gl.addStyle(sel, { cartoon: { color: MUT_COLOR_ALT, opacity: 0.95 } })
       }
-      // mutated residue as red sticks
+      // мутированный остаток — красные стики
+      // 突变残基以红色棍棒显示
       if (mutationPosition && mutationPosition >= 1) {
         gl.addStyle({ resi: mutationPosition }, {
           stick: { color: MUTATION_COLOR, radius: 0.25 },
@@ -173,7 +187,8 @@ function Legend({ color, label }: { color: string; label: string }) {
   )
 }
 
-// ramp legend for the sensitivity paint: the quantized heat buckets
+// легенда-градиент для раскраски чувствительности: квантованные "тепловые" корзины
+// 敏感性着色的渐变图例：分档热度色块
 function LegendRamp({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-1.5 border border-neutral-200 bg-white/85 px-2 py-0.5 text-neutral-700">

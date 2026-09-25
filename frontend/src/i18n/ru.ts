@@ -1,7 +1,10 @@
-// ru: the source-of-truth dictionary. en.ts / zh.ts are typed against
-// `Dict` (typeof ru), so a key present here but missing there is a
-// compile error. Paragraph lists (help texts) carry **bold** markers,
-// rendered by renderBold() in i18n/index.tsx.
+// ru: словарь-источник истины. en.ts / zh.ts типизированы от `Dict`
+// (typeof ru), поэтому ключ, который есть здесь и отсутствует там,
+// — ошибка компиляции. Списки абзацев (справка) несут маркеры **bold**,
+// их рендерит renderBold() в i18n/index.tsx.
+// ru：事实标准字典。en.ts / zh.ts 以 `Dict`（typeof ru）做类型约束，
+// 因此此处有而彼处缺失的键是编译错误。段落列表（帮助文本）带
+// **粗体** 标记，由 i18n/index.tsx 中的 renderBold() 渲染。
 export const ru = {
   'common.close': 'закрыть',
   'common.chartLoading': 'график загружается…',

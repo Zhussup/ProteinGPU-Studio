@@ -23,7 +23,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Dev convenience: Vite dev server on :5173 talks to this API.
+# Удобство для разработки: Vite dev-сервер на :5173 обращается к этому API.
+# 开发便利：:5173 上的 Vite 开发服务器访问本 API。
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],

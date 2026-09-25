@@ -1,15 +1,25 @@
-// CUDA implementation of the Kabsch/RMSD core (sm_86 / RTX 3050 laptop).
+// CUDA-реализация ядра Kabsch/RMSD (sm_86 / RTX 3050 laptop).
+// CUDA 版 Kabsch/RMSD 核心实现（sm_86 / RTX 3050 laptop）。
 //
-// Design (honest-scaling story for the report): one WARP per pair — shuffle
-// reductions only, no __syncthreads, 8 pairs per 256-thread block. A single
-// pair is latency-bound and copies dominate — the GPU can NOT beat the CPU
-// there; the batched kernel is where the GPU wins (B >= ~1024).
-// Two host paths per function:
-//   *_cuda(...)     — host arrays, H2D/D2H copies included (PCIe cost is real);
-//   *_cuda_dev(...) — device pointers, zero copies: coordinates produced by a
-//                     resident folding model never need to leave the GPU.
-// The math mirrors kabsch_cpu.cpp exactly: C = Σ p'q'^T, Jacobi eig of C^T C,
-// R = W D U^T with reflection correction, then a direct RMSD pass.
+// Замысел (честная история масштабирования для отчёта): один WARP на пару —
+// только shuffle-редукции, без __syncthreads, 8 пар на блок из 256 потоков.
+// Одиночная пара упирается в латентность, доминируют копирования — там GPU
+// НЕ способен обогнать CPU; батчевый кернел — вот где GPU выигрывает (B >= ~1024).
+// 设计较量（为报告保留诚实的扩展性叙事）：每对一个 WARP——
+// 只用 shuffle 归约，不用 __syncthreads，每个 256 线程块处理 8 对。
+// 单对受限于延迟且数据拷贝占主导——这种场景 GPU 无法胜过 CPU；
+// 批量核函数才是 GPU 取胜之处（B >= ~1024）。
+// Для каждой функции два хост-пути:
+//   *_cuda(...)     — хостовые массивы, копии H2D/D2H включены (стоимость PCIe реальна);
+//   *_cuda_dev(...) — указатели устройства, ноль копий: координаты, полученные от
+//                     резидентной модели фолдинга, вообще не должны покидать GPU.
+// 每个函数提供两条主机路径：
+//   *_cuda(...)     —— 主机数组，含 H2D/D2H 拷贝（PCIe 成本真实存在）；
+//   *_cuda_dev(...) —— 设备指针，零拷贝：常驻折叠模型产出的坐标无需离开 GPU。
+// Математика 1:1 повторяет kabsch_cpu.cpp: C = Σ p'q'^T, Якоби-разложение C^T C,
+// R = W D U^T с коррекцией отражения, затем прямой проход RMSD.
+// 数学与 kabsch_cpu.cpp 完全一致：C = Σ p'q'^T，对 C^T C 作 Jacobi 分解，
+// R = W D U^T 并修正反射，随后直接计算 RMSD。
 #include "kabsch_cuda.h"
 
 #include <cuda_runtime.h>
@@ -21,7 +31,7 @@
 
 namespace {
 
-constexpr int kWarpsPerBlock = 8;  // pairs per 256-thread block
+constexpr int kWarpsPerBlock = 8;  // пар на блок из 256 потоков | 每 256 线程块 8 对
 
 #define CUDA_CHECK(call)                                                     \
   do {                                                                       \
@@ -33,8 +43,10 @@ constexpr int kWarpsPerBlock = 8;  // pairs per 256-thread block
   } while (0)
 
 // ---------------------------------------------------------------------------
-// Device-side math: Jacobi eigendecomposition + SVD of the covariance,
-// ported 1:1 from kabsch_cpu.cpp (serial code, executed by lane 0).
+// Математика на устройстве: Якоби-разложение + SVD ковариации,
+// перенесено 1:1 из kabsch_cpu.cpp (последовательный код, выполняет lane 0).
+// 设备端数学：Jacobi 特征分解 + 协方差的 SVD，
+// 从 kabsch_cpu.cpp 1:1 移植（串行代码，由 lane 0 执行）。
 // ---------------------------------------------------------------------------
 
 __device__ void jacobi3x3_dev(const double A[9], double V[9], double w[3]) {
@@ -83,7 +95,8 @@ __device__ inline double det3m_dev(const double* m) {
          m[2] * (m[3] * m[7] - m[4] * m[6]);
 }
 
-// SVD of C via eigendecomposition of C^T C (same contract as the CPU version).
+// SVD ковариации C через разложение C^T C (контракт тот же, что у CPU-версии).
+// 通过 C^T C 的特征分解求 C 的 SVD（契约与 CPU 版本相同）。
 __device__ void svd3x3_dev(const double C[9], double wc[3][3], double uc[3][3],
                            double s[3], double& d) {
   double CtC[9];
@@ -96,7 +109,8 @@ __device__ void svd3x3_dev(const double C[9], double wc[3][3], double uc[3][3],
   double V[9], w[3];
   jacobi3x3_dev(CtC, V, w);
 
-  // insertion sort of 3 eigenvalues, descending
+  // сортировка вставкой трёх собственных значений по убыванию
+  // 用插入排序将三个特征值降序排列
   int idx[3] = {0, 1, 2};
   for (int i = 1; i < 3; ++i) {
     int key = idx[i];
@@ -136,30 +150,42 @@ __device__ inline void rotation_from_svd_dev(const double wc[3][3],
 }
 
 // ---------------------------------------------------------------------------
-// One warp = one pair. Loads are warp-coalesced: lane L walks atoms
-// L, L+32, L+64, … so consecutive LANES touch consecutive atoms — one
-// 768B contiguous region per warp load instruction. (Chunking the atoms per
-// lane instead would put lanes ~768B apart inside one instruction: 32
-// separate 32B sectors.) All cross-lane communication is __shfl_* — no
-// shared memory, no barriers.
+// Один warp = одна пара. Загрузки когерентны по warp: lane L обходит атомы
+// L, L+32, L+64, …, поэтому соседние LANE касаются соседних атомов — одна
+// непрерывная область 768B на инструкцию загрузки warp. (Нарезка атомов по
+// блокам на lane, наоборот, разнесла бы lane на ~768B внутри одной
+// инструкции: 32 отдельных сектора по 32B.) Связь между lane — только __shfl_*:
+// без shared memory, без барьеров.
+// 一个 warp = 一对。加载按 warp 合并：lane L 遍历原子
+// L、L+32、L+64、…，因此相邻 lane 访问相邻原子——每条 warp 加载指令
+// 对应一段连续的 768B 连续区域。（若改为按 lane 分块遍历原子，同一条
+// 指令内的 lane 将相距约 768B：32 个独立的 32B 扇区。）所有跨 lane
+// 通信均用 __shfl_*：不用共享内存，不用栅栏。
 // ---------------------------------------------------------------------------
 
 __device__ inline double warp_sum(double v) {
   for (int off = 16; off > 0; off >>= 1)
     v += __shfl_down_sync(0xffffffffu, v, off);
-  return __shfl_sync(0xffffffffu, v, 0);  // broadcast result to all lanes
+  return __shfl_sync(0xffffffffu, v, 0);  // broadcast результата всем lane | 将结果广播给所有 lane
 }
 
-// Fused single-pass statistics: centroids + centered norms + covariance in ONE
-// read of P and Q. Then RMSD via the closed form (same as the CPU batched
-// engine kabsch_rmsd): rmsd² = (e0 + e1 − 2 Σ d_k s_k) / n.
+// Слитная однопроходная статистика: центроиды + центрированные нормы +
+// ковариация за ОДНО чтение P и Q. Затем RMSD по замкнутой формуле (как в
+// батчевом CPU-движке kabsch_rmsd): rmsd² = (e0 + e1 − 2 Σ d_k s_k) / n.
+// 融合的单遍统计：质心 + 居中范数 + 协方差，只读一遍 P 和 Q。
+// 随后按闭式公式计算 RMSD（与 CPU 批量引擎 kabsch_rmsd 相同）：
+// rmsd² = (e0 + e1 − 2 Σ d_k s_k) / n。
 __device__ void align_pair_warp(const double* P, const double* Q, int n,
                                 bool with_tm, double& rmsd_out, double R_out[9],
                                 double t_out[3], double& tm_out) {
   const int lane = threadIdx.x & 31;
 
-  // Single fused pass: centroid sums, centered norms, RAW covariance Σpq^T —
-  // one read of P and Q. Centering is recovered algebraically:
+  // Один слитный проход: суммы для центроидов, центрированные нормы, «сырая»
+  // ковариация Σpq^T — одно чтение P и Q. Центрирование восстанавливается
+  // алгебраически:
+  //   C = Σ p'q'^T = Σ pq^T − (Σp)(Σq)^T / n
+  // 单次融合遍历：质心累加、居中范数、原始协方差 Σpq^T —— 只读一遍 P 和 Q。
+  // 居中通过代数关系还原：
   //   C = Σ p'q'^T = Σ pq^T − (Σp)(Σq)^T / n
   double sp[3] = {0, 0, 0}, sq[3] = {0, 0, 0}, e0 = 0.0, e1 = 0.0, raw[9] = {0};
   for (int i = lane; i < n; i += 32) {
@@ -184,11 +210,13 @@ __device__ void align_pair_warp(const double* P, const double* Q, int n,
   #pragma unroll
   for (int r = 0; r < 3; ++r)
     for (int k = 0; k < 3; ++k) C[r * 3 + k] = rawC[r * 3 + k] - sp[r] * sq[k] / n;
-  // Centered norms: ||p'||² = ||p||² − (Σp)²/n (same for q).
+  // Центрированные нормы: ||p'||² = ||p||² − (Σp)²/n (то же для q).
+  // 居中范数：||p'||² = ||p||² − (Σp)²/n（q 同理）。
   e0 -= (sp[0] * sp[0] + sp[1] * sp[1] + sp[2] * sp[2]) / n;
   e1 -= (sq[0] * sq[0] + sq[1] * sq[1] + sq[2] * sq[2]) / n;
 
-  // Lane 0: SVD → R, t, closed-form RMSD; broadcast to the warp.
+  // Lane 0: SVD → R, t, RMSD по замкнутой формуле; broadcast всему warp.
+  // Lane 0：SVD → R、t、闭式 RMSD；广播给整个 warp。
   double R[9] = {0}, t[3] = {0};
   if (lane == 0) {
     double wc[3][3], uc[3][3], s[3], d;
@@ -205,8 +233,10 @@ __device__ void align_pair_warp(const double* P, const double* Q, int n,
   for (int j = 0; j < 3; ++j) t[j] = __shfl_sync(0xffffffffu, t[j], 0);
 
   if (with_tm) {
-    // Single-pair path: RMSD computed DIRECTLY over aligned pairs (no
-    // cancellation risk), plus serial TM-score on lane 0.
+    // Путь одиночной пары: RMSD считается НАПРЯМУЮ по совмещённым парам
+    // (без риска сокращения), плюс последовательный TM-score на lane 0.
+    // 单对路径：直接对叠合后的配对计算 RMSD（无相消风险），
+    // 并在 lane 0 上串行计算 TM-score。
     double ssq = 0.0;
     for (int i = lane; i < n; i += 32) {
       double dx = R[0] * P[i * 3] + R[1] * P[i * 3 + 1] + R[2] * P[i * 3 + 2] + t[0] - Q[i * 3];
@@ -233,7 +263,8 @@ __device__ void align_pair_warp(const double* P, const double* Q, int n,
       tm_out = 0.0;
     }
   } else {
-    // Batched path: closed-form RMSD, no extra read (matches CPU kabsch_rmsd).
+    // Батчевый путь: RMSD по замкнутой формуле, без повторного чтения (как CPU kabsch_rmsd).
+    // 批量路径：闭式 RMSD，无需再次读取（与 CPU kabsch_rmsd 一致）。
     double s0 = 0.0, s1 = 0.0, s2 = 0.0;
     if (lane == 0) {
       double wc[3][3], uc[3][3], s[3], d;
@@ -241,7 +272,7 @@ __device__ void align_pair_warp(const double* P, const double* Q, int n,
       s0 = s[0]; s1 = s[1]; s2 = (d < 0.0 ? -1.0 : 1.0) * s[2];
     }
     double inner = e0 + e1 - 2.0 * (s0 + s1 + s2);
-    if (inner < 0.0) inner = 0.0;  // roundoff guard
+    if (inner < 0.0) inner = 0.0;  // защита от ошибок округления | 防止舍入为负
     rmsd_out = sqrt(inner / n);
     tm_out = 0.0;
   }
@@ -262,7 +293,8 @@ __global__ void kabsch_full_kernel(const double* P, const double* Q, int n,
   }
 }
 
-// One warp per pair, 8 pairs per block. out[B] = rmsd.
+// Один warp на пару, 8 пар на блок. out[B] = rmsd.
+// 每对一个 warp，每块 8 对。out[B] = rmsd。
 __global__ void batched_rmsd_kernel(const double* P, const double* Q, int B,
                                     int n, double* out) {
   const int pair = blockIdx.x * kWarpsPerBlock + (threadIdx.x >> 5);
@@ -273,15 +305,18 @@ __global__ void batched_rmsd_kernel(const double* P, const double* Q, int B,
   if ((threadIdx.x & 31) == 0) out[pair] = rmsd;
 }
 
-}  // namespace
+}  // namespace | namespace 结束
 
 namespace hpc_cuda {
 
 namespace {
-// cudaMalloc/cudaFree are driver-level operations that synchronize the device
-// and cost ~ms for large blocks — re-allocating 2x25MB per call would dwarf
-// the kernel itself. Buffers are cached for the process lifetime (growing
-// only), single-GPU single-stream usage matches the server design.
+// cudaMalloc/cudaFree — операции уровня драйвера, синхронизирующие устройство,
+// и стоят ~мс на крупных блоках — повторное выделение 2x25MB на каждый вызов
+// затмило бы сам кернел. Буферы кэшируются на время жизни процесса (только
+// растут); сценарий один GPU + один поток соответствует дизайну сервера.
+// cudaMalloc/cudaFree 是驱动级操作，会同步设备，大块分配耗时约毫秒——
+// 每次调用重新分配 2×25MB 会盖过核函数本身的开销。缓冲按进程生命周期
+// 缓存（只增不减）；单 GPU、单流的使用方式与服务器设计一致。
 std::mutex g_buf_mutex;
 
 struct DeviceBuffer {
@@ -300,7 +335,7 @@ struct DeviceBuffer {
 DeviceBuffer& scratch_a() { static DeviceBuffer b; return b; }
 DeviceBuffer& scratch_b() { static DeviceBuffer b; return b; }
 DeviceBuffer& scratch_out() { static DeviceBuffer b; return b; }
-}  // namespace
+}  // namespace | namespace 结束
 
 hpc::AlignResult kabsch_full_cuda(const double* P, const double* Q, int n, int device) {
   hpc::AlignResult res{};
@@ -354,8 +389,10 @@ hpc::AlignResult kabsch_full_cuda_dev(const double* dP, const double* dQ,
   return res;
 }
 
-// Launch batched kernel on DEVICE pointers (no copies); result [B] copied
-// back to host `out`. Caller must hold g_buf_mutex.
+// Запуск батчевого кернела на указателях УСТРОЙСТВА (без копий); результат [B]
+// копируется обратно на хост в out. Вызывающий должен держать g_buf_mutex.
+// 在设备指针上启动批量核函数（无拷贝）；结果 [B] 拷回主机的 out。
+// 调用方必须持有 g_buf_mutex。
 static void batched_launch_dev_locked(const double* dP, const double* dQ, int B,
                                       int n, double* out, int device) {
   if (B < 1 || n < 1) return;
@@ -383,10 +420,11 @@ void batched_rmsd_cuda(const double* P, const double* Q, int B, int n,
 
 void batched_rmsd_cuda_dev(const double* dP, const double* dQ, int B, int n,
                            double* out, int device) {
-  // Inputs already resident on the device; only the [B] result comes back.
+  // Входы уже резидентны на устройстве; обратно возвращается только результат [B].
+  // 输入已常驻设备；只有结果 [B] 拷回主机。
   if (B < 1 || n < 1) return;
   std::lock_guard<std::mutex> lock(g_buf_mutex);
   batched_launch_dev_locked(dP, dQ, B, n, out, device);
 }
 
-}  // namespace hpc_cuda
+}  // namespace hpc_cuda | namespace hpc_cuda 结束

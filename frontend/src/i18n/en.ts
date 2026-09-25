@@ -1,4 +1,6 @@
-// en: same keys as ru.ts (the shape is checked at compile time via Dict).
+// en: те же ключи, что в ru.ts (соответствие формы проверяется на этапе
+// компиляции через Dict).
+// en：与 ru.ts 相同的键（通过 Dict 在编译期校验结构）。
 import type { Dict } from './ru'
 
 export const en: Dict = {

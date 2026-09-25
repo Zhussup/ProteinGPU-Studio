@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_WEIGHTS = os.path.expanduser("~/.cache/omegafold_ckpt/model.pt")
 WEIGHTS_URL = "https://helixon.s3.amazonaws.com/release1.pt"
 
-# Same forward parameters as the OmegaFold CLI defaults.
+# Те же параметры форварда, что и дефолты CLI OmegaFold.
+# 前向参数与 OmegaFold CLI 默认值相同。
 NUM_PSEUDO_MSA = 15
 NUM_CYCLES = 10
 MASK_RATE = 0.12
@@ -38,11 +39,11 @@ def weights_path() -> Path:
 def ensure_weights() -> Path:
     """Return a local weights path, downloading if absent."""
     p = weights_path()
-    if p.exists() and p.stat().st_size > 1e9:  # release1.pt ≈ 1.4 GB
+    if p.exists() and p.stat().st_size > 1e9:  # release1.pt ≈ 1.4 ГБ | release1.pt ≈ 1.4 GB
         return p
     if not p.parent.exists() and p.parent != Path("."):
         p.parent.mkdir(parents=True, exist_ok=True)
-    import torch  # hub download with resume-friendly behaviour
+    import torch  # докачка через hub с поддержкой resume | 通过 hub 下载，支持断点续传
     logger.info("Downloading OmegaFold weights to %s ...", p)
     from torch import hub
     hub.download_url_to_file(WEIGHTS_URL, str(p))
@@ -73,15 +74,21 @@ class OmegaFoldModel:
         self._model.load_state_dict(state)
         self._model.eval()
         self._model.to(device)
-        # NOTE: weights stay fp32 even for half=True — the fp16 path is
-        # autocast inside predict() (see to_fp16 rationale below). Naive
-        # .half() here crashes the PLM attention ("Half but found Float").
+        # ВАЖНО: веса остаются fp32 даже при half=True — fp16-путь — это
+        # autocast внутри predict() (обоснование в to_fp16 ниже). Наивный
+        # .half() здесь роняет PLM attention ("Half but found Float").
+        # 注意：即使 half=True 权重仍保持 fp32——fp16 路径是 predict() 内的
+        # autocast（理由见下方 to_fp16）。直接 .half() 会让 PLM 注意力崩溃
+        # （"Half but found Float"）。
         self._half = half
         logger.info("OmegaFold loaded to %s in %.1fs", device, time.perf_counter() - t0)
 
-        # Forward cfg: precision flags equivalent to CLI allow_tf32=True.
-        # The CLI always passes a fwd_cfg Namespace; OmegaPLM's GAU dereferences
-        # fwd_cfg.subbatch_size unconditionally, so None would crash.
+        # Forward cfg: флаги точности эквивалентны CLI allow_tf32=True.
+        # CLI всегда передаёт Namespace fwd_cfg; GAU в OmegaPLM безусловно
+        # разыменовывает fwd_cfg.subbatch_size — None упал бы.
+        # 前向配置：精度标志等价于 CLI 的 allow_tf32=True。
+        # CLI 总是传入 fwd_cfg Namespace；OmegaPLM 的 GAU 无条件解引用
+        # fwd_cfg.subbatch_size，传 None 会崩溃。
         import argparse
         self._fwd_cfg = argparse.Namespace(
             subbatch_size=None, num_recycle=num_cycles)
@@ -89,7 +96,8 @@ class OmegaFoldModel:
             torch.backends.cuda.matmul.allow_tf32 = True
             torch.backends.cudnn.allow_tf32 = True
 
-    # -- internals ---------------------------------------------------------
+    # -- внутренности -------------------------------------------------------
+    # -- 内部实现 ------------------------------------------------------------
     def _make_inputs(self, seq: str):
         """Pseudo-MSA inputs, identical in spirit to pipeline.fasta2inputs."""
         import torch
@@ -102,7 +110,7 @@ class OmegaFoldModel:
         num_res = len(aatype)
         data = []
         g = torch.Generator(device="cpu")
-        g.manual_seed(num_res)  # deterministic per length, like the CLI
+        g.manual_seed(num_res)  # детерминированно по длине, как в CLI | 按长度确定性，与 CLI 一致
         for _ in range(self._num_cycles):
             p_msa = aatype[None, :].repeat(NUM_PSEUDO_MSA, 1).cpu()
             p_msa_mask = torch.rand([NUM_PSEUDO_MSA, num_res], generator=g).gt(MASK_RATE)
@@ -110,10 +118,12 @@ class OmegaFoldModel:
             p_msa = torch.cat((aatype[None, :].cpu(), p_msa), dim=0)
             p_msa[~p_msa_mask.bool()] = 21
             data.append({"p_msa": p_msa, "p_msa_mask": p_msa_mask})
-        # recursive_to equivalent: move whole structure to device
+        # аналог recursive_to: переносим всю структуру на устройство
+        # 等价于 recursive_to：把整个结构移到设备
         return [{k: v.to(self.device) for k, v in d.items()} for d in data]
 
-    # -- public API ---------------------------------------------------------
+    # -- публичный API -------------------------------------------------------
+    # -- 公共 API -------------------------------------------------------------
     def predict(self, seq: str) -> PredictResult:
         import torch
         from omegafold import pipeline as of_pipeline
@@ -130,11 +140,13 @@ class OmegaFoldModel:
         conf = out["confidence"].detach().float().cpu()              # [N] in [0,1]
         aatype = inputs[0]["p_msa"][0]                                # [N]
 
-        # Backbone N, CA, C, O = atom14 slots 0, 1, 2, 3
+        # Основной остов N, CA, C, O = слоты 0, 1, 2, 3 в atom14
+        # 主链 N, CA, C, O = atom14 的槽位 0, 1, 2, 3
         bb = pos14[:, :4, :].numpy()
         plddt = (conf * 100.0).numpy()
 
-        # save_pdb writes to a file; render to a temp file and read back.
+        # save_pdb пишет в файл; рендерим во временный файл и читаем обратно.
+        # save_pdb 只能写文件；先写到临时文件再读回。
         import tempfile
         with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as f:
             tmp = f.name

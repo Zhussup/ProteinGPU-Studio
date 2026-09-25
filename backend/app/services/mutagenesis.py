@@ -25,12 +25,16 @@ import hashlib
 import math
 import random
 
-# project alphabet (== ml.folding.base.AA_RE) — iteration order defines the
-# exhaustive mode's fold order, so it must stay byte-identical to /scan's
+# алфавит проекта (== ml.folding.base.AA_RE) — порядок итерации задаёт
+# порядок фолдинга в exhaustive-режиме: обязан быть побайтно равен /scan
+# 项目字母表（== ml.folding.base.AA_RE）——迭代顺序即 exhaustive 模式的折叠顺序，
+# 必须与 /scan 完全一致
 AA = "ACDEFGHIKLMNPQRSTVWY"
 
-# layout of the published 20x20 table (Grantham 1974, Science 185:862-864,
-# Table 2); keep this order so re-transcription against the paper is mechanical
+# раскладка опубликованной таблицы 20×20 (Grantham 1974, Science 185:862-864,
+# Table 2); порядок сохранён, чтобы сверка с бумагой была механической
+# 已发表 20×20 表的排布（Grantham 1974，Science 185:862-864，Table 2）；
+# 保持此顺序，便于逐字对照论文校对
 GRANTHAM_ORDER = "ARNDCQEGHILKMFPSTWYV"
 
 _MUT_ROWS = [
@@ -67,8 +71,9 @@ def grantham(a: str, b: str) -> int:
     return GRANTHAM[a][b]
 
 
-# -- mutation set construction -------------------------------------------------
-Mutation = tuple[int, str, str]  # (1-based position, wt_aa, mut_aa)
+# -- построение наборов мутаций -------------------------------------------------
+# -- 突变集构建 -------------------------------------------------------------------
+Mutation = tuple[int, str, str]  # (позиция с 1, wt_aa, mut_aa) | （从 1 起的位置, wt_aa, mut_aa）
 
 
 def substitution_halves(wt_aa: str) -> tuple[list[str], list[str]]:
@@ -156,7 +161,8 @@ def mutation_label(muts: list[Mutation]) -> str:
     return "+".join(f"{wt}{pos}{m}" for pos, wt, m in muts)
 
 
-# -- distribution stats + headline (the output side of the dial) ---------------
+# -- статистика распределения + headline (выходная сторона ручки) ---------------
+# -- 分布统计 + headline（转盘的输出端）-------------------------------------------
 
 def distribution_stats(values: list[float]) -> dict[str, float]:
     """{mean, std (population, ddof=0), median, iqr (p75-p25), min, max}.

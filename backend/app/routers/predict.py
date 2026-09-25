@@ -66,7 +66,7 @@ def _run_predict(job: Job) -> dict:
     seq = job.params["sequence"]
     _stage(job, jm, stage_text("model", lang), 0.03)
     _prepare_model(job, svc)
-    _ = svc.model  # force weight load under the "model" stage message
+    _ = svc.model  # форсируем загрузку весов под сообщением этапа "model" | 在 "model" 阶段消息下强制加载权重
     _stage(job, jm, stage_text("wt", lang), 0.1)
     res, from_cache = svc.predict_cached(seq)
     _stage(job, jm, stage_text("pdb", lang), 0.9)
@@ -128,9 +128,9 @@ def _run_mutate(job: Job) -> dict:
 
     _stage(job, jm, stage_text("model", lang), 0.03)
     _prepare_model(job, svc)
-    _ = svc.model  # force weight load under the "model" stage message
+    _ = svc.model  # форсируем загрузку весов под сообщением этапа "model" | 在 "model" 阶段消息下强制加载权重
     if svc.cache.get(seq, svc.model_name) is None:
-        _stage(job, jm, stage_text("wt", lang), 0.1)  # skipped message if cache hit
+        _stage(job, jm, stage_text("wt", lang), 0.1)  # пропускается при попадании в кэш | 缓存命中时跳过
     wt, wt_cached = svc.predict_cached(seq)
     _stage(job, jm, stage_text("mutant", lang), 0.5)
     mut = svc.model.predict(mut_seq)
@@ -140,7 +140,8 @@ def _run_mutate(job: Job) -> dict:
     (out_dir / "wt.pdb").write_text(wt.pdb_text)
     (out_dir / "mut.pdb").write_text(mut.pdb_text)
 
-    # Align mutant ONTO WT in the WT frame; write pre-aligned mutant PDB.
+    # Выравниваем мутанта НА WT в системе координат WT; пишем пре-выровненный PDB.
+    # 将突变体对齐到 WT 坐标系；写出预对齐的突变体 PDB。
     _stage(job, jm, stage_text("kabsch", lang), 0.85)
     al = align_pair(parse_ca_coords(wt.pdb_text), parse_ca_coords(mut.pdb_text),
                     position=pos, radius=settings.local_radius)
@@ -171,7 +172,8 @@ def _run_mutate(job: Job) -> dict:
     }
 
 
-# -- saturation scan: all 19 substitutions at one position --------------------
+# -- скан насыщения: все 19 замен в одной позиции ------------------------------
+# -- 饱和扫描：单一位点上的全部 19 种替换 ----------------------------------------
 @router.post("/scan", response_model=ScanResponse)
 def scan(req: ScanRequest, lang: str = "ru") -> ScanResponse:
     seq = req.sequence
@@ -236,7 +238,8 @@ def _run_scan(job: Job) -> dict:
                 al.local_rmsd, settings.rmsd_stable_below,
                 settings.rmsd_critical_above),
         })
-        # keep only the strongest mutant's aligned PDB (viewer artifact)
+        # храним выровненный PDB только самого сильного мутанта (артефакт для вьюера)
+        # 仅保留最强突变体的对齐 PDB（查看器工件）
         if rows[i]["local_rmsd"] > max((r["local_rmsd"] for r in rows[:-1]), default=-1):
             full = hpc_core.kabsch(mut.coords_ca, wt_ca)
             (out_dir / f"scan_{mut_aa}.pdb").write_text(
@@ -265,7 +268,8 @@ def _run_scan(job: Job) -> dict:
     }
 
 
-# -- mutagenesis-strength ensemble: K variants sampled by (mu, tau) ------------
+# -- ансамбль силы мутагенеза: K вариантов, сэмплированных по (mu, tau) --------
+# -- 诱变强度集成：按 (mu, tau) 采样 K 个变体 ------------------------------------
 @router.post("/ensemble", response_model=EnsembleResponse)
 def ensemble(req: EnsembleRequest, lang: str = "ru") -> EnsembleResponse:
     """The strength dial's run: sample K variants (anchor + background
@@ -330,7 +334,9 @@ def _run_ensemble(job: Job) -> dict:
     import hpc_core
 
     rows = []
-    abs_sum = [0.0] * len(seq)  # per-residue |ΔpLDDT| accumulator (viewer track)
+    # аккумулятор |ΔpLDDT| по остаткам (дорожка для вьюера)
+    # 逐残基 |ΔpLDDT| 累加器（查看器轨道）
+    abs_sum = [0.0] * len(seq)
     for i, muts in enumerate(muts_list):
         mut = svc.model.predict(apply_mutations(seq, muts))
         label = mutation_label(muts)
@@ -338,7 +344,7 @@ def _run_ensemble(job: Job) -> dict:
                0.1 + 0.8 * (i + 1) / n)
         al = align_pair(wt_ca, mut.coords_ca, position=pos,
                         radius=settings.local_radius)
-        a, b = al.local_window  # 1-based inclusive
+        a, b = al.local_window  # с 1, включительно | 从 1 开始、含端点
         dplddt_local = float(sum(
             mut.plddt[j] - wt.plddt[j] for j in range(a - 1, b)) / (b - a + 1))
         for j in range(len(seq)):
@@ -356,7 +362,8 @@ def _run_ensemble(job: Job) -> dict:
             "interpretation": interpret_rmsd(
                 al.local_rmsd, settings.rmsd_stable_below,
                 settings.rmsd_critical_above),
-            # kept out of the persisted row (popped before the result dict)
+            # не попадает в сохраняемую строку (удаляется до сборки result-словаря)
+            # 不写入持久化行（在组装结果字典前弹出）
             "_coords": mut.coords_ca, "_pdb_text": mut.pdb_text,
         })
 
@@ -400,7 +407,8 @@ def _run_ensemble(job: Job) -> dict:
     }
 
 
-# -- sensitivity map: the 19-vector at every position (dum.md §5) ---------------
+# -- карта чувствительности: 19-вектор в каждой позиции (dum.md §5) -------------
+# -- 敏感性图谱：每个位点的 19 维向量（dum.md §5）---------------------------------
 @router.post("/scan_map", response_model=ScanMapResponse)
 def scan_map(req: ScanMapRequest, lang: str = "ru") -> ScanMapResponse:
     """The wind-rose job: fold WT once, then every requested position's 19
@@ -460,7 +468,7 @@ def _run_scan_map(job: Job) -> dict:
             mut = svc.model.predict(mutant_sequence(seq, pos, mut_aa))
             al = align_pair(wt_ca, mut.coords_ca, position=pos,
                             radius=settings.local_radius)
-            a, b = al.local_window  # 1-based inclusive
+            a, b = al.local_window  # с 1, включительно | 从 1 开始、含端点
             dplddt_local = float(sum(
                 mut.plddt[j] - wt.plddt[j] for j in range(a - 1, b)) / (b - a + 1))
             rows.append({
@@ -480,7 +488,8 @@ def _run_scan_map(job: Job) -> dict:
                                [r["abs_dplddt_local"] for r in rows])
         results.append({"pos": pos, "wt_aa": seq[pos - 1], "rows": rows,
                         "stats": stats})
-        # checkpoint: every finished position is already the user's property
+        # чекпоинт: каждая завершённая позиция уже принадлежит пользователю
+        # 检查点：每个已完成位点对用户而言已保存
         (out_dir / "scan_map_partial.json").write_text(json.dumps(
             {"sequence": seq, "done": len(results), "total": n,
              "positions": results}, ensure_ascii=False))

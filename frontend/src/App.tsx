@@ -11,7 +11,8 @@ const TAB_KEYS: Record<Tab, Key> = {
   benchmarks: 'nav.benchmarks',
 }
 
-// RU / EN / 中文 switcher; active locale = solid black, like the tabs.
+// Переключатель RU / EN / 中文; активная локаль — сплошной чёрный, как вкладки.
+// RU / EN / 中文 切换器；当前语言为实心黑，与标签页一致。
 function LanguageSwitch() {
   const { lang, setLang, t } = useI18n()
   return (

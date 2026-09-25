@@ -1,8 +1,12 @@
-// MutagenesisDial: the INPUT side of the mutagenesis-strength dial (dum.md §2).
-// How many and which mutations to generate: μ — simultaneous substitutions per
-// variant (anchor + background), τ — the Grantham spectrum temperature
-// (conservative ↔ radical), K — ensemble size. Plus a runtime estimate so
-// "the dial" never launches a silent half-hour GPU job.
+// MutagenesisDial: ВХОДНАЯ сторона ручки силы мутагенеза (dum.md §2).
+// Сколько и каких мутаций генерировать: μ — одновременных замен на вариант
+// (якорь + фон), τ — температура спектра Грэнтэма (консервативные ↔
+// радикальные), K — размер ансамбля. Плюс оценка времени исполнения, чтобы
+// «ручка» никогда не запускала молча полчаса GPU-задачи.
+// MutagenesisDial：突变强度旋钮的输入端（dum.md §2）。
+// 生成多少、哪些突变：μ——每个变体的同时替换数（锚点 + 背景），
+// τ——Grantham 谱温度（保守 ↔ 激进），K——ensemble 大小。
+// 外加运行时长估计，让“旋钮”绝不静默启动半小时的 GPU 任务。
 import { useI18n, type TFn } from '../i18n'
 import type { InferenceProfile } from '../lib/types'
 
@@ -21,8 +25,10 @@ export interface MutagenesisDialProps {
   onSeed: (v: number | null) => void
 }
 
-// Base per-fold wall time at 76 aa, from docs/benchmarks.md (median). "auto"
-// is priced as fp32 — the conservative choice. dummy folds instantly.
+// Базовое время фолда на 76 aa, из docs/benchmarks.md (median). "auto"
+// оценивается по fp32 — консервативный выбор. dummy сворачивается мгновенно.
+// 76 aa 的单次折叠基准耗时，来自 docs/benchmarks.md（median）。
+// "auto" 按 fp32 计价——保守选择。dummy 瞬间完成。
 const BASE_S: Record<InferenceProfile, number> = {
   auto: 11.59, 'fp32-gpu': 11.59, 'fp16-gpu': 8.72, cpu: 143.5, dummy: 0.05,
 }
@@ -39,7 +45,8 @@ export default function MutagenesisDial({
 }: MutagenesisDialProps) {
   const { t } = useI18n()
 
-  // (K+1) folds, quadratic in length (attention): measured 76→200 aa ×6.9
+  // (K+1) фолдов, квадратично по длине (attention): измерено 76→200 aa ×6.9
+  // (K+1) 次折叠，随长度平方增长（attention）：实测 76→200 aa ×6.9
   const estS = (k + 1) * BASE_S[profile] * Math.pow(Math.max(seqLen, 1) / 76, 2)
   const long = estS > 600
 
@@ -61,7 +68,8 @@ export default function MutagenesisDial({
         </button>
       </div>
 
-      {/* μ — simultaneous substitutions per variant */}
+      {/* μ — одновременных замен на вариант */}
+      {/* μ——每个变体的同时替换数 */}
       <div>
         <div className="mb-1 text-[11px] text-neutral-500">{t('dial.mu')}</div>
         <div className="flex gap-1.5">
@@ -85,7 +93,8 @@ export default function MutagenesisDial({
         </div>
       </div>
 
-      {/* τ — Grantham spectrum temperature (the app's first range input) */}
+      {/* τ — температура спектра Грэнтэма (первый range-инпут приложения) */}
+      {/* τ——Grantham 谱温度（本应用的第一个 range 控件） */}
       <div className={exhaustive ? 'opacity-40' : ''}>
         <div className="mb-1 flex items-baseline justify-between text-[11px] text-neutral-500">
           <span>{t('dial.tau')}</span>
@@ -107,7 +116,8 @@ export default function MutagenesisDial({
         </div>
       </div>
 
-      {/* K — ensemble size */}
+      {/* K — размер ансамбля */}
+      {/* K——ensemble 大小 */}
       <div className="flex items-end gap-3">
         <div className={exhaustive ? 'opacity-40' : ''}>
           <div className="mb-1 text-[11px] text-neutral-500">{t('dial.k')}</div>
@@ -142,7 +152,8 @@ export default function MutagenesisDial({
       </div>
       <div className="text-[10px] text-neutral-400">{t('dial.seedNote')}</div>
 
-      {/* honest runtime estimate — no silent half-hour jobs */}
+      {/* честная оценка времени — никаких молчаливых задач на полчаса */}
+      {/* 诚实的时长估计——绝不静默启动半小时任务 */}
       <div className="border border-neutral-200 bg-neutral-50 px-3 py-2 text-[11px] text-neutral-600">
         <span className="text-neutral-400">{t('dial.estimateLabel')}</span>{' '}
         <span className={`mono ${long ? 'text-red-700' : 'text-neutral-900'}`}>

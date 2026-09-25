@@ -1,9 +1,14 @@
-// ProteinViewer: protein-sequence browser (docs/viewer_design.md).
-// Canvas draws the data tracks; a transparent SVG overlay on top carries the
-// interaction (click zones per residue, crosshair, tooltip). Both read pixel
-// coordinates from lib/viewerGeometry — the single geometry source.
-// Click anywhere = current position: the detail panel, the crosshair and
-// MoleculeViewer's red sticks all follow it (cross-highlight, §4).
+// ProteinViewer: обозреватель белковой последовательности (docs/viewer_design.md).
+// Canvas рисует информационные треки; прозрачный SVG-оверлей сверху несёт
+// интеракцию (зоны клика по остатку, перекрестие, тултип). Оба читают пиксельные
+// координаты из lib/viewerGeometry — единственный источник геометрии.
+// Клик в любом месте = текущая позиция: панель деталей, перекрестие и красные
+// стики MoleculeViewer следуют за ней (кросс-хайлайт, §4).
+// ProteinViewer：蛋白质序列浏览器（docs/viewer_design.md）。
+// canvas 绘制数据轨道；上方透明 SVG 覆盖层承载交互（逐残基点击区、
+// 十字线、提示框）。两者均从 lib/viewerGeometry 读取像素坐标——几何唯一来源。
+// 点击任意位置 = 当前位置：详情面板、十字线与 MoleculeViewer 的红色
+// 棍棒随之联动（交叉高亮，§4）。
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EnsembleResult, MutationResult, ScanResult } from '../lib/types'
 import { useI18n, type Key, type TFn } from '../i18n'
@@ -12,14 +17,15 @@ import {
   type Geometry, type TrackId,
 } from '../lib/viewerGeometry'
 
-const RED = '#b91c1c' // same strict red as MoleculeViewer
+const RED = '#b91c1c' // тот же строгий красный, что в MoleculeViewer | 与 MoleculeViewer 相同的严格红
 const INTERP_FILL: Record<'stable' | 'moderate' | 'critical', string> = {
   stable: '#d4d4d4',
   moderate: '#6b7280',
   critical: '#b91c1c',
 }
 
-// Track labels are drawn on the canvas — translated via the dictionary.
+// Подписи треков рисуются на canvas — переводятся через словарь.
+// 轨道标签绘制在 canvas 上——通过字典翻译。
 const TRACK_LABEL_KEYS: Record<TrackId, Key> = {
   sequence: 'track.sequence',
   plddt: 'track.plddt',
@@ -30,10 +36,10 @@ const TRACK_LABEL_KEYS: Record<TrackId, Key> = {
 }
 
 export interface ProteinViewerProps {
-  sequence: string // protein letters, no FASTA header
-  position: number // current position, 1-based (shared with MutationPicker → 3D)
+  sequence: string // буквы белка, без FASTA-заголовка | 蛋白字母，无 FASTA 头
+  position: number // текущая позиция, с 1 (разделяется с MutationPicker → 3D) | 当前位置，从 1 起（与 MutationPicker → 3D 共享）
   onPositionChange: (p: number) => void
-  plddtWt?: number[] | null // index i = position i+1
+  plddtWt?: number[] | null // индекс i = позиция i+1 | 索引 i = 位置 i+1
   result?: MutationResult | null
   scan?: ScanResult | null
   ensemble?: EnsembleResult | null
@@ -48,9 +54,12 @@ export default function ProteinViewer({
   const [mode, setMode] = useState<ViewMode>('whole')
   const [width, setWidth] = useState(0)
   const [hover, setHover] = useState<number | null>(null)
-  // callback ref (not a mount-time effect): the host div mounts only once a
-  // sequence exists — the empty-state branch returns early — so the
-  // ResizeObserver must attach when the host appears, not on component mount.
+  // callback-ref (не эффект на монтирование): хост-див появляется лишь когда
+  // есть последовательность — пустая ветка возвращается раньше — поэтому
+  // ResizeObserver должен подключаться при появлении хоста, а не на маунт компонента.
+  // 使用回调 ref（而非挂载时的 effect）：宿主 div 只在有序列时才挂载——
+  // 空状态分支提前返回——因此 ResizeObserver 应在宿主出现时附加，
+  // 而不是在组件挂载时。
   const [hostEl, setHostEl] = useState<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mapRef = useRef<HTMLCanvasElement>(null)
@@ -58,10 +67,12 @@ export default function ProteinViewer({
   const length = sequence.length
   const sc = scan ?? null
   const en = ensemble ?? null
-  // clamp defensively: the parent clamps too, but the sequence can change first
+  // зажимаем defensively: родитель тоже зажимает, но последовательность может измениться первой
+  // 防御性钳制：父组件也会钳制，但序列可能先变化
   const cur = Math.min(Math.max(1, position), Math.max(1, length))
 
-  // ResizeObserver → width → geometry
+  // ResizeObserver → ширина → геометрия
+  // ResizeObserver → 宽度 → 几何
   useEffect(() => {
     if (!hostEl) return
     const ro = new ResizeObserver((entries) => {
@@ -75,8 +86,10 @@ export default function ProteinViewer({
     () => computeWindow(mode, length, cur),
     [mode, length, cur],
   )
-  // left gutter: wide enough for the longest translated track name
-  // (canvas-measured; CJK/Russian labels are wider than the default 28px)
+  // левый отступ: достаточно широкий для самого длинного переведённого названия трека
+  // (замеряем на canvas; подписи CJK/русские шире дефолтных 28px)
+  // 左留白：足够容纳最长的已翻译轨道名
+  //（用 canvas 测量；CJK/俄语标签比默认 28px 宽）
   const padX = useMemo(() => {
     const ctx = document.createElement('canvas').getContext('2d')
     if (!ctx) return PAD_X
@@ -100,7 +113,8 @@ export default function ProteinViewer({
     return null
   }, [result, position, sequence, length])
 
-  // --- canvas data layer ---
+  // --- слой данных на canvas ---
+  // --- canvas 数据层 ---
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !geom) return
@@ -121,7 +135,8 @@ export default function ProteinViewer({
     drawAxis(ctx, geom)
     drawTracksBackground(ctx, geom, t)
 
-    // local RMSD window (±10 from the mutation site) — light band under data
+    // окно локального RMSD (±10 от сайта мутации) — светлая полоса под данными
+    // 局部 RMSD 窗口（距突变位点 ±10）——数据下方的浅色条带
     const lw = result?.rmsd?.local_window
     if (lw) drawBand(ctx, geom, lw[0], lw[1], '#f0f0f0')
 
@@ -136,7 +151,8 @@ export default function ProteinViewer({
     drawVLine(ctx, geom, cur, '#111111', false)
   }, [geom, sequence, plddtWt, mutation, sc, en, result, hover, cur, t])
 
-  // --- mini-map: orientation strip with the current window ---
+  // --- мини-карта: полоса ориентирования с текущим окном ---
+  // --- 小地图：带当前窗口的定位条 ---
   const mapH = 20
   useEffect(() => {
     const canvas = mapRef.current
@@ -180,7 +196,8 @@ export default function ProteinViewer({
     onPositionChange(pos)
   }, [length, onPositionChange, padX])
 
-  // --- SVG interaction layer: hit zones per visible residue ---
+  // --- SVG-слой интеракции: зоны попадания на каждый видимый остаток ---
+  // --- SVG 交互层：每个可见残基的点击区 ---
   const hitZones = useMemo(() => {
     if (!geom) return []
     const zones: { pos: number; x: number; w: number }[] = []
@@ -303,7 +320,8 @@ function Header({
   )
 }
 
-// --- draw helpers (all coordinates from Geometry) ---
+// --- хелперы отрисовки (все координаты из Geometry) ---
+// --- 绘制辅助函数（所有坐标来自 Geometry） ---
 
 function drawAxis(ctx: CanvasRenderingContext2D, g: Geometry) {
   const step = tickStep(g.win.end - g.win.start + 1, g.plotW)
@@ -324,7 +342,8 @@ function drawAxis(ctx: CanvasRenderingContext2D, g: Geometry) {
 function drawTracksBackground(
   ctx: CanvasRenderingContext2D, g: Geometry, t: TFn,
 ) {
-  // track name on the left margin + hairline under each track
+  // название трека в левом поле + волосяная линия под каждым треком
+  // 左侧边距的轨道名 + 每条轨道下的细线
   ctx.font = '9px ui-sans-serif, system-ui, sans-serif'
   for (const tr of TRACKS) {
     const top = g.trackTopOf(tr.id)
@@ -374,15 +393,16 @@ function drawSequence(
   const top = g.trackTopOf('sequence')
   const h = trackHeight('sequence')
   const mid = top + h / 2 + 5
-  if (g.colW < 8) return // letters unreadable — the axis + tooltip carry the info
+  if (g.colW < 8) return // буквы нечитаемы — ось и тултип несут информацию | 字母不可读——坐标轴与提示框承载信息
   ctx.font = '11px ui-monospace, monospace'
   ctx.textAlign = 'center'
   for (let p = g.win.start; p <= g.win.end; p++) {
-    if (p === cur) continue // drawn highlighted below
+    if (p === cur) continue // нарисован подсвеченным ниже | 在下方以高亮绘制
     ctx.fillStyle = '#404040'
     ctx.fillText(seq[p - 1], g.centerFor(p), mid)
   }
-  // current position: black cell, white letter
+  // текущая позиция: чёрная ячейка, белая буква
+  // 当前位置：黑底白字
   ctx.fillStyle = '#111111'
   ctx.fillRect(g.xFor(cur), top + 2, g.colW, h - 4)
   ctx.fillStyle = '#ffffff'
@@ -398,7 +418,8 @@ function drawPlddt(
   const h = trackHeight('plddt')
   const baseline = top + h - 3
   const inner = h - 12
-  // gridlines at 50 / 90
+  // сетка на 50 / 90
+  // 50 / 90 处的网格线
   ctx.strokeStyle = '#e5e5e5'
   ctx.setLineDash([2, 3])
   for (const v of [50, 90]) {
@@ -441,7 +462,8 @@ function drawMutation(
   const h = trackHeight('mutation')
   if (!mutation || !mutation.mut_aa) {
     if (mutation) {
-      // pending mutation from the picker: outline only
+      // ожидаемая мутация из пикера: только контур
+      // 来自选择器的待定突变：仅描边
       ctx.strokeStyle = RED
       ctx.strokeRect(g.xFor(mutation.position) + 1, top + 3, Math.max(2, g.colW - 2), h - 6)
     }
@@ -452,7 +474,8 @@ function drawMutation(
   const w = Math.max(2, g.colW)
   ctx.fillStyle = RED
   ctx.fillRect(x, top + 3, w, h - 6)
-  // label to the right of the marker (left if it would run off the plot)
+  // подпись справа от маркера (слева, если выйдет за график)
+  // 标签在标记右侧（若超出图区则放左侧）
   ctx.fillStyle = RED
   ctx.font = '10px ui-monospace, monospace'
   const label = `${m.wt_aa}${m.position}${m.mut_aa}`
@@ -486,7 +509,8 @@ function drawScan(
 function drawTrackPlaceholders(
   ctx: CanvasRenderingContext2D, g: Geometry, t: TFn,
 ) {
-  // domains arrive with the UniProt stage (design doc §6, этап 1.3)
+  // трек доменов появится вместе с этапом UniProt (design doc §6, этап 1.3)
+  // 域轨道随 UniProt 阶段出现（设计文档 §6，阶段 1.3）
   const top = g.trackTopOf('domains')
   const h = trackHeight('domains')
   ctx.fillStyle = '#a3a3a3'
@@ -494,9 +518,11 @@ function drawTrackPlaceholders(
   ctx.fillText(t('pv.uniprotPlaceholder'), g.plotX + 16, top + h / 2)
 }
 
-// variants track: per-residue mean |ΔpLDDT| across the ensemble (dum.md §6 —
-// the honest sensitivity picture), a heat strip light-grey → strict red,
-// normalized by the max within THIS ensemble.
+// трек вариантов: средний |ΔpLDDT| по остаткам по всему ансамблю (dum.md §6 —
+// честная картина чувствительности), тепловая полоса светло-серый → строгий
+// красный, нормированная на максимум ВНУТРИ ЭТОГО ансамбля.
+// 变体轨道：整个 ensemble 的逐残基平均 |ΔpLDDT|（dum.md §6——
+// 诚实的敏感性图），热度条从浅灰到严格红，按本 ensemble 内的最大值归一化。
 const HEAT_LO = [0xf5, 0xf5, 0xf5]
 const HEAT_HI = [0xb9, 0x1c, 0x1c]
 
@@ -521,12 +547,14 @@ function drawVariants(
   const stripH = Math.max(4, h - 2 * pad)
   const max = Math.max(...list)
   for (let p = g.win.start; p <= g.win.end; p++) {
-    // guard ≈0 → all white (a flat profile carries no information)
+    // guard ≈0 → всё белое (плоский профиль не несёт информации)
+    // 防护 ≈0 → 全白（平坦剖面不含信息）
     const frac = max > 1e-9 ? Math.min(1, Math.max(0, list[p - 1] / max)) : 0
     ctx.fillStyle = heatColor(frac)
     ctx.fillRect(g.xFor(p), top + pad, Math.max(1, g.colW - 0.5), stripH)
   }
-  // anchor: outlined like every other site marker
+  // якорь: с контуром, как у всех прочих маркеров сайта
+  // 锚点：与其他位点标记一样描边
   const x = g.xFor(ens!.position)
   const w = Math.max(2, g.colW - 0.5)
   ctx.strokeStyle = '#111111'
@@ -536,7 +564,8 @@ function drawVariants(
   ctx.fillText(`ens @ ${ens!.position}`, x + w + 4, top + 6)
 }
 
-// --- detail panel / tooltip text ---
+// --- панель деталей / текст тултипа ---
+// --- 详情面板 / 提示框文本 ---
 
 function describePosition(
   pos: number,

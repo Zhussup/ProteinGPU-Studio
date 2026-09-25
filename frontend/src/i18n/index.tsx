@@ -1,7 +1,11 @@
-// i18n: tiny context-based translations (ru / en / zh), no runtime dependency.
-// The dictionaries are typed against ru (the source of truth), so a missing
-// key in en/zh is a compile error; t() falls back to ru at run time. The
-// choice persists in localStorage ('ui-lang') and drives <html lang>.
+// i18n: крошечные переводы на контексте (ru / en / zh), без рантайм-зависимостей.
+// Словари типизированы от ru (источник истины), поэтому отсутствующий ключ
+// в en/zh — ошибка компиляции; t() в рантайме откатывается на ru. Выбор
+// сохраняется в localStorage ('ui-lang') и управляет <html lang>.
+// i18n：基于 context 的轻量翻译（ru / en / zh），无运行时依赖。
+// 字典以 ru（事实标准）做类型约束，en/zh 缺键即编译错误；
+// t() 在运行时回退到 ru。选择持久化在 localStorage（'ui-lang'），
+// 并同步到 <html lang>。
 import {
   createContext, useCallback, useContext, useEffect, useMemo, useState,
   type ReactNode,
@@ -22,13 +26,15 @@ const DICTS: Record<Lang, Dict> = { ru, en, zh }
 
 const STORAGE_KEY = 'ui-lang'
 
-// api.ts reads this per request so backend-generated texts (summaries, stage
-// messages, preset descriptions) arrive in the active UI language.
+// api.ts читает это на каждый запрос, чтобы сгенерированные бэкендом тексты
+// (сводки, сообщения этапов, описания пресетов) приходили на активном языке UI.
+// api.ts 每次请求都读取它，使后端生成的文本（摘要、阶段消息、预设描述）
+// 以当前 UI 语言返回。
 export function currentLang(): Lang {
   try {
     const v = localStorage.getItem(STORAGE_KEY)
     if (v === 'ru' || v === 'en' || v === 'zh') return v
-  } catch { /* private mode / blocked storage */ }
+  } catch { /* приватный режим / заблокированное хранилище */ }
   return 'ru'
 }
 
@@ -38,7 +44,8 @@ function initialLang(): Lang {
 
 export type Interp = Record<string, string | number>
 
-// translation function type, passed down into canvas draw helpers
+// тип функции перевода, пробрасывается вниз в хелперы отрисовки canvas
+// 翻译函数类型，向下传递给 canvas 绘制辅助函数
 export type TFn = (key: Key, params?: Interp) => string
 
 function interpolate(tpl: string, params?: Interp): string {
@@ -50,7 +57,7 @@ interface I18n {
   lang: Lang
   setLang: (l: Lang) => void
   t: TFn
-  tl: (key: Key) => string[] // paragraph lists (help texts)
+  tl: (key: Key) => string[] // списки абзацев (справка) | 段落列表（帮助文本）
 }
 
 const Ctx = createContext<I18n | null>(null)
@@ -60,10 +67,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l)
-    try { localStorage.setItem(STORAGE_KEY, l) } catch { /* ignore */ }
+    try { localStorage.setItem(STORAGE_KEY, l) } catch { /* игнорируем */ }
   }, [])
 
-  // keep <html lang> in sync with the active locale
+  // держим <html lang> синхронным с активной локалью
+  // 让 <html lang> 与当前语言保持同步
   useEffect(() => {
     document.documentElement.lang = LOCALES[lang].htmlLang
   }, [lang])
@@ -93,8 +101,10 @@ export function useI18n(): I18n {
   return v
 }
 
-// renderBold: dictionary paragraphs may carry **bold** spans; split into
-// text/<b> nodes so help texts stay plain data in all three locales.
+// renderBold: абзацы словаря могут нести **жирные** фрагменты; режем на
+// текст/<b>-узлы, чтобы справка оставалась чистыми данными во всех трёх локалях.
+// renderBold：字典段落可含 **加粗** 片段；拆分为文本/<b> 节点，
+// 使帮助文本在三种语言中都保持纯数据。
 export function renderBold(text: string): ReactNode[] {
   return text.split('**').map((part, i) => (i % 2 === 1 ? <b key={i}>{part}</b> : part))
 }

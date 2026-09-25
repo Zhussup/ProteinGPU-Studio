@@ -1,5 +1,8 @@
-// ScanPanel: results of the saturation scan (all 19 substitutions).
-// Ranked table + bar chart; clicking a row shows that mutant in the viewer.
+// ScanPanel: результаты насыщающего скана (все 19 замен).
+// Ранжированная таблица + столбчатая диаграмма; клик по строке показывает
+// этого мутанта во вьюере.
+// ScanPanel：饱和扫描的结果（全部 19 种替换）。
+// 排序表格 + 条形图；点击行可在查看器中显示该突变体。
 import { Suspense, lazy } from 'react'
 import type { ScanResult, ScanRow } from '../lib/types'
 import { useI18n, type Key } from '../i18n'

@@ -95,8 +95,10 @@ class TestPositionStats:
 
 class TestPercentiles:
     def test_convention_matches_frontend(self):
-        # fraction strictly below, over (n - 1) — SensitivityCompare.rank();
-        # ties sit at the bottom (a constant array maps everything to 0.0)
+        # доля строго меньших, делённая на (n - 1) — SensitivityCompare.rank();
+        # ничьи оседают вниз (константный массив отображает всё в 0.0)
+        # 严格小于的比例，除以 (n - 1)——对应 SensitivityCompare.rank()；
+        # 平局落在底部（常数数组全部映射为 0.0）
         assert percentile_rank(2.0, [1.0, 2.0, 3.0]) == 0.5
         assert percentile_rank(1.0, [1.0] * 5) == 0.0
         assert percentile_rank(3.0, [1.0, 2.0, 3.0]) == 1.0
@@ -112,7 +114,8 @@ class TestPercentiles:
         normalize_protein(positions)
         assert positions[0]["stats"]["pctl_v_max"] == 0.0
         assert positions[2]["stats"]["pctl_v_max"] == 1.0
-        # every row got a pctl within [0, 1]
+        # каждая строка получила pctl в [0, 1]
+        # 每行都得到 [0, 1] 内的 pctl
         for p in positions:
             assert all(0.0 <= r["pctl"] <= 1.0 for r in p["rows"])
 
@@ -129,7 +132,7 @@ class TestCSV:
              "stats": {}}
         csv = build_csv([p])
         lines = csv.strip().splitlines()
-        assert len(lines) == 20  # header + 19 rows
+        assert len(lines) == 20  # заголовок + 19 строк | 表头 + 19 行
         assert lines[0].startswith("position,wt_aa,mut_aa,sector,grantham,")
         assert lines[1].split(",")[:4] == ["5", "A", "V", "hydrophobic"]
 

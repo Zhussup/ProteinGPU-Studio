@@ -1,5 +1,7 @@
-// ResultTabs: RMSD cards + summary + sequences + pLDDT after a mutation job.
-// Each metric carries a "?" button opening a plain-language explanation modal.
+// ResultTabs: карточки RMSD + сводка + последовательности + pLDDT после задачи мутации.
+// У каждой метрики есть кнопка «?», открывающая модалку с объяснением простым языком.
+// ResultTabs：突变任务后的 RMSD 卡片 + 摘要 + 序列 + pLDDT。
+// 每个指标带“?”按钮，打开通俗解释弹窗。
 import { Suspense, lazy, useState } from 'react'
 import type { MutationResult } from '../lib/types'
 import { renderBold, useI18n, type Key } from '../i18n'
@@ -7,7 +9,8 @@ import Modal from './Modal'
 
 const Plot = lazy(() => import('./PlotlyChart'))
 
-// Badge styling stays in the component; labels come from the dictionary.
+// Стили бейджа остаются в компоненте; подписи приходят из словаря.
+// 徽章样式留在组件中；标签来自字典。
 const BADGE_CLS: Record<string, string> = {
   stable: 'border border-neutral-900 text-neutral-900',
   moderate: 'bg-neutral-600 text-white',
@@ -19,9 +22,12 @@ const BADGE_KEYS: Record<string, Key> = {
   critical: 'res.badge.critical',
 }
 
-// Plain-language explanations; shown via the "?" button on each metric.
-// Paragraphs come from the locale dictionaries (tl()), **bold** spans are
-// rendered by renderBold. Wording mirrors docs/ml_model_decision.md.
+// Объяснения простым языком; показываются кнопкой «?» у каждой метрики.
+// Абзацы берутся из локальных словарей (tl()), фрагменты **bold** рендерит
+// renderBold. Формулировки повторяют docs/ml_model_decision.md.
+// 通俗解释；由每个指标的“?”按钮打开。
+// 段落来自语言字典（tl()），**粗体** 片段由 renderBold 渲染。
+// 措辞与 docs/ml_model_decision.md 一致。
 type HelpTopic = 'global' | 'local' | 'tm' | 'plddt' | 'dplddt'
 
 function HelpBody({ topic }: { topic: HelpTopic }) {
@@ -156,7 +162,8 @@ function Metric({ label, value, help, onHelp, helpTitle }: {
   )
 }
 
-// Per-residue pLDDT trace: WT (grey) vs mutant (black), mutation position marked.
+// Трейс pLDDT по остаткам: WT (серый) против мутанта (чёрный), позиция мутации отмечена.
+// 逐残基 pLDDT 曲线：WT（灰）对突变体（黑），并标记突变位置。
 function PlddtChart({ wt, mut, position, wtAA, mutAA }: {
   wt: number[]; mut: number[]; position: number; wtAA: string; mutAA: string
 }) {

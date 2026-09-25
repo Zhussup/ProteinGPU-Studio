@@ -37,10 +37,10 @@ class DummyModel:
         n = len(seq)
         h = hashlib.sha256(seq.encode()).digest()
         phase = int.from_bytes(h[:4], "big") / 2**32 * 2 * np.pi
-        twist = 1.8 + (h[4] % 5) * 0.01          # rad/residue ≈ 100° alpha helix
-        rise = 1.5 + (h[5] % 4) * 0.005          # Å/residue
+        twist = 1.8 + (h[4] % 5) * 0.01          # рад/остаток ≈ 100° α-спираль | 弧度/残基 ≈ 100° α-螺旋
+        rise = 1.5 + (h[5] % 4) * 0.005          # Å/остаток | Å/残基
         radius = 2.3 + (h[6] % 3) * 0.02
-        bend = (h[7] % 100) / 100 * 0.002        # slow curvature along the axis
+        bend = (h[7] % 100) / 100 * 0.002        # медленная кривизна вдоль оси | 沿轴的缓慢弯曲
 
         t = np.arange(n, dtype=np.float64)
         ca = np.stack([
@@ -48,7 +48,8 @@ class DummyModel:
             radius * np.sin(twist * t + phase),
             rise * t,
         ], axis=1)
-        # N/CA/C/O offsets in a local frame — geometry is plausible, not exact.
+        # Смещения N/CA/C/O в локальном фрейме — геометрия правдоподобная, не точная.
+        # 局部坐标系中的 N/CA/C/O 偏移——几何合理但不精确。
         tang = np.gradient(ca, axis=0)
         tang /= np.linalg.norm(tang, axis=1, keepdims=True) + 1e-9
         side = np.cross(tang, np.array([0.0, 0.0, 1.0]))
@@ -60,7 +61,8 @@ class DummyModel:
             ca + 2.4 * tang,
         ], axis=1)  # [N, 4, 3]
 
-        # pLDDT: soft profile — dips near termini, sequence-dependent ripples.
+        # pLDDT: мягкий профиль — провалы у концов, рябь, зависящая от последовательности.
+        # pLDDT：平缓曲线——末端下凹，涟漪随序列变化。
         x = t / max(n - 1, 1)
         ripple = 8 * np.sin(6 * np.pi * x + phase)
         plddt = np.clip(88 * (1 - x * (1 - x)) * (1 - 0.5 * x * (1 - x)) + ripple, 35, 97)
@@ -106,7 +108,7 @@ def get_model(profile: str = "auto"):
             return DummyModel()
         from .omegafold_model import OmegaFoldModel
         if profile == "fp16-gpu":
-            return OmegaFoldModel(half=True)      # autocast, weights stay fp32
+            return OmegaFoldModel(half=True)      # autocast, веса остаются fp32 | autocast，权重保持 fp32
         if profile == "cpu":
             return OmegaFoldModel(device="cpu")
         return OmegaFoldModel()

@@ -1,6 +1,9 @@
-// TranslationPanel: DNA FASTA → codon table → amino acids (modal content).
-// The backend does the genetic-code translation (POST /api/v1/translate);
-// this is purely presentational.
+// TranslationPanel: ДНК FASTA → таблица кодонов → аминокислоты (содержимое модалки).
+// Трансляцию по генетическому коду делает бэкенд (POST /api/v1/translate);
+// здесь только представление.
+// TranslationPanel：DNA FASTA → 密码子表 → 氨基酸（弹窗内容）。
+// 遗传密码翻译由后端完成（POST /api/v1/translate）；
+// 此处纯展示。
 import type { TranslateResponse } from '../lib/types'
 import { renderBold, useI18n } from '../i18n'
 
@@ -11,7 +14,8 @@ export interface TranslationPanelProps {
 
 export default function TranslationPanel({ data, onUseProtein }: TranslationPanelProps) {
   const { t } = useI18n()
-  // cap rendering: thousands of cells would freeze the tab
+  // ограничиваем рендер: тысячи ячеек заморозили бы вкладку
+  // 限制渲染数量：上千个单元格会冻结标签页
   const shown = data.codons.slice(0, 400)
   const proteinLen = data.protein.length
 
@@ -39,7 +43,8 @@ export default function TranslationPanel({ data, onUseProtein }: TranslationPane
         </div>
       )}
 
-      {/* codon table: triplet on top, amino acid below; stop codons in red */}
+      {/* таблица кодонов: триплет сверху, аминокислота снизу; стоп-кодоны красным */}
+      {/* 密码子表：三联体在上，氨基酸在下；终止密码子标红 */}
       <div className="grid gap-px border border-neutral-200 bg-neutral-200" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))' }}>
         {shown.map((c) => {
           const stop = c.aa === '*'

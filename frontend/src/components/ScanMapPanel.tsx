@@ -1,7 +1,10 @@
-// ScanMapPanel: the sensitivity map / "wind rose" (dum.md §5).
-// Heatmap (positions × compass directions), ranked table with rose-glyph
-// sparklines, a big rose for the selected position, and "paint 3D" — pushes
-// the per-residue sensitivity scalar into the molecule viewer.
+// ScanMapPanel: карта чувствительности / «роза ветров» (dum.md §5).
+// Тепловая карта (позиции × направления компаса), ранжированная таблица со
+// спарклайнами-розами, большая роза для выбранной позиции и «раскрасить 3D» —
+// проталкивает скаляр чувствительности по остаткам во вьюер молекулы.
+// ScanMapPanel：敏感性图谱 / “风玫瑰”（dum.md §5）。
+// 热图（位点 × 罗盘方向）、带玫瑰小图的排序表格、所选位点的大玫瑰，
+// 以及“着色 3D”——把逐残基敏感性标量推入分子查看器。
 import { Suspense, lazy, useMemo, useState } from 'react'
 import type { MapPosition, ScanMapResult } from '../lib/types'
 import { useI18n, type Interp, type Key } from '../i18n'
@@ -11,7 +14,8 @@ const Plot = lazy(() => import('./PlotlyChart'))
 
 export type PaintMetric = 'v_max' | 'v_med'
 
-// quadrant badges: hot → cold
+// бейджи квадрантов: горячий → холодный
+// 象限徽章：热 → 冷
 const QUAD_CLS: Record<MapPosition['stats']['quadrant'], string> = {
   hedgehog: 'bg-red-700 text-white',
   needle: 'bg-neutral-900 text-white',
@@ -45,7 +49,8 @@ export default function ScanMapPanel({ result, jobId, paintedMetric, onPaint, on
   const positions = result.positions
   const L = result.wt_sequence.length
 
-  // ranked rows for the table (desc by the chosen scalar)
+  // отсортированные строки для таблицы (по убыванию выбранного скаляра)
+  // 表格的排序行（按所选标量降序）
   const sorted = useMemo(() => {
     const key = metric === 'v_max' ? 'pctl_v_max' : 'pctl_v_med'
     return [...positions].sort((a, b) => b.stats[key] - a.stats[key])
@@ -68,7 +73,8 @@ export default function ScanMapPanel({ result, jobId, paintedMetric, onPaint, on
         {result.summary}
       </div>
 
-      {/* metric + 3D paint + dataset artifacts */}
+      {/* метрика + раскраска 3D + артефакты датасета */}
+      {/* 指标 + 3D 着色 + 数据集工件 */}
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="text-neutral-500">{t('map.metricLabel')}</span>
         <button
@@ -124,15 +130,18 @@ export default function ScanMapPanel({ result, jobId, paintedMetric, onPaint, on
         </div>
       )}
 
-      {/* heat map: positions × fixed compass directions (the length channel) */}
+      {/* тепловая карта: позиции × фиксированные направления компаса (канал длины) */}
+      {/* 热图：位置 × 固定罗盘方向（长度通道） */}
       <Suspense fallback={<div className="text-xs text-neutral-400">{t('common.chartLoading')}</div>}>
         <MapHeatmap result={result} />
       </Suspense>
 
-      {/* big rose of the selected position */}
+      {/* большая роза выбранной позиции */}
+      {/* 所选位点的大玫瑰 */}
       {selected && <RoseDetail pos={selected} />}
 
-      {/* ranked table with rose sparklines */}
+      {/* ранжированная таблица со спарклайнами-розами */}
+      {/* 带玫瑰小图的排序表格 */}
       <div className="max-h-96 overflow-y-auto border border-neutral-200">
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-neutral-100 text-neutral-600">
@@ -191,9 +200,12 @@ export default function ScanMapPanel({ result, jobId, paintedMetric, onPaint, on
   )
 }
 
-// one position's 19 rows as petals: length = |ΔpLDDT| percentile (backend
-// pctl), color intensity = local RMSD rank within the position (same rank
-// convention as the backend's percentile_rank). `fmt` localizes the hover tip.
+// 19 строк позиции как лепестки: длина = перцентиль |ΔpLDDT| (pctl бэкенда),
+// интенсивность цвета = ранг local RMSD внутри позиции (та же конвенция rank,
+// что у percentile_rank бэкенда). `fmt` локализует текст наведения.
+// 以花瓣呈现某位点的 19 行：长度 = |ΔpLDDT| 百分位（后端 pctl），
+// 颜色强度 = 位点内 local RMSD 的排名（与后端 percentile_rank 同一
+// 约定）。`fmt` 用于本地化悬停提示。
 export function petalsOf(p: MapPosition, fmt: (m: string, pctl: string, rmsd: string) => string) {
   return p.rows.map((r) => ({
     aa: r.mut_aa,
@@ -215,7 +227,8 @@ function TableRose({ p }: { p: MapPosition }) {
   )
 }
 
-// t-bound tip formatter shared by the table and the detail rose
+// привязанный к t форматтер подсказок, общий для таблицы и детальной розы
+// 表格与详情玫瑰共享的、绑定 t 的提示格式化器
 function petalTip(t: (k: Key, params?: Interp) => string) {
   return (m: string, pctl: string, rmsd: string) => t('map.petalTip', { m, pctl, rmsd })
 }
@@ -259,8 +272,10 @@ function PctlBar({ v }: { v: number }) {
   )
 }
 
-// heat map: x = measured positions, y = the FIXED 20-letter compass; z = the
-// length channel (per-row pctl of |ΔpLDDT_local|, null at the WT slot)
+// тепловая карта: x = измеренные позиции, y = ФИКСИРОВАННЫЙ 20-буквенный компас;
+// z = канал длины (по-строчный pctl |ΔpLDDT_local|, null в слоте WT)
+// 热图：x = 已测位置，y = 固定的 20 字母罗盘；
+// z = 长度通道（|ΔpLDDT_local| 的逐行 pctl，WT 槽位为 null）
 function MapHeatmap({ result }: { result: ScanMapResult }) {
   const { t } = useI18n()
   const positions = result.positions
@@ -304,7 +319,8 @@ function MapHeatmap({ result }: { result: ScanMapResult }) {
     <div>
       <div className="mb-1 text-[11px] text-neutral-500">{t('map.heatmap')}</div>
       <Plot data={data} layout={layout} />
-      {/* bucket legend for the 3D paint ramp */}
+      {/* легенда корзин для шкалы 3D-раскраски */}
+      {/* 3D 着色色带的分档图例 */}
       <div className="mt-1 flex items-center gap-1 text-[10px] text-neutral-500">
         <span>0</span>
         {Array.from({ length: HEAT_BUCKETS }, (_, i) => (

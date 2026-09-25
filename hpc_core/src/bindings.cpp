@@ -1,6 +1,10 @@
-// PyBind11 bindings for the Kabsch/RMSD HPC C++ core.
-// numpy-buffer-only (no torch dependency), so the extension never fights torch's ABI.
-// Build: make cpu   (or make gpu for the CUDA variants, guarded by USE_CUDA)
+// PyBind11-биндинги C++-ядра HPC для Kabsch/RMSD.
+// Только numpy-буферы (без зависимости от torch), чтобы расширение никогда
+// не конфликтовало с ABI torch.
+// Сборка: make cpu   (или make gpu для CUDA-вариантов, под флагом USE_CUDA)
+// Kabsch/RMSD HPC C++ 核心的 PyBind11 绑定。
+// 仅接受 numpy 缓冲（不依赖 torch），扩展因此不会与 torch 的 ABI 冲突。
+// 构建：make cpu（或 make gpu 构建 CUDA 版本，由 USE_CUDA 控制）
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pytypes.h>
@@ -42,7 +46,7 @@ D2 check_batch(const D2& p, const D2& q) {
   return p;
 }
 
-}  // namespace
+}  // namespace | namespace 结束
 
 PYBIND11_MODULE(hpc_core_native, m) {
   m.doc() = "Kabsch/RMSD HPC core (C++17, optional CUDA sm_86)";

@@ -1,4 +1,5 @@
-// MutationPicker: position + residue selectors, demo preset chips, live seq preview.
+// MutationPicker: селекторы позиции и остатка, чипы демо-пресетов, живой превью последовательности.
+// MutationPicker：位置与残基选择器、演示预设芯片、实时序列预览。
 import { AA_RE } from './SequenceInput'
 import type { Preset } from '../lib/types'
 import { useI18n } from '../i18n'
@@ -6,7 +7,7 @@ import { useI18n } from '../i18n'
 const AAS = 'ACDEFGHIKLMNPQRSTVWY'.split('')
 
 export interface MutationPickerProps {
-  sequence: string // raw aa (already stripped)
+  sequence: string // сырые буквы АК (уже очищены) | 纯氨基酸字母（已清洗）
   position: number
   mutantAA: string
   onChange: (position: number, mutantAA: string) => void
@@ -82,7 +83,8 @@ export default function MutationPicker({
   )
 }
 
-// SequenceStrip: one-letter sequence with the mutation site highlighted.
+// SequenceStrip: однобуквенная последовательность с подсвеченным сайтом мутации.
+// SequenceStrip：单字母序列，高亮突变位点。
 function SequenceStrip({ sequence, position }: { sequence: string; position: number }) {
   const start = Math.max(0, position - 11)
   const end = Math.min(sequence.length, position + 10)

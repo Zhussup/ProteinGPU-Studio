@@ -102,18 +102,21 @@ class TestExhaustiveMatchesScan:
         assert len(re_["variants"]) == 19
         assert [v["mut_aa"] for v in re_["variants"]] == \
             [r["mut_aa"] for r in rs["rows"]]
-        # dummy model is deterministic per sequence → exact metric equality
+        # dummy-модель детерминирована по последовательности → точное равенство метрик
+        # dummy 模型按序列确定性 → 指标完全相等
         for sr, er in zip(rs["rows"], re_["variants"]):
             for key in ("mut_aa", "local_rmsd", "global_rmsd", "tm_score",
                         "plddt_mut", "dplddt", "engine", "interpretation"):
                 assert er[key] == sr[key], (key, sr[key], er[key])
 
-        # strongest-first ranking, single-substitution row shape
+        # ранжирование сильнейший-первый, форма строки одиночной замены
+        # 最强优先排序，单替换行的形状
         assert re_["variants"][0]["label"] == \
             f'I44{re_["variants"][0]["mut_aa"]}'
         assert re_["best"] == 0
 
-        # artifacts: the strongest variant's aligned PDB is byte-identical
+        # артефакты: выровненный PDB сильнейшего варианта побайтно идентичен
+        # 工件：最强变体的对齐 PDB 逐字节一致
         best_aa = rs["best"]
         scan_pdb = client.get(f"/api/v1/files/{scan['job_id']}/scan_{best_aa}.pdb")
         ens_pdb = client.get(f"/api/v1/files/{ens['job_id']}/ens_00.pdb")
@@ -121,7 +124,8 @@ class TestExhaustiveMatchesScan:
         assert ens_pdb.text == scan_pdb.text
         assert client.get(f"/api/v1/files/{ens['job_id']}/wt.pdb").status_code == 200
 
-        # summary sentence keeps scan byte parity
+        # предложение сводки сохраняет побайтовый паритет со сканом
+        # 摘要句与扫描保持逐字节一致
         assert "Скан позиции 44" in re_["summary"]
         en = client.get(f"/api/v1/jobs/{ens['job_id']}/result?lang=en").json()
         assert "Scan of position 44" in en["summary"]
@@ -152,23 +156,26 @@ class TestSampled:
             assert v["pdb_file"].startswith("ens_") and \
                 v["pdb_file"].endswith(".pdb")
 
-        # stats recomputed from the returned rows (order-independent)
+        # статистика пересчитана по возвращённым строкам (независимо от порядка)
+        # 统计按返回行重算（与顺序无关）
         vals = sorted(loc)
         n = len(vals)
-        median = (vals[n // 2 - 1] + vals[n // 2]) / 2  # n even
+        median = (vals[n // 2 - 1] + vals[n // 2]) / 2  # n чётное | n 为偶数
         st = res["stats"]["local_rmsd"]
         assert st["median"] == pytest.approx(median)
         assert st["min"] == min(loc) and st["max"] == max(loc)
         assert st["iqr"] >= 0
 
-        # window ΔpLDDT is present and per-residue track array is full-length
+        # ΔpLDDT окна присутствует, трек по остаткам — полной длины
+        # 存在窗口 ΔpLDDT，逐残基轨道为全长
         assert "dplddt_local" in variants[0]
         assert len(res["dplddt_abs_mean_list"]) == len(UBIQ)
         assert len(res["plddt_wt_list"]) == len(UBIQ)
-        # params echoed with the effective seed
+        # параметры эхом, с эффективным seed
+        # 回显参数，含有效种子
         assert res["params"]["mu"] == 2 and res["params"]["tau"] == 0.3
         assert res["params"]["k"] == 8 and res["params"]["seed"] > 0
-        assert len(res["pdb_files"]) == 9  # wt + 8 variants
+        assert len(res["pdb_files"]) == 9  # wt + 8 вариантов | wt + 8 个变体
         assert res["headline"]["level"] in ("quiet", "moderate", "strong")
 
     def test_seed_reproducibility(self):
@@ -198,9 +205,11 @@ class TestSampled:
         res = run_ensemble({"sequence": UBIQ, "position": 44, "mu": 1,
                             "tau": 0.5, "k": 4, "seed": 1})
         for v in res["variants"]:
-            # single-substitution rows keep the scan row shape
+            # строки одиночной замены сохраняют форму строки скана
+            # 单替换行保持扫描行的形状
             assert v["mut_aa"] is not None
-            # dplddt_local is the mean over the ±10 window: bounded by max |Δ|
+            # dplddt_local — среднее по окну ±10: ограничено max |Δ|
+            # dplddt_local 是 ±10 窗口均值：受 max |Δ| 约束
             assert abs(v["dplddt_local"]) <= 100.0
 
 
@@ -212,7 +221,8 @@ class TestArtifactsAndHistory:
         wait_job(job_id)
         assert client.get(f"/api/v1/files/{job_id}/ens_00.pdb").status_code == 200
         assert client.get(f"/api/v1/files/{job_id}/wt.pdb").status_code == 200
-        # allowlist is strict about the name shape
+        # allowlist строго проверяет форму имени
+        # 白名单严格校验文件名形状
         assert client.get(f"/api/v1/files/{job_id}/ens_0.pdb").status_code == 404
         assert client.get(f"/api/v1/files/{job_id}/ens_99.pdb").status_code == 404
         assert client.get(f"/api/v1/files/{job_id}/etc-passwd").status_code == 404
@@ -233,7 +243,7 @@ class TestArtifactsAndHistory:
         job_id = None
         for j in client.get("/api/v1/jobs").json():
             if j["kind"] == "ensemble" and j["status"] == "done":
-                job_id = j["job_id"]  # newest ensemble job
+                job_id = j["job_id"]  # новейшая задача ensemble | 最新的 ensemble 任务
                 break
         assert job_id is not None
         en = client.get(f"/api/v1/jobs/{job_id}/result?lang=en").json()

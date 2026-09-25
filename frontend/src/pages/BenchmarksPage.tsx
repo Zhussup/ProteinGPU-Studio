@@ -1,5 +1,7 @@
-// BenchmarksPage: inference latency vs length (log-y, IQR bands) + kernel bench bars.
-// Plotly is loaded lazily via React.lazy to keep the first paint fast.
+// BenchmarksPage: латентность инференса против длины (log-y, полосы IQR) + столбцы бенча ядер.
+// Plotly загружается лениво через React.lazy, чтобы первый рендер оставался быстрым.
+// BenchmarksPage：推理延迟 vs 长度（log-y，IQR 区间）+ 核心基准条形图。
+// Plotly 经 React.lazy 懒加载，保持首屏渲染迅速。
 import { Suspense, lazy, useState } from 'react'
 import { api } from '../lib/api'
 import type { BenchmarkRow, KernelRow } from '../lib/types'
@@ -9,7 +11,8 @@ const Plot = lazy(() => import('../components/PlotlyChart'))
 
 const PROFILES = ['fp32-gpu', 'fp16-gpu', 'cpu', 'dummy']
 
-// strict greys + one red; black is reserved for the primary series
+// строгие серые + один красный; чёрный закреплён за основной серией
+// 严格灰阶 + 一抹红；黑色留给主系列
 const COLORS = ['#111111', '#6b7280', '#b91c1c', '#9ca3af', '#374151']
 
 export default function BenchmarksPage() {

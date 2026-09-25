@@ -83,7 +83,8 @@ class TestSampler:
                 assert m in pool and m != "I"
 
     def test_tau_half_uses_both_halves(self):
-        # mu=1 → at most 19 distinct variants; k=19 draws all of them
+        # mu=1 → не более 19 различных вариантов; k=19 выбирает все
+        # mu=1 → 至多 19 种不同变体；k=19 全部抽到
         var = sample_variants(UBIQ, 44, 1, 0.5, 19, seed=7)
         cons, rad = substitution_halves("I")
         used = {muts[0][2] for muts in var}
@@ -142,7 +143,7 @@ class TestMutationUtils:
             UBIQ[:43] + "A" + UBIQ[44:]
         two = apply_mutations(UBIQ, [(3, "I", "A"), (20, "T", "G")])
         assert two[2] == "A" and two[19] == "G"
-        assert two[43] == "I"  # untouched elsewhere
+        assert two[43] == "I"  # в остальном не тронуто | 其余位置未动
 
     def test_out_of_range_rejected(self):
         try:
@@ -170,19 +171,21 @@ class TestStatsAndHeadline:
         assert s["median"] == 4.5
         assert s["min"] == 1 and s["max"] == 8
         assert math.isclose(s["iqr"], 3.5)
-        assert math.isclose(s["std"], math.sqrt(5.25))  # population std
+        assert math.isclose(s["std"], math.sqrt(5.25))  # популяционное СКО | 总体标准差
 
     def test_quantile_interpolation_odd_n(self):
         s = distribution_stats([0.0, 1.0, 10.0])
         assert s["median"] == 1.0
-        # linear convention: q25 = 0 + 0.5·1 = 0.5, q75 = 1 + 0.5·9 = 5.5
+        # линейная конвенция: q25 = 0 + 0.5·1 = 0.5, q75 = 1 + 0.5·9 = 5.5
+        # 线性约定：q25 = 0 + 0.5·1 = 0.5，q75 = 1 + 0.5·9 = 5.5
         assert math.isclose(s["iqr"], 5.0)
 
     def test_headline_level_bands(self):
         assert sensitivity_headline({"median": 0.9, "iqr": 0.1}, 0.9)["level"] == "quiet"
         assert sensitivity_headline({"median": 2.1, "iqr": 0.4}, 0.1)["level"] == "strong"
         assert sensitivity_headline({"median": 1.2, "iqr": 0.4}, 0.3)["level"] == "moderate"
-        # |ΔpLDDT| alone can push to strong
+        # один |ΔpLDDT| может поднять до strong
+        # 单凭 |ΔpLDDT| 也可达到 strong
         assert sensitivity_headline({"median": 0.5, "iqr": 0.1}, 2.0)["level"] == "strong"
 
     def test_headline_width_bands(self):

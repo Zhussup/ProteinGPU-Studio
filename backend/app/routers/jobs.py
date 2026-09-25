@@ -55,8 +55,9 @@ def _retranslated_summary(res: dict, lang: str) -> dict:
                 lang=lang)
         elif res.get("variants") and res.get("stats") and "wt_aa" in res:
             if res.get("mode") == "exhaustive":
-                # exhaustive is the scan workload — the scan sentence keeps
-                # byte parity with /scan (lossless-migration requirement)
+                # exhaustive — это нагрузка /scan: предложение сводки сохраняет
+                # побайтовый паритет с /scan (требование миграции без потерь)
+                # exhaustive 即 /scan 工作负载：摘要句与 /scan 保持逐字节一致（无损迁移要求）
                 rows = res["variants"]
                 best, worst = rows[0], rows[-1]
                 out["summary"] = make_scan_summary(
@@ -88,8 +89,9 @@ def job_result(job_id: str, lang: str | None = None) -> dict:
         raise HTTPException(409, f"job {job_id} is {job.status}, no result yet")
     if job.result is None:
         return job.result
-    # no ?lang= → the summary as generated at submit time; an explicit lang
-    # retranslates it to the UI language active right now
+    # без ?lang= — сводка как на момент постановки задания; явный lang
+    # перезаписывает её на текущий активный язык интерфейса
+    # 无 ?lang= 时返回提交时生成的摘要；显式 lang 会将其重译为当前界面语言
     if lang is None:
         return job.result
     return _retranslated_summary(job.result, norm_lang(lang))

@@ -26,16 +26,18 @@ from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parents[1]
 OUT_DIR = REPO / "data" / "demo"
-FRONTEND = "http://localhost:5173"  # vite binds ::1 on this machine
+FRONTEND = "http://localhost:5173"  # vite биндится на ::1 на этой машине | vite 在此机器绑定 ::1
 BACKEND = "http://127.0.0.1:8077"
 
-PRESET = "KRAS G12D"           # for the optional warmup chip click
-PROFILE = os.environ.get("DEMO_PROFILE", "fp32-gpu")  # real OmegaFold; never dummy
-# warmup ON by default: pre-folds the WT so the RECORDED job is shorter
-# (the recorded job itself is still a full real run).
+PRESET = "KRAS G12D"           # для опционального клика чипа прогрева | 用于可选的预热芯片点击
+PROFILE = os.environ.get("DEMO_PROFILE", "fp32-gpu")  # настоящий OmegaFold; никогда не dummy | 真实 OmegaFold；绝不用 dummy
+# прогрев включён по умолчанию: префолдит WT, чтобы ЗАПИСЫВАЕМАЯ задача была короче
+# (сама записываемая задача — по-прежнему полный реальный прогон).
+# 默认开启预热：预先折叠 WT，缩短录制任务（录制任务本身仍是完整真实运行）。
 SKIP_WARMUP = os.environ.get("DEMO_SKIP_WARMUP", "0") == "1"
 
-# what we type on camera (KRAS G12D demo scenario)
+# что печатаем на камеру (демо-сценарий KRAS G12D)
+# 镜头前输入的内容（KRAS G12D 演示场景）
 TYPE_HEADER = ">KRAS G12D"
 TYPE_SEQ = ("MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEY"
             "SAMRDQYMRTGEGFLCVFAINNTKSFEDIHHYREQIKRVKDSEDVPMVLVGNKCDLPSRTVDT"
@@ -43,10 +45,12 @@ TYPE_SEQ = ("MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEY"
 POSITION = 12
 MUT_AA = "D"
 VIEWPORT = {"width": 1920, "height": 1080}
-JOB_WAIT_MS = 20 * 60 * 1000   # GPU may be busy / model may reload on switch
+JOB_WAIT_MS = 20 * 60 * 1000   # GPU может быть занят / модель перезагружается при смене профиля | GPU 可能忙/换配置时模型会重载
 
-# cinematic camera: animate body zoom toward `zoom_target` while keeping the
-# element centered; page blur follows scroll velocity → fake motion blur
+# кинематографическая камера: анимируем zoom body к zoom_target, удерживая
+# элемент по центру; размытие страницы следует за скоростью скролла → фейковый motion blur
+# 电影感运镜：动画调整 body zoom 至 zoom_target 并保持元素居中；
+# 页面模糊跟随滚动速度变化 → 模拟运动模糊
 EASE_JS = """
 (args) => new Promise((res) => {
   const [sel, zoomTarget, dur] = args;
@@ -84,7 +88,7 @@ def zoom_to(page, sel: str, factor: float, dur: int = 900) -> None:
 
 
 def pan_to(page, sel: str, dur: int = 800) -> None:
-    zoom_to(page, sel, 1.0, dur)  # pan = zoom back to 1.0 and center the target
+    zoom_to(page, sel, 1.0, dur)  # pan = зум обратно к 1.0 и центрирование цели | pan = 缩放回 1.0 并居中目标
 
 
 def eased_drag(page, x: float, y: float, dx: float, dy: float,
@@ -109,20 +113,25 @@ def wait_job_done(page, timeout_ms: int = JOB_WAIT_MS) -> None:
     panel = page.locator('[data-demo="progress"]')
     try:
         panel.wait_for(timeout=8000)
-        # the panel sits at the bottom of the left column — below the 1080p
-        # fold; bring it into the frame so the video actually shows it
+        # панель — внизу левой колонки, ниже границы 1080p; подводим её в кадр,
+        # чтобы видео действительно её показывало
+        # 面板位于左栏底部，1080p 折叠线之下；把它滚入画面，视频才能拍到
         panel.scroll_into_view_if_needed()
         time.sleep(1.5)
     except PWTimeoutError:
-        pass  # job may have finished before we started watching
+        pass  # задача могла завершиться до начала наблюдения | 任务可能在我们开始观察前已完成
     panel.wait_for(state="hidden", timeout=timeout_ms)
     pan_to(page, '[data-demo="viewer"]', 900)
 
 
-# camera choreography for the 3D phase: turntable + zoom-to-site + zoom back.
-# Driven by OUR rAF tween with eased progress, calling 3Dmol only with
-# instant ops (rotate(angle,'y',0) / zoom(k,0)): 3Dmol's own animateMotion
-# (setTimeout-chain) crawls in headless capture, so we never rely on it.
+# хореография камеры для 3D-фазы: турнет + зум к сайту + зум обратно.
+# Движется НАШ rAF-твин с плавным прогрессом, 3Dmol зовём только мгновенными
+# операциями (rotate(angle,'y',0) / zoom(k,0)): собственный animateMotion 3Dmol
+# (цепочка setTimeout) ползёт в headless-захвате — на него не полагаемся.
+# 3D 阶段的运镜编排：转台 + 拉近到位点 + 拉回。
+# 由我们的 rAF 补间以缓动进度驱动，仅以瞬时操作调用 3Dmol
+#（rotate(angle,'y',0) / zoom(k,0)）：3Dmol 自带的 animateMotion
+#（setTimeout 链）在无头录制中极慢，绝不依赖它。
 CAM_JS = """
 async () => {
   const mol = window.__mol;
@@ -141,8 +150,10 @@ async () => {
     requestAnimationFrame(step);
   });
   const spin = (deg, dur) => tween(dur, (de) => mol.rotate(deg * de, 'y', 0));
-  // zoom from 1× to F× with eased progress: per-frame multiplicative step
-  // q(e)/q(e_prev), q(e) = 1 + (F-1)*e, applied as instant zoom(k, 0)
+  // зум с 1× до F× с плавным прогрессом: покадровый мультипликативный шаг
+  // q(e)/q(e_prev), q(e) = 1 + (F-1)*e, применяемый как мгновенный zoom(k, 0)
+  // 以缓动进度从 1× 放大到 F×：每帧乘性步长 q(e)/q(e_prev)，
+  // q(e) = 1 + (F-1)*e，以瞬时 zoom(k, 0) 应用
   const zoomBy = (F, dur) => {
     let last = 0;
     return tween(dur, (de) => {
@@ -212,11 +223,12 @@ def record(pw) -> tuple[Path, str]:
         viewport=VIEWPORT, record_video_dir=str(OUT_DIR), record_video_size=VIEWPORT,
     )
     page = ctx.new_page()
-    page.goto(FRONTEND + "?e2e=1")  # ?e2e exposes the 3Dmol camera hook
+    page.goto(FRONTEND + "?e2e=1")  # ?e2e открывает хук камеры 3Dmol | ?e2e 暴露 3Dmol 运镜钩子
     wait_until_idle(page)
     time.sleep(1.0)
 
-    # 1) zoom into the sequence field and TYPE the FASTA on camera
+    # 1) зум к полю последовательности и печать FASTA на камеру
+    # 1) 放大到序列输入框，在镜头前输入 FASTA
     page.locator('[data-demo="sequence"]').click()
     zoom_to(page, '[data-demo="sequence"]', 1.7, 900)
     time.sleep(0.4)
@@ -225,7 +237,8 @@ def record(pw) -> tuple[Path, str]:
     page.keyboard.type(TYPE_SEQ, delay=22)
     time.sleep(1.0)
 
-    # 2) mutation: pan there, set position 12 → D
+    # 2) мутация: панорама туда, позиция 12 → D
+    # 2) 突变：平移过去，设位置 12 → D
     pan_to(page, '[data-demo="mutation"]', 900)
     time.sleep(0.4)
     pos = page.locator('input[type="number"]')
@@ -233,9 +246,10 @@ def record(pw) -> tuple[Path, str]:
     pos.press("Control+a")
     pos.type("12", delay=60)
     page.locator("select").first.select_option(MUT_AA)
-    time.sleep(1.4)  # let the viewer read the highlighted strip / G12D badge
+    time.sleep(1.4)  # дать вьюеру показать подсветку / бейдж G12D | 让查看器展示高亮条 / G12D 徽标
 
-    # 3) honest profile, then run and ride the honest progress bar
+    # 3) честный профиль, запуск и поездка на честном прогресс-баре
+    # 3) 真实配置，运行并跟随真实进度条
     pan_to(page, '[data-demo="runrow"]', 800)
     time.sleep(0.4)
     page.locator("#profile-select").select_option(PROFILE)
@@ -250,7 +264,8 @@ def record(pw) -> tuple[Path, str]:
     wait_job_done(page)
     assert_no_backend_error(page)
 
-    # 4) 3D model: wait for both PDBs, then smooth turntable + zoom to site
+    # 4) 3D-модель: ждём оба PDB, затем плавный турнет + зум к сайту
+    # 4) 3D 模型：等两个 PDB，然后平滑转台 + 拉近到位点
     page.get_by_text("Результат наложения").first.wait_for(timeout=90_000)
     page.get_by_text(f"Мутация {POSITION}").first.wait_for(timeout=60_000)
     time.sleep(1.2)
@@ -259,8 +274,9 @@ def record(pw) -> tuple[Path, str]:
     box = page.locator('[data-demo="viewer"] div.cursor-grab').first.bounding_box()
     cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
     if page.evaluate("() => !!window.__mol"):
-        # camera choreography: eased turntable + zoom-in to the site + back
-        # (instant 3Dmol ops driven by our rAF tween — see CAM_JS)
+        # хореография камеры: турнет с плавным прогрессом + зум к сайту + обратно
+        # (мгновенные операции 3Dmol, движимые нашим rAF-твином — см. CAM_JS)
+        # 运镜编排：缓动转台 + 拉近到位点 + 拉回（rAF 补间驱动的瞬时 3Dmol 操作——见 CAM_JS）
         ok = page.evaluate(CAM_JS)
         if not ok:
             raise RuntimeError("CAM_JS returned false — window.__mol missing")
@@ -277,7 +293,8 @@ def record(pw) -> tuple[Path, str]:
         eased_drag(page, cx, cy, 130, 15, steps=80, dur=1.8)
         time.sleep(1.0)
 
-    # 5) metrics with a cinematic pan, then a final hero shot of the model
+    # 5) метрики с кинематографической панорамой, затем финальный hero-кадр модели
+    # 5) 平移到指标，最后给模型一个压轴镜头
     pan_to(page, '[data-demo="metrics"]', 900)
     time.sleep(3.0)
     pan_to(page, '[data-demo="viewer"]', 900)
@@ -342,6 +359,6 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except Exception as e:  # noqa: BLE001 — report and exit non-zero for CI
+    except Exception as e:  # noqa: BLE001 — сообщаем и выходим с ненулевым кодом для CI | 报告并以非零码退出供 CI
         print(f"FAILED: {e}", file=sys.stderr)
         raise

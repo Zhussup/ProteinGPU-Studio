@@ -20,8 +20,8 @@ _CPU_MODULE = "hpc_core_native"
 class AlignmentResult:
     rmsd: float
     tm_score: float
-    R: np.ndarray  # [3,3] rotation, row-major
-    t: np.ndarray  # [3] translation
+    R: np.ndarray  # [3,3] вращение, row-major | [3,3] 旋转矩阵，行主序
+    t: np.ndarray  # [3] сдвиг | [3] 平移向量
     n: int
     engine: str
 
@@ -44,7 +44,8 @@ _native, HAS_CUDA = _load()
 
 
 def _to_coords(x) -> np.ndarray:
-    # torch tensors are accepted via the numpy protocol (detach → cpu → numpy)
+    # torch-тензоры принимаются через numpy-протокол (detach → cpu → numpy)
+    # torch 张量经 numpy 协议接收（detach → cpu → numpy）
     if hasattr(x, "detach"):
         x = x.detach().cpu().numpy()
     arr = np.asarray(x, dtype=np.float64)
@@ -56,8 +57,9 @@ def _to_coords(x) -> np.ndarray:
 
 
 def _is_cuda_tensor(x) -> bool:
-    # torch/cupy device tensors expose __cuda_array_interface__; the native
-    # layer takes them by pointer with zero PCIe copies.
+    # device-тензоры torch/cupy выставляют __cuda_array_interface__; нативный
+    # слой принимает их по указателю с нулём PCIe-копий.
+    # torch/cupy 设备张量暴露 __cuda_array_interface__；原生层按指针接收，零 PCIe 拷贝。
     return hasattr(x, "__cuda_array_interface__")
 
 
@@ -65,7 +67,7 @@ def kabsch(P, Q) -> AlignmentResult:
     """Optimal rigid alignment of P onto Q (Kabsch). Returns RMSD, R, t, TM-score."""
     if HAS_CUDA and _is_cuda_tensor(P) and _is_cuda_tensor(Q):
         try:
-            r = _native.kabsch_rmsd_cuda(P, Q)  # device-resident fast path
+            r = _native.kabsch_rmsd_cuda(P, Q)  # быстрый путь для тензоров на устройстве | 设备常驻张量的快速路径
         except Exception:
             r = _native.kabsch_rmsd_cpu(_to_coords(P), _to_coords(Q))
         return AlignmentResult(
@@ -79,7 +81,7 @@ def kabsch(P, Q) -> AlignmentResult:
         try:
             r = _native.kabsch_rmsd_cuda(p, q)
         except Exception:
-            r = _native.kabsch_rmsd_cpu(p, q)  # CUDA failure → CPU, engine tag says which
+            r = _native.kabsch_rmsd_cpu(p, q)  # сбой CUDA → CPU, тег engine сообщает какой | CUDA 失败 → CPU，engine 标签标明
         return AlignmentResult(
             rmsd=float(r["rmsd"]), tm_score=float(r["tm_score"]),
             R=np.asarray(r["R"]), t=np.asarray(r["t"]), n=int(r["n"]),
@@ -102,7 +104,7 @@ def batched_rmsd(P, Q, use_gpu: bool = True) -> np.ndarray:
         try:
             return np.asarray(_native.batched_rmsd_cuda(P, Q))
         except Exception:
-            pass  # fall through to the host path below
+            pass  # проваливаемся в путь через хост ниже | 继续走下方的主机路径
     p = np.ascontiguousarray(np.asarray(P, dtype=np.float64))
     q = np.ascontiguousarray(np.asarray(Q, dtype=np.float64))
     if p.ndim != 3 or p.shape[2] != 3:

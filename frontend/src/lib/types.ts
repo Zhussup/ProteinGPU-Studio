@@ -1,4 +1,5 @@
-// Shared API types mirroring backend/app/schemas.py
+// Общие типы API, зеркалящие backend/app/schemas.py
+// 与 backend/app/schemas.py 对应的共享 API 类型
 export type InferenceProfile = 'auto' | 'fp32-gpu' | 'fp16-gpu' | 'cpu' | 'dummy'
 
 export interface RmsdResult {
@@ -27,7 +28,8 @@ export interface MutationResult {
   plddt_mut_list?: number[]
 }
 
-// POST /api/v1/scan — all 19 substitutions at one position
+// POST /api/v1/scan — все 19 замен в одной позиции
+// POST /api/v1/scan —— 单个位点的全部 19 种替换
 export interface ScanRow {
   mut_aa: string
   local_rmsd: number
@@ -51,9 +53,11 @@ export interface ScanResult {
   summary: string
 }
 
-// POST /api/v1/ensemble — the mutagenesis-strength dial: K variants around one
-// anchor position (μ simultaneous substitutions, Grantham/τ spectrum); the
-// position's sensitivity = the DISTRIBUTION of responses, not two pictures.
+// POST /api/v1/ensemble — диск силы мутагенеза: K вариантов вокруг одной
+// позиции-якоря (μ одновременных замен, спектр Грантэма/τ); чувствительность
+// позиции = РАСПРЕДЕЛЕНИЕ откликов, а не две картинки.
+// POST /api/v1/ensemble —— 突变强度拨盘：围绕一个锚定位点的 K 个变体
+//（μ 个同时替换，Grantham/τ 谱）；位点的敏感性 = 响应的分布，而非两张图。
 export interface EnsembleMutation {
   position: number
   wt_aa: string
@@ -63,16 +67,16 @@ export interface EnsembleMutation {
 export interface EnsembleRow {
   label: string // "I44A" | "I44A+L3M"
   mutations: EnsembleMutation[]
-  mut_aa: string | null // μ=1 only — parity with ScanRow
+  mut_aa: string | null // только μ=1 — паритет со ScanRow | 仅 μ=1——与 ScanRow 对齐
   local_rmsd: number
   global_rmsd: number
   tm_score: number
   plddt_mut: number
   dplddt: number
-  dplddt_local: number // mean ΔpLDDT over the anchor window (honest metric)
+  dplddt_local: number // среднее ΔpLDDT по окну якоря (честная метрика) | 锚点窗口内的 ΔpLDDT 均值（诚实指标）
   engine: string
   interpretation: 'stable' | 'moderate' | 'critical'
-  pdb_file: string // "ens_XX.pdb", Kabsch-aligned to the WT frame
+  pdb_file: string // "ens_XX.pdb", выровнено по Kabsch к системе WT | "ens_XX.pdb"，已按 Kabsch 对齐到 WT 坐标系
 }
 
 export interface StatsBlock {
@@ -100,10 +104,10 @@ export interface EnsembleResult {
   wt_from_cache?: boolean
   mode: 'sampled' | 'exhaustive'
   params: { mu: number; tau: number; k: number; seed: number }
-  variants: EnsembleRow[] // strongest first (local_rmsd desc)
+  variants: EnsembleRow[] // сильнейшие первыми (local_rmsd по убыванию) | 最强优先（local_rmsd 降序）
   stats: { local_rmsd: StatsBlock; dplddt: StatsBlock; dplddt_local: StatsBlock }
   headline: EnsembleHeadline
-  dplddt_abs_mean_list: number[] // per-residue mean |ΔpLDDT| — the viewer track
+  dplddt_abs_mean_list: number[] // среднее |ΔpLDDT| по остаткам — трек вьюера | 逐残基平均 |ΔpLDDT|——查看器轨道
   plddt_wt?: number
   plddt_wt_list?: number[]
   best: number
@@ -117,10 +121,13 @@ export interface PredictResponse {
   length: number
 }
 
-// POST /api/v1/scan_map — the sensitivity map / "wind rose" (dum.md §5):
-// every position characterized by a 19-vector of structural responses. The
-// scalar from the vector paints the 3D view; the vector itself is drawn as a
-// rose glyph; one row = one row of the future DMS dataset.
+// POST /api/v1/scan_map — карта чувствительности / «роза ветров» (dum.md §5):
+// каждая позиция характеризуется 19-вектором структурных откликов. Скаляр из
+// вектора раскрашивает 3D-вид; сам вектор рисуется лепестковой розой;
+// одна строка = одна строка будущего DMS-датасета.
+// POST /api/v1/scan_map —— 敏感性图谱 / “风玫瑰”（dum.md §5）：
+// 每个位置由 19 维结构响应向量刻画。标量给 3D 视图着色；向量本身
+// 画成玫瑰花瓣；一行 = 未来 DMS 数据集的一行。
 export interface MapRow {
   mut_aa: string
   grantham: number
@@ -131,7 +138,7 @@ export interface MapRow {
   dplddt: number
   dplddt_local: number
   abs_dplddt_local: number
-  pctl: number // rank of abs_dplddt_local within the protein's responses
+  pctl: number // ранг abs_dplddt_local среди откликов белка | abs_dplddt_local 在蛋白响应中的排名
   engine: string
   interpretation: 'stable' | 'moderate' | 'critical'
 }
@@ -143,8 +150,8 @@ export interface MapStats {
   median_abs_dplddt_local: number
   sharpness: number
   quadrant: 'hedgehog' | 'needle' | 'disk' | 'clover'
-  pctl_v_max: number // within-protein percentile of max_local_rmsd
-  pctl_v_med: number // within-protein percentile of median_local_rmsd
+  pctl_v_max: number // внутрибелковый перцентиль max_local_rmsd | max_local_rmsd 的蛋白内百分位
+  pctl_v_med: number // внутрибелковый перцентиль median_local_rmsd | median_local_rmsd 的蛋白内百分位
 }
 
 export interface MapPosition {
@@ -180,7 +187,8 @@ export interface JobStatus {
   finished_at?: string | null
 }
 
-// One row of the history panel (GET /api/v1/jobs)
+// Одна строка панели истории (GET /api/v1/jobs)
+// 历史面板的一行（GET /api/v1/jobs）
 export interface JobSummary {
   job_id: string
   kind: string
@@ -189,7 +197,8 @@ export interface JobSummary {
   sequence: string
   position?: number | null
   mutant_aa?: string | null
-  // dial params (ensemble jobs; null elsewhere)
+  // параметры диска (ensemble-задачи; в остальных null)
+  // 拨盘参数（ensemble 任务；其余为 null）
   mu?: number | null
   tau?: number | null
   k?: number | null
@@ -240,11 +249,12 @@ export interface PdbPayload {
   mutAligned?: string
 }
 
-// GET /api/v1/translate — DNA FASTA → codons → amino acids
+// GET /api/v1/translate — ДНК FASTA → кодоны → аминокислоты
+// GET /api/v1/translate —— DNA FASTA → 密码子 → 氨基酸
 export interface Codon {
   index: number
   codon: string
-  aa: string // one-letter AA, "*" = stop
+  aa: string // однобуквенная АК, "*" = стоп | 单字母氨基酸，"*" 表示终止
 }
 
 export interface TranslateResponse {

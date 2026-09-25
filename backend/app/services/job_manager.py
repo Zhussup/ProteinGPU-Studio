@@ -46,13 +46,14 @@ class JobManager:
     def __init__(self) -> None:
         s = get_settings()
         self.jobs_dir = s.data_dir / "jobs"
-        self.gpu_sem = threading.Semaphore(1)  # one CUDA stream, one job at a time
+        self.gpu_sem = threading.Semaphore(1)  # один CUDA-стрим — одна задача за раз | 单 CUDA 流，一次一个任务
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
         self._pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="job")
         self._init_db(s.db_path)
 
-    # -- persistence ----------------------------------------------------
+    # -- персистентность ----------------------------------------------------
+    # -- 持久化 -------------------------------------------------------------
     def _init_db(self, db_path: Path) -> None:
         self._db = sqlite3.connect(str(db_path), check_same_thread=False)
         self._db_lock = threading.Lock()
@@ -77,7 +78,8 @@ class JobManager:
         """Persist a stage change (progress/message) so pollers see it."""
         self._persist(job)
 
-    # -- job lifecycle -----------------------------------------------------
+    # -- жизненный цикл задачи ---------------------------------------------
+    # -- 任务生命周期 --------------------------------------------------------
     def submit(self, kind: str, params: dict[str, Any],
                run_fn: Callable[[Job], dict[str, Any]], use_gpu: bool) -> str:
         job_id = uuid.uuid4().hex[:12]
@@ -94,7 +96,8 @@ class JobManager:
             job.status = "running"
             self._persist(job)
             if use_gpu:
-                # honest queue feedback: report contention before blocking
+                # честная обратная связь очереди: сообщаем о конкуренции до блокировки
+                # 诚实的队列反馈：在阻塞前先报告资源竞争
                 if not self.gpu_sem.acquire(blocking=False):
                     job.message = stage_text("gpu_wait", job.params.get("lang"))
                     self._persist(job)
@@ -108,14 +111,15 @@ class JobManager:
             job.result = result
             job.status = "done"
             job.progress = 1.0
-        except Exception as exc:  # surface to the API, never crash the worker
+        except Exception as exc:  # отдаём в API, воркер не падает | 上抛给 API，工作线程不崩溃
             job.status = "error"
             job.error = f"{type(exc).__name__}: {exc}"
         finally:
             job.finished_at = time.strftime("%Y-%m-%dT%H:%M:%S")
             self._persist(job)
 
-    # -- accessors ----------------------------------------------------------
+    # -- доступ -------------------------------------------------------------
+    # -- 访问器 --------------------------------------------------------------
     def list(self, limit: int = 50) -> list[dict[str, Any]]:
         """Recent jobs for the history panel (newest first, from SQLite)."""
         with self._db_lock:
@@ -137,16 +141,18 @@ class JobManager:
                 label = f"{seq[pos - 1]}{pos} μ{params.get('mu')}×{params.get('k')}"
             elif kind == "scan_map":
                 n_pos = len(params.get("positions") or [])
-                label = f"map {n_pos}×19"  # language-neutral; i18n lives in the UI
+                label = f"map {n_pos}×19"  # нейтрально к языку; i18n в UI | 语言中立；i18n 在 UI 中
             else:
                 label = f"{len(seq)} aa"
             out.append({
                 "job_id": job_id, "kind": kind, "status": status,
                 "label": label, "sequence": seq,
                 "position": pos, "mutant_aa": mut_aa,
-                # dial params (ensemble; None elsewhere) — the UI restores
-                # μ/τ/K/mode from these; the seed is derived from the same
-                # config, so it needs no separate field
+                # параметры ручки (ensemble; в остальных None) — UI восстанавливает
+                # из них μ/τ/K/mode; seed выводится из того же конфига,
+                # поэтому отдельное поле не нужно
+                # 转盘参数（ensemble；其余任务为 None）——UI 由此恢复 μ/τ/K/mode；
+                # seed 由同一配置派生，无需单独字段
                 "mu": params.get("mu"), "tau": params.get("tau"),
                 "k": params.get("k"), "mode": params.get("mode"),
                 "error": error, "created_at": created, "finished_at": finished,

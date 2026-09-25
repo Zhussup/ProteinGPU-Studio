@@ -26,7 +26,7 @@ class FoldingService:
     def __init__(self) -> None:
         self._model: FoldingModel | None = None
         self._lock = threading.Lock()
-        self._profile_override: str | None = None  # set via set_profile()
+        self._profile_override: str | None = None  # задаётся через set_profile() | 通过 set_profile() 设置
         s = get_settings()
         self.cache = FoldingCache(maxsize=s.wt_cache_size)
 

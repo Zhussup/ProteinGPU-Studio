@@ -1,13 +1,17 @@
-// Thin API client. All calls go through the Vite dev proxy (/api → :8000).
-// Endpoints whose responses carry backend-generated text take ?lang= so the
-// text arrives in the active UI language (currentLang() reads localStorage).
+// Тонкий API-клиент. Все запросы идут через Vite dev-прокси (/api → :8000).
+// Эндпоинты, чьи ответы несут сгенерированный бэкендом текст, принимают ?lang=,
+// чтобы текст приходил на активном языке UI (currentLang() читает localStorage).
+// 轻量 API 客户端。所有请求经 Vite 开发代理（/api → :8000）。
+// 返回后端生成文本的端点带 ?lang=，使文本以当前 UI 语言返回
+//（currentLang() 读取 localStorage）。
 import { currentLang } from '../i18n'
 import type {
   GpuInfo, InferenceProfile, JobStatus, JobSummary, MutationResult,
   PredictResponse, Preset, TranslateResponse,
 } from './types'
 
-// artifact names served by GET /api/v1/files/{job_id}/{fn}
+// имена артефактов, отдаваемые GET /api/v1/files/{job_id}/{fn}
+// GET /api/v1/files/{job_id}/{fn} 提供的工件名称
 export type MapArtifact = 'scan_map.json' | 'scan_map.csv' | 'scan_map_partial.json'
 
 function withLang(url: string): string {
@@ -21,7 +25,7 @@ async function json<T>(res: Response): Promise<T> {
     try {
       const body = await res.json()
       detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)
-    } catch { /* keep statusText */ }
+    } catch { /* оставляем statusText */ }
     throw new Error(`${res.status}: ${detail}`)
   }
   return res.json() as Promise<T>
@@ -54,7 +58,8 @@ export const api = {
       body: JSON.stringify({ sequence, position, profile }),
     }).then((r) => json<{ job_id: string; status: string }>(r)),
 
-  // positions: null → every position of the sequence (expensive: 19 folds each)
+  // positions: null → каждая позиция последовательности (дорого: 19 фолдов каждая)
+  // positions: null → 序列的每个位置（代价高：每个位置 19 次折叠）
   submitScanMap: (sequence: string, positions: number[] | null, profile?: InferenceProfile) =>
     fetch(withLang('/api/v1/scan_map'), {
       method: 'POST',

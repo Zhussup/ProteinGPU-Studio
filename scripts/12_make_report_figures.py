@@ -90,7 +90,8 @@ def main() -> int:
     FIGS.mkdir(parents=True, exist_ok=True)
     ker = REPORT / "bench_kernels.json"
     made = []
-    # inference rows may be split across gpu/cpu files
+    # строки инференса могут быть разбиты по gpu/cpu файлам
+    # 推理行可能分散在 gpu/cpu 文件中
     inf_rows = []
     for name in ("bench_inference.json", "bench_inference_gpu.json",
                  "bench_inference_cpu.json"):

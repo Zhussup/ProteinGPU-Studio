@@ -37,7 +37,7 @@ class TestBase:
             mutant_sequence("AA", 5, "C")
 
     def test_local_window(self):
-        assert local_window(3, 10) == (0, 10)  # clamped at both ends
+        assert local_window(3, 10) == (0, 10)  # зажато с обоих концов | 两端都被钳制
         assert local_window(50, 76) == (39, 60)
         assert local_window(5, 100, radius=2) == (2, 7)
 
@@ -64,7 +64,7 @@ class TestDummyModel:
         a = m.predict(UBIQ)
         b = m.predict(UBIQ)
         assert np.abs(a.coords_ca - b.coords_ca).max() == 0
-        mut = m.predict(mutant_sequence(UBIQ, 44, "A"))  # I44A
+        mut = m.predict(mutant_sequence(UBIQ, 44, "A"))  # I44A | I44A
         assert np.abs(mut.coords_ca - a.coords_ca).max() > 0.01
 
     def test_protocol_conformance(self):

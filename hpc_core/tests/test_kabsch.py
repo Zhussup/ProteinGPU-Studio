@@ -76,16 +76,19 @@ class TestSinglePair:
 
     def test_noise_matches_sigma(self):
         P, Q, _ = make_rigid_pair(512, seed=5, noise=0.1)
-        # after optimal superposition, per-axis noise sigma=0.1 → RMSD ≈ sqrt(3)*0.1
+        # после оптимального наложения шум sigma=0.1 по каждой оси → RMSD ≈ sqrt(3)*0.1
+        # 最优叠合后，每轴噪声 sigma=0.1 → RMSD ≈ sqrt(3)*0.1
         assert hpc_core.rmsd(P, Q) == pytest.approx(0.1 * np.sqrt(3.0), abs=0.01)
 
     def test_cross_check_scipy(self):
         """Cross-check the transform against scipy Rotation.align_vectors."""
         P, Q, R0 = make_rigid_pair(64, seed=6)
         res = hpc_core.kabsch(P, Q)
-        # scipy's unweighted align_vectors(a, b) solves the translation-free
-        # direction problem (no centering) and returns R with R.apply(b) ≈ a,
-        # so: center first, and pass (Qc, Pc) to get our P→Q rotation.
+        # невзвешенный align_vectors(a, b) в scipy решает задачу направлений
+        # без трансляции (без центрирования) и возвращает R с R.apply(b) ≈ a,
+        # поэтому: сначала центрируем, и (Qc, Pc) даёт наше вращение P→Q.
+        # scipy 的无权重 align_vectors(a, b) 求解的是无平移的方向问题（不居中），
+        # 返回的 R 满足 R.apply(b) ≈ a；因此先居中，再传 (Qc, Pc) 得到 P→Q 旋转。
         Pc, Qc = P - P.mean(0), Q - Q.mean(0)
         R_scipy, _ = Rotation.align_vectors(Qc, Pc)
         angle = (Rotation.from_matrix(res.R) * R_scipy.inv()).magnitude()
@@ -150,7 +153,8 @@ class TestGpu:
         Q = P + rng.normal(0, 0.05, P.shape)
         got = hpc_core.batched_rmsd(P, Q, use_gpu=True)
         assert np.all(np.isfinite(got))
-        # spot-check values against numpy on a few pairs
+        # выборочно сверяем значения с numpy на нескольких парах
+        # 抽查若干对，与 numpy 对照
         for b in rng.choice(B, 5, replace=False):
             assert got[b] == pytest.approx(kabsch_numpy(P[b], Q[b]), abs=1e-5)
 
