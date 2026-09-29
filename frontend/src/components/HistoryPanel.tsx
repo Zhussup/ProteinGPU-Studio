@@ -29,7 +29,6 @@ const KIND_KEYS: Record<string, Key> = {
 }
 
 // "2026-09-11T14:23:05" → "11.09 14:23"
-// "2026-09-11T14:23:05" → "11.09 14:23"
 function shortTime(iso: string): string {
   return `${iso.slice(8, 10)}.${iso.slice(5, 7)} ${iso.slice(11, 16)}`
 }

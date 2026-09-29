@@ -32,7 +32,7 @@ import random
 AA = "ACDEFGHIKLMNPQRSTVWY"
 
 # раскладка опубликованной таблицы 20×20 (Grantham 1974, Science 185:862-864,
-# Table 2); порядок сохранён, чтобы сверка с бумагой была механической
+# Table 2); порядок сохранён, чтобы сверка со статьёй была механической
 # 已发表 20×20 表的排布（Grantham 1974，Science 185:862-864，Table 2）；
 # 保持此顺序，便于逐字对照论文校对
 GRANTHAM_ORDER = "ARNDCQEGHILKMFPSTWYV"
@@ -162,7 +162,7 @@ def mutation_label(muts: list[Mutation]) -> str:
 
 
 # -- статистика распределения + headline (выходная сторона ручки) ---------------
-# -- 分布统计 + headline（转盘的输出端）-------------------------------------------
+# -- 分布统计 + headline（旋钮的输出端）-------------------------------------------
 
 def distribution_stats(values: list[float]) -> dict[str, float]:
     """{mean, std (population, ddof=0), median, iqr (p75-p25), min, max}.

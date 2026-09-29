@@ -114,9 +114,9 @@ class TestPredictJob:
     def test_result_before_done_409(self):
         r = client.post("/api/v1/predict", json={"sequence": SHORT})
         job_id = r.json()["job_id"]
-        # немедленный опрос результата может сработать наравне с завершением;
+        # немедленный опрос результата может состязаться с завершением задачи;
         # допускаем либо 409 (ещё не готово), либо успешный готовый результат
-        # 立即查询结果可能与完成竞争；接受 409（未完成）或成功的结果
+        # 立即查询结果可能与任务完成产生竞争；接受 409（未完成）或成功的结果
         rr = client.get(f"/api/v1/jobs/{job_id}/result")
         assert rr.status_code in (200, 409)
         wait_done(job_id)
@@ -163,7 +163,7 @@ class TestMutateJob:
             "sequence": UBIQ, "position": 19, "mutant_aa": "G"}).json()
         wait_done(j2["job_id"])
         res2 = client.get(f"/api/v1/jobs/{j2['job_id']}/result").json()
-        # НБ: более ранние тесты модуля могли уже свернуть WT UBIQ, поэтому
+        # NB: более ранние тесты модуля могли уже свернуть WT UBIQ, поэтому
         # утверждаем только монотонную гарантию: вторая мутация точно
         # переиспользует кэшированный фолд WT.
         # 注意：本模块更早的测试可能已折叠 UBIQ WT，因此只断言单调保证：

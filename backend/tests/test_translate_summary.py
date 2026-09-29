@@ -72,7 +72,7 @@ def test_summary_moderate_band():
     s = make_summary(_rmsd(1.5, 0.8, 92.0, 90.5, "moderate"), "P", 19, "G")
     assert "умеренная локальная перестройка" in s
     assert "в целом сохранена, но деформирована" in s
-    assert "менее уверена" in s  # ΔpLDDT = −1.5 | ΔpLDDT = −1.5
+    assert "менее уверена" in s  # ΔpLDDT = −1.5
     assert "Итог" in s
 
 

@@ -64,7 +64,7 @@ class TestDummyModel:
         a = m.predict(UBIQ)
         b = m.predict(UBIQ)
         assert np.abs(a.coords_ca - b.coords_ca).max() == 0
-        mut = m.predict(mutant_sequence(UBIQ, 44, "A"))  # I44A | I44A
+        mut = m.predict(mutant_sequence(UBIQ, 44, "A"))  # I44A
         assert np.abs(mut.coords_ca - a.coords_ca).max() > 0.01
 
     def test_protocol_conformance(self):

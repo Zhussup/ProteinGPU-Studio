@@ -67,7 +67,7 @@ export default function ProteinViewer({
   const length = sequence.length
   const sc = scan ?? null
   const en = ensemble ?? null
-  // зажимаем defensively: родитель тоже зажимает, но последовательность может измениться первой
+  // зажимаем на всякий случай: родитель тоже зажимает, но последовательность может измениться первой
   // 防御性钳制：父组件也会钳制，但序列可能先变化
   const cur = Math.min(Math.max(1, position), Math.max(1, length))
 

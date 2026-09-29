@@ -68,7 +68,7 @@ def stage_text(key: str, lang: str | None, **params: object) -> str:
     return STAGES[norm_lang(lang)][key].format(**params)
 
 
-# -- причина в GPU-бейдже (system router) --------------------------------------
+# -- причина, которую показывает GPU-бейдж (system router) --------------------------------------
 # -- GPU 徽标原因（system 路由）-------------------------------------------------
 GPU_REASON: dict[str, str] = {
     "ru": "torch/CUDA недоступен — dummy-модель",

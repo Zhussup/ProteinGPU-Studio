@@ -269,7 +269,7 @@ def _run_scan(job: Job) -> dict:
 
 
 # -- ансамбль силы мутагенеза: K вариантов, сэмплированных по (mu, tau) --------
-# -- 诱变强度集成：按 (mu, tau) 采样 K 个变体 ------------------------------------
+# -- 诱变强度组合：按 (mu, tau) 采样 K 个变体 ------------------------------------
 @router.post("/ensemble", response_model=EnsembleResponse)
 def ensemble(req: EnsembleRequest, lang: str = "ru") -> EnsembleResponse:
     """The strength dial's run: sample K variants (anchor + background

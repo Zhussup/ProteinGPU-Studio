@@ -53,10 +53,10 @@ export interface ScanResult {
   summary: string
 }
 
-// POST /api/v1/ensemble — диск силы мутагенеза: K вариантов вокруг одной
+// POST /api/v1/ensemble — ручка силы мутагенеза: K вариантов вокруг одной
 // позиции-якоря (μ одновременных замен, спектр Грантэма/τ); чувствительность
 // позиции = РАСПРЕДЕЛЕНИЕ откликов, а не две картинки.
-// POST /api/v1/ensemble —— 突变强度拨盘：围绕一个锚定位点的 K 个变体
+// POST /api/v1/ensemble —— 突变强度旋钮：围绕一个锚定位点的 K 个变体
 //（μ 个同时替换，Grantham/τ 谱）；位点的敏感性 = 响应的分布，而非两张图。
 export interface EnsembleMutation {
   position: number
@@ -197,8 +197,8 @@ export interface JobSummary {
   sequence: string
   position?: number | null
   mutant_aa?: string | null
-  // параметры диска (ensemble-задачи; в остальных null)
-  // 拨盘参数（ensemble 任务；其余为 null）
+  // параметры ручки (ensemble-задачи; в остальных null)
+  // 旋钮参数（ensemble 任务；其余为 null）
   mu?: number | null
   tau?: number | null
   k?: number | null

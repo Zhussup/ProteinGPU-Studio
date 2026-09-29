@@ -135,7 +135,7 @@ class EnsembleRequest(BaseModel):
     mode: Literal["sampled", "exhaustive"] = "sampled"
     mu: int = Field(default=1, ge=1, le=3)           # замен на вариант | 每个变体的替换数
     tau: float = Field(default=0.5, ge=0.0, le=1.0)  # температура Грантама | Grantham 谱温度
-    k: int = Field(default=20, ge=2, le=40)          # размер ансамбля | 集成规模（exhaustive 忽略）
+    k: int = Field(default=20, ge=2, le=40)          # размер ансамбля | 组合规模（exhaustive 忽略）
     seed: int | None = None  # None → детерминированный seed из конфига | None → 由配置派生确定性种子
     profile: Profile | None = None
 

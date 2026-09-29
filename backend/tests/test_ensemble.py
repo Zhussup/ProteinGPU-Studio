@@ -103,7 +103,7 @@ class TestExhaustiveMatchesScan:
         assert [v["mut_aa"] for v in re_["variants"]] == \
             [r["mut_aa"] for r in rs["rows"]]
         # dummy-модель детерминирована по последовательности → точное равенство метрик
-        # dummy 模型按序列确定性 → 指标完全相等
+        # dummy 模型按序列完全确定 → 指标完全相等
         for sr, er in zip(rs["rows"], re_["variants"]):
             for key in ("mut_aa", "local_rmsd", "global_rmsd", "tm_score",
                         "plddt_mut", "dplddt", "engine", "interpretation"):

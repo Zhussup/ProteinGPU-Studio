@@ -244,7 +244,7 @@ export default function WorkspacePage() {
         if (res.variants[0]) {
           setMutPdb(await api.pdb(j.job_id, res.variants[0].pdb_file as `ens_${string}.pdb`))
         }
-        // диск читает обратно конфигурацию, породившую этот ансамбль;
+        // ручка читает обратно конфигурацию, породившую этот ансамбль;
         // seed в поле не нужен — производный seed воспроизводится из конфига
         // (явный оверрайд сбрасываем: иначе он протёк бы в повторные прогоны)
         // 旋钮读回生成该 ensemble 的配置；seed 无需回填——派生 seed

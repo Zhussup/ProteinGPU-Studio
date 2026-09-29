@@ -17,7 +17,7 @@ export default function PlotlyChart({ data, layout }: PlotProps) {
       responsive: true,
       ...layout,
     } as never)
-    return () => { /* повторное использование react() обрабатывает purge при размонтировании */ }
+    return () => { /* cleanup пустой: react() переиспользует контейнер, а purge при размонтировании делает cleanup ниже */ }
   }, [data, layout])
 
   useEffect(() => {

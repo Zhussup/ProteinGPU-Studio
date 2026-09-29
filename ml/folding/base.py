@@ -31,7 +31,8 @@ class PredictResult:
     pdb_text: str
     seq: str
     coords_ca: np.ndarray = field(init=False)
-    # Filled by implementations when known (OmegaFold overall confidence).
+    # Заполняется реализациями, когда известно (общая уверенность OmegaFold).
+    # 由各实现填充（若已知）：OmegaFold 的整体置信度。
     plddt_mean: float = field(default=float("nan"))
 
     def __post_init__(self) -> None:

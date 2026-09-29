@@ -151,7 +151,7 @@ class JobManager:
                 # параметры ручки (ensemble; в остальных None) — UI восстанавливает
                 # из них μ/τ/K/mode; seed выводится из того же конфига,
                 # поэтому отдельное поле не нужно
-                # 转盘参数（ensemble；其余任务为 None）——UI 由此恢复 μ/τ/K/mode；
+                # 旋钮参数（ensemble；其余任务为 None）——UI 由此恢复 μ/τ/K/mode；
                 # seed 由同一配置派生，无需单独字段
                 "mu": params.get("mu"), "tau": params.get("tau"),
                 "k": params.get("k"), "mode": params.get("mode"),

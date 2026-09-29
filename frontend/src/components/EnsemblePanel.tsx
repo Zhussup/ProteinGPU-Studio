@@ -1,6 +1,6 @@
 // EnsemblePanel: результаты ансамблевого прогона ручки силы мутагенеза (dum.md §2/§6).
 // Чувствительность позиции — это РАСПРЕДЕЛЕНИЕ откликов по K вариантам
-// — медианы, IQR, гистограммы — никогда сравнение двух структур «на глаз».
+// — медианы, IQR, гистограммы — а не сравнение двух структур «на глаз».
 // Клик по строке накладывает выровненный PDB этого варианта на WT в 3D.
 // EnsemblePanel：突变强度 ensemble 运行的结果（dum.md §2/§6）。
 // 位点敏感性是 K 个变体响应的分布——中位数、IQR、直方图——
@@ -56,7 +56,7 @@ export default function EnsemblePanel({ result, onPickRow, pickedIndex }: Ensemb
         {result.summary}
       </div>
 
-      {/* конфигурация диска, породившая этот ансамбль */}
+      {/* конфигурация ручки, породившая этот ансамбль */}
       {/* 生成该 ensemble 的旋钮配置 */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
         {exhaustive ? (
@@ -200,7 +200,7 @@ export default function EnsemblePanel({ result, onPickRow, pickedIndex }: Ensemb
   )
 }
 
-// Гистограмма одной метрики отклика по ансамблю (Plotly, канонический идиом).
+// Гистограмма одной метрики отклика по ансамблю (Plotly, каноничный приём).
 // ensemble 内某一响应指标的直方图（Plotly，标准写法）。
 function Hist({ title, values, xTitle, yTitle }: {
   title: string; values: number[]; xTitle: string; yTitle: string
