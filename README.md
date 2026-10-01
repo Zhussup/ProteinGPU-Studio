@@ -32,7 +32,10 @@ where the time really goes.
 Beyond the single-mutant picture, a **mutagenesis-strength dial** generates
 ensembles of variants around one position and measures the position's sensitivity
 as the **distribution of structural responses** — statistics and histograms, not an
-eyeball comparison of two pictures.
+eyeball comparison of two pictures. A **sensitivity map** asks the same question
+of every position at once — position range × 19 substitutions in one job,
+summarized as a heat map, per-position wind-rose glyphs and a percentile ranking,
+exportable as ProteinGym-`DMS_substitutions`-shaped CSV rows.
 
 Everything on screen is real: no fake progress bars, no dummy models — the UI shows
 the actual backend pipeline stages, and the demo above is a full live run.
@@ -44,6 +47,8 @@ the actual backend pipeline stages, and the demo above is a full live run.
 - **C++17 / CUDA HPC core** — batched Kabsch + RMSD kernel behind PyBind11, with PCIe-copy vs device-resident paths measured separately
 - **Saturation scan** — all 19 substitutions at one position, ranked table + chart
 - **Mutagenesis strength dial** — ensembles of K variants around one anchor position: μ simultaneous substitutions per variant (anchor + background sites), each substitution drawn from the **Grantham matrix** with temperature τ (conservative ↔ radical). Sensitivity = the **distribution of responses** across the ensemble: median + IQR, histograms of local RMSD and window ΔpLDDT, level/spread badges — no invented 0–100 score. The exhaustive mode ("all 19 substitutions") reproduces the saturation scan exactly — same targets, same artifacts
+- **Sensitivity map** — a chosen range of positions (up to the whole protein) × 19 substitutions in one job: a heat map of positions × compass directions, per-position scalars (max / median local RMSD, sharpness) with the quadrant classification (hedgehog / needle / disk / clover), one-click painting of the WT 3D structure from within-protein percentiles, CSV / JSON export (dataset rows)
+- **Wind rose glyph** — one position's 19 responses drawn as a rose on a fixed physicochemical compass (the same direction per substitution at every position, the WT slot stays empty): petal length = |ΔpLDDT| percentile within the protein, petal color = local RMSD percentile within the position — the shape is the position's signature and stays comparable across positions
 - **Protein browser** — a 2D track view over the sequence: per-residue pLDDT, mutation site, scan results and the ensemble sensitivity heat strip (mean |ΔpLDDT| per residue); ±50-residue window mode, minimap, per-residue tooltips
 - **Per-residue pLDDT chart** — WT vs mutant, hoverable
 - **Cross-run comparison** — two tables built from job history on the same protein: mutations ranked by local RMSD; positions compared by percentiles within the compared set, since every window has its own model noise floor

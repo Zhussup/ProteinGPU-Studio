@@ -42,6 +42,8 @@ data/demo/
 dum.md
 /notes/
 /engagement/
+# доклад и материалы защиты диплома — только локально
+/defense/
 *.pptx
 
 # docs: keep only assets (README GIF), everything else stays local
