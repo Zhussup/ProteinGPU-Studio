@@ -11,6 +11,7 @@ export const en: Dict = {
   'app.subtitle': 'structure prediction · in silico mutagenesis · Kabsch/RMSD on CPU and CUDA',
   'nav.workspace': 'Workspace',
   'nav.benchmarks': 'Benchmarks',
+  'nav.validation': 'Validation',
   'health.ok': 'backend reachable',
   'health.down': 'backend unreachable — start uvicorn',
   'health.checking': 'checking…',
@@ -311,6 +312,8 @@ export const en: Dict = {
   'run.mapCount': '{n} pos. × 19 = {folds} folds',
   'ws.mapTitle': 'Sensitivity map — {n} positions × 19 substitutions',
   'hist.kind.map': 'map',
+  'hist.kind.plm': 'PLM screen',
+  'hist.kind.dms': 'DMS',
   'viewer.legendSensitivity': 'Sensitivity (0–1)',
 
   'map.metricLabel': '3D paint scalar:',
@@ -351,4 +354,140 @@ export const en: Dict = {
     'length and color are percentiles (within the protein / within the position): raw numbers ' +
     'of different windows are not directly comparable; click a row for the big rose; the CSV ' +
     'is exactly the rows of the future dataset (one row per position × substitution)',
+
+  'run.plm': 'PLM screen',
+  'run.plmTitle':
+    'whole-protein screen: every 19×L substitution from one PLM forward (zero-shot ' +
+    'WT-margin), optionally folding the top-K most damaging; 0 = PLM only',
+  'run.plmTopK': 'fold top-K',
+  'run.stage.plm': 'PLM pass',
+  'run.stage.plmFolds': 'top-K folding',
+
+  'ws.plmTitle': 'Whole-protein PLM screen — {n} positions × 19 substitutions',
+
+  'plm.metricLabel': '3D-paint scalar:',
+  'plm.metric.vmax': 'max plm_damage',
+  'plm.metric.vmed': 'median plm_damage',
+  'plm.paint': 'Paint 3D',
+  'plm.paintTitle': 'paint the WT structure with percentiles of the PLM channel (zero folds)',
+  'plm.clearPaint': 'clear paint',
+  'plm.painted': '3D painted: {metric} (within-protein percentiles)',
+  'plm.csv': 'CSV (dataset)',
+  'plm.json': 'JSON',
+  'plm.heatmap': 'Heatmap: positions × compass directions (color = plm_damage percentile)',
+  'plm.heatTip': '{m} · damage pctl {pctl} · log-margin {margin}',
+  'plm.heatLegend': 'hotter = more damage predicted',
+  'plm.h.pos': 'position',
+  'plm.h.rose': 'rose',
+  'plm.h.vmax': 'max plm_damage',
+  'plm.h.vmed': 'med. plm_damage',
+  'plm.h.logprob': 'log p(WT)',
+  'plm.h.fold': 'folded',
+  'plm.h.pctl': 'percentile',
+  'plm.foldChip': 'the position’s folded top-K substitution (by margin)',
+  'plm.folds': 'top-K folding: {done}/{planned}',
+  'plm.consistency': 'PLM ↔ structure agreement (margin vs local RMSD): ρ = {rho} (expected negative)',
+  'plm.dummyNote': 'dummy profile: margins are deterministic placeholders — fine for UI wiring, never for conclusions.',
+  'plm.note':
+    'petal length = within-protein plm_damage percentile, color = within-position rank; ' +
+    'the margin has no absolute scale: compare positions by percentiles; the CSV holds all ' +
+    '19×L rows, structural columns stay empty until folded',
+  'plm.detailVmax': 'max plm_damage {v}',
+  'plm.detailVmed': 'median {v}',
+  'plm.detailLogprob': 'log p(WT) {v}',
+  'plm.detailWorst': 'worst substitution {m} (margin {margin})',
+  'plm.lenChannel': 'petal length — within-protein plm_damage percentile',
+  'plm.colorChannel': 'color — within-position plm_damage rank',
+  'plm.petalTip': '{m} · damage pctl {pctl} · log-margin {margin}',
+  'plm.helpTitle': 'PLM screen: what does it mean?',
+
+  // -- Validation tab: DMS against ProteinGym ---------------------------------
+  'val.title': 'DMS validation against experiment (ProteinGym)',
+  'val.aboutAssay':
+    'Correlation of the app’s predictors (PLM margin, ΔpLDDT, local RMSD) ' +
+    'with experimental fitness from DMS assays.',
+  'val.assay': 'Assay',
+  'val.assayMeta': '{len} aa · singles {singles} · positions {positions}',
+  'val.assayEmpty':
+    'No curated assays on disk: scripts/30_download_proteingym.py fetches the ' +
+    'benchmark, scripts/34_curate_proteingym.py builds the data/dms/curated.json manifest.',
+  'val.assayMissing': 'assay CSV missing on disk — run scripts/30_download_proteingym.py',
+  'val.sampleN': 'stratified folds to add (0 = no stratified folds)',
+  'val.foldPosMax': 'positions for PLM-driven top-1 folding (0 = PLM only)',
+  'val.seed': 'stratified-sample seed',
+  'val.run': 'Run validation',
+  'val.running': 'validation running…',
+  'val.corr.title': 'Pre-registered correlations',
+  'val.corr.plm_all': 'PLM margin ↔ fitness (zero-shot headline)',
+  'val.corr.plddt_fold': 'ΔpLDDT ↔ fitness (folded)',
+  'val.corr.rmsd_fold': 'local RMSD ↔ fitness (folded)',
+  'val.corr.pos_plm': 'position PLM fragility ↔ mean fitness',
+  'val.corr.pos_struct_plm': 'top-1 structure ↔ PLM fragility (PLM↔structure agreement)',
+  'val.corr.margin_rmsd': 'PLM margin ↔ local RMSD (agreement, folded)',
+  'val.corr.rho': 'ρ',
+  'val.corr.n': 'n',
+  'val.corr.ci': 'bootstrap 95%',
+  'val.corr.expect': 'sign',
+  'val.corr.matchTrue': 'matches — the sign physics expects',
+  'val.corr.matchFalse': 'against expectation',
+  'val.corr.flat': 'undefined (n too small)',
+  'val.scatterPLM': 'PLM margin vs fitness (mapped rows)',
+  'val.scatterStruct': 'local RMSD vs fitness (folded)',
+  'val.xMargin': 'PLM margin (logit difference)',
+  'val.xRmsd': 'local RMSD (Å)',
+  'val.yFitness': 'fitness (assay z-score)',
+  'val.posStrip': 'Per position: PLM fragility (damage-median percentile) vs experimental fitness',
+  'val.pctl': 'PLM pctl (0..1)',
+  'val.fitness': 'fitness z',
+  'val.counts': 'mapped rows: {mapped} of {total}; duplicates merged: {dups}; multi skipped: {multi}',
+  'val.downloads': 'download: {csv} · {json}',
+  'val.noFolds': 'PLM only — 0 rows folded (both folding knobs = 0)',
+  'val.honesty': 'Computation honesty',
+  'val.caveat.multiFiltered': '{n} multi-mutant rows skipped — only the single-substitution regime is claimed',
+  'val.caveat.regionMap': 'the DMS target was stitched onto our sequence by alignment ({mode}) — positions outside aligned columns are dropped',
+  'val.caveat.foldSubset': 'structural correlations are computed on a subset: {folded} of {total} mapped rows folded',
+  'val.caveat.zscoreCenter': 'fitness z-score is centered on the assay’s mutant mean, not the WT',
+  'val.caveat.tiedFitness': 'fitness variance is zero — correlations are undefined',
+  'val.caveat.dummyProfile': 'dummy profile: PLM margins are a deterministic fake — the numbers are for pipeline debugging',
+  'val.helpTitle': 'Validation: what does it mean?',
+
+  'help.plmScreen': [
+    '**What it is:** a ranking of every 19×L amino-acid substitution from one pass of the ' +
+    'protein language model (OmegaPLM). The model reads the full sequence and reports how ' +
+    'surprising each substitution is in context — no folding, no MSA.',
+    '**WT margin:** at each position the log-probability of the WT residue and of the ' +
+    'substitution are compared (margin = log p(substitution) − log p(WT)). A negative margin ' +
+    'marks a harmful-looking substitution; **plm_damage = −margin**, so on the heatmap ' +
+    '“hotter = predicted more damaging”. This is the zero-shot evaluation protocol of ESM-1v ' +
+    '(Meier et al., 2021) applied to weight-tied OmegaPLM logits (the model has no separate ' +
+    'LM head — logits come from the product with the input embedding matrix).',
+    '**Limits:** the margin is a rank value without an absolute scale — positions are only ' +
+    'comparable through within-protein percentiles. The model sees the sequence, not the ' +
+    'folded structure per se: structural effects are checked by the bounded top-K folding ' +
+    '(the “top-K folding” window), whose agreement with the margin (ρ vs local RMSD) is ' +
+    'shown under the table.',
+    '**Economics:** one forward instead of 19×L folds — a whole-protein screen in seconds; ' +
+    'the folding stage is capped by max_folds. The CSV carries all 19×L rows — the dataset ' +
+    'validated against experiment (the “Validation” tab).',
+  ],
+
+  'help.validation': [
+    '**What it is:** an external check of the predictors against experiment. DMS (deep ' +
+    'mutational scanning) is measured fitness of hundreds/thousands of mutants of one ' +
+    'protein; the assays come from the public ProteinGym benchmark. Small fully-swept ' +
+    'proteins (every position, clean numbering) are curated — manifest data/dms/curated.json.',
+    '**Protocol:** the DMS numbering is projected onto your sequence (exact substring or ' +
+    'a global alignment, identity ≥ 0.9); every row gets a PLM margin from **one** OmegaPLM ' +
+    'pass. Then a bounded folding stage: WT + the most PLM-fragile substitution per position ' +
+    '(chosen by margin, never by fitness — no label leak) + a fitness-stratified sample.',
+    '**How to read it:** the headline is ρ(PLM margin, fitness) over all rows (zero-shot: ' +
+    'a positive sign if the model ranks “surprising” substitutions as less fit). Every ' +
+    'correlation reports n and a bootstrap 95% CI; each sign is compared with what the ' +
+    'physics expects. Rank correlation is calibration-free — an honest baseline is worth ' +
+    'reading even with a modest ρ.',
+    '**Limits:** single substitutions only (multi-mutants are skipped); fitness is a ' +
+    'z-score within the assay (centered on the mutant mean, not the WT); the structural ' +
+    'correlations are computed on the folded subset and do not claim the whole set. ' +
+    'The full row set is in the CSV artifact.',
+  ],
 }

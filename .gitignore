@@ -10,6 +10,16 @@ __pycache__/
 data/models/
 data/jobs/
 
+# ProteinGym raw benchmark (~43MB zip -> ~1GB CSVs; re-download via scripts/30).
+# Fold-target fastas stay committed — they are the paper's objects.
+data/proteingym/*
+!data/proteingym/targets/
+
+# DMS validation: only the curated manifest is committed (points at the
+# gitignored substitution CSVs; scripts/34 builds it, scripts/30 fetches).
+data/dms/*
+!data/dms/curated.json
+
 # Built binaries
 *.so
 *.o

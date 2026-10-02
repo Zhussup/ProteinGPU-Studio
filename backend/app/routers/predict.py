@@ -12,11 +12,13 @@ for p in (str(REPO / "ml"), str(REPO / "hpc_core" / "python")):
         sys.path.insert(0, p)
 
 from ml.folding.base import AA_RE as AA_ALPHABET, mutant_sequence  # noqa: E402
+from ml.folding.plm_scoring import get_plm_scorer  # noqa: E402
 from ..schemas import (  # noqa: E402
     MutationResult, PredictRequest, PredictResponse, RmsdResult, MutateRequest,
     ScanRequest, ScanResponse, ScanRow, interpret_rmsd,
     EnsembleRequest, EnsembleResponse,
     ScanMapRequest, ScanMapResponse,
+    PlmScreenRequest, PlmScreenResponse,
 )
 from ..config import get_settings  # noqa: E402
 from ..services.align_service import align_pair  # noqa: E402
@@ -27,10 +29,15 @@ from ..services.mutagenesis import (  # noqa: E402
     grantham, mutation_label, sample_variants, sensitivity_headline,
 )
 from ..services.pdb_io import parse_ca_coords  # noqa: E402
+from ..services.plm_screen import (  # noqa: E402
+    build_plm_csv, build_positions, fill_structural, fold_order,
+    normalize_plm_screen, topk_damaging,
+)
 from ..services.sensitivity import (  # noqa: E402
     PETAL_DIRS, SECTOR_OF, build_csv, most_fragile, normalize_protein,
     petal_dirs, position_stats, quadrant_counts,
 )
+from ..services.stats_lite import spearman  # noqa: E402
 from ..services.strings import VALIDATION, norm_lang, stage_text  # noqa: E402
 
 router = APIRouter(prefix="/api/v1", tags=["folding"])
@@ -518,4 +525,123 @@ def _run_scan_map(job: Job) -> dict:
         "summary": summary,
         "pdb_files": ["wt.pdb"],
         "artifact_files": ["scan_map.json", "scan_map.csv"],
+    }
+
+
+# -- PLM-скрин всего белка: zero-shot рейтинг 19×L замен из одного форварда -----
+# -- 全蛋白 PLM 筛查：一次前向得到 19×L 替换的 zero-shot 排名 -----------------------
+@router.post("/plm_screen", response_model=PlmScreenResponse)
+def plm_screen(req: PlmScreenRequest, lang: str = "ru") -> PlmScreenResponse:
+    """The whole-protein screen: one OmegaPLM pass ranks every L×19
+    substitution (wt margin), then an optional bounded stage folds the top-K
+    most damaging substitutions per position. fold_top_k=0 = PLM-only
+    (seconds); the fold budget is hard-capped by max_folds."""
+    seq = req.sequence
+    job_id = _jm().submit(
+        kind="plm_screen",
+        params={"sequence": seq, "fold_top_k": req.fold_top_k,
+                "max_folds": req.max_folds, "profile": req.profile,
+                "lang": norm_lang(lang)},
+        run_fn=_run_plm_screen,
+        use_gpu=bool(req.profile) or _gpu_needed())
+    n_planned = min(req.max_folds,
+                    req.fold_top_k * len(seq) if req.fold_top_k else 0)
+    return PlmScreenResponse(job_id=job_id, status="queued", length=len(seq),
+                             n_folds=n_planned)
+
+
+def _run_plm_screen(job: Job) -> dict:
+    """Score 19×L substitutions from ONE forward, then optionally fold the
+    most damaging ones per position (budget: max_folds).
+
+    Mirror of _run_scan_map's discipline: positional checkpointing is
+    unnecessary (the PLM pass is one stage), mutant PDBs are NOT kept —
+    metrics-only rows; the artifact is the dataset
+    (plm_screen.json + plm_screen.csv, all L×19 rows)."""
+    import json
+    from ..services.summary import make_plm_screen_summary
+
+    svc = get_folding_service()
+    jm = _jm()
+    lang = _lang(job)
+    seq: str = job.params["sequence"]
+    fold_top_k: int = job.params["fold_top_k"]
+    max_folds: int = job.params["max_folds"]
+
+    _stage(job, jm, stage_text("model", lang), 0.03)
+    _prepare_model(job, svc)
+    _ = svc.model
+    scorer = get_plm_scorer(svc.model)
+    _stage(job, jm, stage_text("plm_forward", lang, n=len(seq) * 19), 0.05)
+    score = scorer.score(seq)
+    positions = build_positions(seq, score)
+    normalize_plm_screen(positions)
+    _stage(job, jm, stage_text("plm_forward", lang, n=len(seq) * 19), 0.35)
+
+    # WT-фолд — якорь 3D-краски; производится даже при fold_top_k=0
+    # WT 折叠——3D 着色锚点；即使 fold_top_k=0 也执行
+    if svc.cache.get(seq, svc.model_name) is None:
+        _stage(job, jm, stage_text("plm_screen_wt", lang), 0.4)
+    wt, wt_cached = svc.predict_cached(seq)
+    wt_ca = wt.coords_ca
+    (jm.job_dir(job.job_id) / "wt.pdb").write_text(wt.pdb_text)
+
+    # план фолдинга: позиции по убыванию PLM-хрупкости, на позицию топ-K
+    # самых повреждающих замен; в рамках бюджета max_folds
+    plan = []
+    if fold_top_k > 0:
+        for p in fold_order(positions):
+            if len(plan) >= max_folds:
+                break
+            for r in topk_damaging(p["rows"], min(fold_top_k, len(p["rows"]))):
+                if len(plan) < max_folds:
+                    plan.append((p, r))
+
+    n = len(plan)
+    folds_done = 0
+    for i, (p, r) in enumerate(plan):
+        mut = svc.model.predict(mutant_sequence(seq, p["pos"], r["mut_aa"]))
+        _stage(job, jm, stage_text("plm_fold_topk",
+                                   lang,
+                                   m=f"{p['wt_aa']}{p['pos']}{r['mut_aa']}",
+                                   i=i + 1, n=n),
+               0.5 + 0.45 * (i + 1) / n)
+        al = align_pair(wt_ca, mut.coords_ca, position=p["pos"],
+                        radius=get_settings().local_radius)
+        fill_structural(r, al, mut, wt)
+        folds_done += 1
+
+    # согласие PLM ↔ структура: ожидаем отрицательную корреляцию
+    # margin vs local_rmsd по сфолднутым заменам
+    folded = [r for p in positions for r in p["rows"] if "local_rmsd" in r]
+    consistency = spearman([r["plm_margin"] for r in folded],
+                           [r["local_rmsd"] for r in folded])
+
+    out_dir = jm.job_dir(job.job_id)
+    (out_dir / "plm_screen.json").write_text(json.dumps(
+        {"sequence": seq, "model": svc.model_name,
+         "plm_scorer": score.scorer, "petal_dirs": PETAL_DIRS,
+         "positions": positions}, ensure_ascii=False))
+    (out_dir / "plm_screen.csv").write_text(build_plm_csv(positions))
+
+    summary = make_plm_screen_summary(
+        n_pos=len(seq), folds_done=folds_done, fragile=most_fragile(positions),
+        scorer=score.scorer, lang=lang)
+    return {
+        "kind": "plm_screen",
+        "wt_sequence": seq, "model": svc.model_name,
+        "wt_from_cache": wt_cached,
+        "plm_scorer": score.scorer,
+        "n_positions": len(seq), "n_folds": folds_done,
+        "plm": {"elapsed_s": round(score.elapsed_s, 3),
+                "device": score.device, "n_forward": 1},
+        "petal_dirs": PETAL_DIRS,
+        "positions": positions,
+        "plddt_wt": wt.plddt_mean,
+        "plddt_wt_list": [float(x) for x in wt.plddt],
+        "folds": {"planned": n, "done": folds_done,
+                  "consistency_spearman": consistency},
+        "summary": summary,
+        "pdb_files": ["wt.pdb"],
+        "artifact_files": ["plm_screen.json", "plm_screen.csv"],
     }

@@ -176,6 +176,127 @@ export interface ScanMapResult {
   artifact_files?: string[]
 }
 
+// POST /api/v1/plm_screen — скрин всего белка из ОДНОГО forward-прохода PLM
+// (zero-shot WT-margin): все 19×L замен с log-margin'ом, затем опциональное
+// дофолдингом top-K самых повреждающих замен на позицию. Ключи совпадают с
+// scan_map (rose/pctl/Paint 3D переиспользуются), структурные колонки есть
+// только у сфолднутых строк.
+// POST /api/v1/plm_screen —— 全蛋白筛选：一次 PLM 前向得到全部 19×L 替换的
+// zero-shot WT-margin，随后可选地折叠每位置 top-K 最损伤替换。
+// 键名与 scan_map 一致（rose/pctl/Paint 3D 复用），仅折叠行有结构列。
+export interface PlmRow {
+  mut_aa: string
+  grantham: number
+  sector: string
+  plm_margin: number
+  plm_logprob_alt: number
+  plm_logprob_wt: number
+  plm_damage: number
+  pctl: number // ранг plm_damage среди замен белка | plm_damage 在蛋白替换中的排名
+  // только у сфолднутых строк | 仅折叠行存在
+  local_rmsd?: number
+  global_rmsd?: number
+  tm_score?: number
+  plddt_mut?: number
+  dplddt?: number
+  dplddt_local?: number
+  abs_dplddt_local?: number
+  engine?: string
+}
+
+export interface PlmStats {
+  plm_v_med: number
+  plm_v_max: number
+  plm_v_mean: number
+  logprob_wt: number
+  pctl_v_max: number
+  pctl_v_med: number
+}
+
+export interface PlmPosition {
+  pos: number
+  wt_aa: string
+  rows: PlmRow[]
+  stats: PlmStats
+}
+
+export interface PlmScreenResult {
+  kind: 'plm_screen'
+  wt_sequence: string
+  model?: string
+  wt_from_cache?: boolean
+  plm_scorer: string // "omegaplm-tied" | "dummy-plm" — честный ярлык скорера
+  n_positions: number
+  n_folds: number
+  plm: { elapsed_s: number; device: string; n_forward: number }
+  petal_dirs: string
+  positions: PlmPosition[]
+  plddt_wt?: number
+  plddt_wt_list?: number[]
+  folds: { planned: number; done: number; consistency_spearman: number | null }
+  summary: string
+  pdb_files?: string[]
+  artifact_files?: string[]
+}
+
+// -- DMS-валидация против ProteinGym (вкладка «Валидация») -----------------
+// -- 针对 ProteinGym 的 DMS 验证（“验证”标签页）---------------------------------
+export interface DmsCorrelation {
+  name: 'plm_all' | 'plddt_fold' | 'rmsd_fold' | 'pos_plm' | 'pos_struct_plm' | 'margin_rmsd'
+  spearman: number | null
+  n: number
+  ci: [number, number] | null
+  expected_sign: string
+}
+
+export interface DmsPerPosition {
+  pos: number
+  wt_aa: string
+  v_med: number // медиана plm_damage позиции | 位置 plm_damage 中位数
+  v_med_pctl: number
+  mean_fitness_z: number
+  n_obs: number
+  top1: { mut_aa: string; local_rmsd: number | null; fitness_z: number } | null
+}
+
+export interface DmsPoint { x: number; y: number; label: string }
+
+// оговорки приходят как i18n-ключи с параметрами — фронт резолвит t(key, params)
+// 说明以带参数的 i18n 键到达——前端按当前语言解析
+export interface DmsCaveat { key: string; params?: Record<string, string | number> }
+
+export interface DmsValidationResult {
+  kind: 'dms_validation'
+  assay_id: string
+  dms_meta: { seq_len: number; author_year: string; year: string }
+  sequence: string
+  model?: string
+  plm_scorer: string
+  mapping: 'exact-substring' | 'pairwise'
+  counts: Record<string, number>
+  n_rows: number
+  n_positions: number
+  assay_center: { mu: number; sd: number }
+  correlations: DmsCorrelation[]
+  per_position: DmsPerPosition[]
+  scatter_plm: DmsPoint[]
+  scatter_struct: DmsPoint[]
+  caveats: DmsCaveat[]
+  summary: string
+  wt_from_cache: boolean | null
+  pdb_files?: string[]
+  artifact_files?: string[]
+}
+
+export interface AssayInfo {
+  dms_id: string
+  seq_len: number
+  singles: number
+  positions: number
+  rows: number
+  ok: boolean
+}
+
 export interface JobStatus {
   job_id: string
   kind: string
@@ -203,6 +324,9 @@ export interface JobSummary {
   tau?: number | null
   k?: number | null
   mode?: string | null
+  // ручка PLM-скрина (plm_screen; в остальных null)
+  // PLM 筛查旋钮（plm_screen；其余为 null）
+  fold_top_k?: number | null
   error?: string | null
   created_at: string
   finished_at?: string | null

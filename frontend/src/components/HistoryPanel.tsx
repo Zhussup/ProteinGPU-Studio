@@ -26,6 +26,8 @@ const KIND_KEYS: Record<string, Key> = {
   scan: 'hist.kind.scan',
   ensemble: 'hist.kind.ensemble',
   scan_map: 'hist.kind.map',
+  plm_screen: 'hist.kind.plm',
+  dms_validation: 'hist.kind.dms',
 }
 
 // "2026-09-11T14:23:05" → "11.09 14:23"
@@ -73,7 +75,9 @@ export default function HistoryPanel({ jobs, currentJobId, onRestore, onRefresh 
                     ? (j.error ?? t('hist.error'))
                     : j.kind === 'predict'
                       ? t('hist.prediction', { label: j.label })
-                      : `${j.sequence.length} aa`}
+                      : j.kind === 'dms_validation'
+                        ? j.label
+                        : `${j.sequence.length} aa`}
                 </span>
                 <span className="mono shrink-0 text-neutral-400">{shortTime(j.created_at)}</span>
               </button>

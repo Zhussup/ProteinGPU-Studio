@@ -6,7 +6,7 @@ import { useJob } from '../lib/useJob'
 import { useI18n } from '../i18n'
 import type {
   EnsembleResult, GpuInfo, InferenceProfile, JobSummary, MutationResult,
-  Preset, ScanMapResult, ScanResult,
+  PlmScreenResult, Preset, ScanMapResult, ScanResult,
 } from '../lib/types'
 import SequenceInput, { stripFasta } from '../components/SequenceInput'
 import MutationPicker from '../components/MutationPicker'
@@ -15,6 +15,7 @@ import RunPanel from '../components/RunPanel'
 import ResultTabs from '../components/ResultTabs'
 import ScanPanel from '../components/ScanPanel'
 import ScanMapPanel, { type PaintMetric } from '../components/ScanMapPanel'
+import PlmScreenPanel, { type PlmPaintMetric } from '../components/PlmScreenPanel'
 import EnsemblePanel from '../components/EnsemblePanel'
 import MoleculeViewer from '../components/MoleculeViewer'
 import ProteinViewer from '../components/ProteinViewer'
@@ -39,7 +40,16 @@ export default function WorkspacePage() {
   // карта чувствительности (dum.md §5): 19-векторы по позициям + 3D-раскраска
   // 敏感性图谱（dum.md §5）：逐位点 19 维向量 + 3D 着色
   const [mapResult, setMapResult] = useState<ScanMapResult | null>(null)
-  const [mapPaint, setMapPaint] = useState<{ scores: (number | null)[]; metric: PaintMetric } | null>(null)
+  // какой скаляр нарисован: scan_map-метрики или PLM-каналы
+  // 已着色的标量：scan_map 指标或 PLM 通道
+  const [mapPaint, setMapPaint] = useState<{
+    scores: (number | null)[]
+    metric: PaintMetric | PlmPaintMetric
+  } | null>(null)
+  // PLM-скрин всего белка: один forward-проход + опциональный top-K фолдинг
+  // 全蛋白 PLM 筛查：一次前向 + 可选的 top-K 折叠
+  const [plmResult, setPlmResult] = useState<PlmScreenResult | null>(null)
+  const [plmTopK, setPlmTopK] = useState(1)
   const [mapFrom, setMapFrom] = useState(1)
   const [mapTo, setMapTo] = useState(76)
   // ручка мутагенеза (dum.md §2): μ = одновременных замен, τ = температура
@@ -121,6 +131,11 @@ export default function WorkspacePage() {
         setMapResult(res)
         setMapPaint(null)
         setResultJob({ id: jobId, kind })
+      } else if (kind === 'plm_screen') {
+        const res = await api.result(jobId) as unknown as PlmScreenResult
+        setPlmResult(res)
+        setMapPaint(null)
+        setResultJob({ id: jobId, kind })
       }
       setWtPdb(await api.pdb(jobId, 'wt.pdb'))
     } catch { /* файлы могут отсутствовать для прогонов только-WT */ }
@@ -129,28 +144,28 @@ export default function WorkspacePage() {
   const runPredict = () => {
     setResult(null); setMutPdb(null); setScanResult(null)
     setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null)
+    setMapResult(null); setMapPaint(null); setPlmResult(null)
     job.run(() => api.submitPredict(seq, profile === 'auto' ? undefined : profile))
   }
 
   const runMutate = () => {
     setResult(null); setScanResult(null)
     setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null)
+    setMapResult(null); setMapPaint(null); setPlmResult(null)
     job.run(() => api.submitMutate(seq, position, mutantAA, profile === 'auto' ? undefined : profile))
   }
 
   const runScan = () => {
     setResult(null); setScanResult(null); setMutPdb(null)
     setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null)
+    setMapResult(null); setMapPaint(null); setPlmResult(null)
     job.run(() => api.submitScan(seq, position, profile === 'auto' ? undefined : profile))
   }
 
   const runEnsemble = () => {
     setResult(null); setScanResult(null); setMutPdb(null)
     setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null)
+    setMapResult(null); setMapPaint(null); setPlmResult(null)
     const mode = dialExhaustive ? 'exhaustive' as const : 'sampled' as const
     job.run(() => api.submitEnsemble(
       seq, position, mode,
@@ -169,12 +184,21 @@ export default function WorkspacePage() {
   const runMap = () => {
     setResult(null); setScanResult(null); setMutPdb(null)
     setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null)
+    setMapResult(null); setMapPaint(null); setPlmResult(null)
     const positions = Array.from(
       { length: Math.max(0, mapTo - mapFrom + 1) },
       (_, i) => mapFrom + i,
     )
     job.run(() => api.submitScanMap(seq, positions, profile === 'auto' ? undefined : profile))
+  }
+
+  // PLM-скрин: все 19×L замен из одного форварда; fold_top_k=0 — PLM-only
+  // PLM 筛查：一次前向得到全部 19×L 替换；fold_top_k=0 为仅 PLM
+  const runPlm = () => {
+    setResult(null); setScanResult(null); setMutPdb(null)
+    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
+    setMapResult(null); setMapPaint(null); setPlmResult(null)
+    job.run(() => api.submitPlmScreen(seq, plmTopK, profile === 'auto' ? undefined : profile))
   }
 
   // опрос завершения: по готовности забираем артефакты, обновляем историю
@@ -227,6 +251,7 @@ export default function WorkspacePage() {
     setPickedEnsIdx(null)
     setMapResult(null)
     setMapPaint(null)
+    setPlmResult(null)
     try {
       if (j.kind === 'mutate') {
         setResult(await api.result(j.job_id) as unknown as MutationResult)
@@ -259,6 +284,11 @@ export default function WorkspacePage() {
         const res = await api.result(j.job_id) as unknown as ScanMapResult
         setMapResult(res)
         setResultJob({ id: j.job_id, kind: j.kind })
+      } else if (j.kind === 'plm_screen') {
+        const res = await api.result(j.job_id) as unknown as PlmScreenResult
+        setPlmResult(res)
+        if (j.fold_top_k != null) setPlmTopK(j.fold_top_k)
+        setResultJob({ id: j.job_id, kind: j.kind })
       }
       setWtPdb(await api.pdb(j.job_id, 'wt.pdb'))
     } catch { /* артефакты могли исчезнуть */ }
@@ -269,7 +299,7 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (!resultJob) return
     const kind = resultJob.kind
-    if (kind !== 'mutate' && kind !== 'scan' && kind !== 'ensemble' && kind !== 'scan_map') return
+    if (kind !== 'mutate' && kind !== 'scan' && kind !== 'ensemble' && kind !== 'scan_map' && kind !== 'plm_screen') return
     let live = true
     api.result(resultJob.id).then((res) => {
       if (!live) return
@@ -285,6 +315,12 @@ export default function WorkspacePage() {
         setEnsembleResult(res as unknown as EnsembleResult)
         setResult(null)
         setScanResult(null)
+      } else if (kind === 'plm_screen') {
+        setPlmResult(res as unknown as PlmScreenResult)
+        setResult(null)
+        setScanResult(null)
+        setEnsembleResult(null)
+        setMapResult(null)
       } else {
         setMapResult(res as unknown as ScanMapResult)
         setResult(null)
@@ -334,6 +370,9 @@ export default function WorkspacePage() {
           onRunScan={runScan}
           onRunEnsemble={runEnsemble}
           onRunMap={runMap}
+          onRunPlm={runPlm}
+          plmTopK={plmTopK}
+          onPlmTopKChange={setPlmTopK}
           mapFrom={mapFrom}
           mapTo={mapTo}
           seqLen={seq.length}
@@ -341,7 +380,7 @@ export default function WorkspacePage() {
           onReset={() => {
             setResult(null); setWtPdb(null); setMutPdb(null); setScanResult(null)
             setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-            setMapResult(null); setMapPaint(null)
+            setMapResult(null); setMapPaint(null); setPlmResult(null)
           }}
         />
         <HistoryPanel
@@ -378,7 +417,26 @@ export default function WorkspacePage() {
             <ScanMapPanel
               result={mapResult}
               jobId={resultJob?.id ?? job.status?.job_id ?? null}
-              paintedMetric={mapPaint?.metric ?? null}
+              paintedMetric={
+                mapPaint?.metric === 'v_max' || mapPaint?.metric === 'v_med'
+                  ? mapPaint.metric
+                  : null
+              }
+              onPaint={(scores, metric) => setMapPaint({ scores, metric })}
+              onClearPaint={() => setMapPaint(null)}
+            />
+          </div>
+        ) : plmResult ? (
+          <div className="panel p-4">
+            <h3 className="mb-3 text-sm font-medium text-neutral-900">
+              {t('ws.plmTitle', { n: plmResult.n_positions })}
+            </h3>
+            <PlmScreenPanel
+              result={plmResult}
+              jobId={resultJob?.id ?? job.status?.job_id ?? null}
+              paintedMetric={mapPaint?.metric === 'plm_v_max' || mapPaint?.metric === 'plm_v_med'
+                ? mapPaint.metric
+                : null}
               onPaint={(scores, metric) => setMapPaint({ scores, metric })}
               onClearPaint={() => setMapPaint(null)}
             />

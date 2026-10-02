@@ -142,6 +142,11 @@ class JobManager:
             elif kind == "scan_map":
                 n_pos = len(params.get("positions") or [])
                 label = f"map {n_pos}×19"  # нейтрально к языку; i18n в UI | 语言中立；i18n 在 UI 中
+            elif kind == "plm_screen":
+                k = params.get("fold_top_k") or 0
+                label = f"PLM {len(seq)}×19" + (f" top{k}" if k else "")
+            elif kind == "dms_validation":
+                label = f"DMS {str(params.get('assay_id'))[:24]}"
             else:
                 label = f"{len(seq)} aa"
             out.append({
@@ -155,6 +160,7 @@ class JobManager:
                 # seed 由同一配置派生，无需单独字段
                 "mu": params.get("mu"), "tau": params.get("tau"),
                 "k": params.get("k"), "mode": params.get("mode"),
+                "fold_top_k": params.get("fold_top_k") if kind == "plm_screen" else None,
                 "error": error, "created_at": created, "finished_at": finished,
             })
         return out

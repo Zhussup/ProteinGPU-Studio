@@ -40,6 +40,14 @@ exportable as ProteinGym-`DMS_substitutions`-shaped CSV rows.
 Everything on screen is real: no fake progress bars, no dummy models — the UI shows
 the actual backend pipeline stages, and the demo above is a full live run.
 
+The pipeline is **validated against experiment**: deep-mutational-scanning datasets
+from the public ProteinGym benchmark are mapped onto a pasted sequence and every
+dataset row is scored zero-shot by the same model that folds
+(the PLM stage of OmegaFold, weight-tied logits, one forward pass for the whole
+protein) — then bounded folding checks whether the structural response agrees with
+the language-model margins. Correlations against experimental fitness are reported
+with n and bootstrap confidence intervals, on a pre-registered sign for each pair.
+
 ## Features
 
 - **Real folding models** — OmegaFold primary, ESMFold fallback; CPU / fp32-GPU / fp16-GPU profiles switchable in the UI
@@ -50,6 +58,8 @@ the actual backend pipeline stages, and the demo above is a full live run.
 - **Sensitivity map** — a chosen range of positions (up to the whole protein) × 19 substitutions in one job: a heat map of positions × compass directions, per-position scalars (max / median local RMSD, sharpness) with the quadrant classification (hedgehog / needle / disk / clover), one-click painting of the WT 3D structure from within-protein percentiles, CSV / JSON export (dataset rows)
 - **Wind rose glyph** — one position's 19 responses drawn as a rose on a fixed physicochemical compass (the same direction per substitution at every position, the WT slot stays empty): petal length = |ΔpLDDT| percentile within the protein, petal color = local RMSD percentile within the position — the shape is the position's signature and stays comparable across positions
 - **Protein browser** — a 2D track view over the sequence: per-residue pLDDT, mutation site, scan results and the ensemble sensitivity heat strip (mean |ΔpLDDT| per residue); ±50-residue window mode, minimap, per-residue tooltips
+- **Whole-protein PLM screen** — all 19 × L substitutions of the entire sequence ranked from a single OmegaPLM forward pass (wild-type-margin zero-shot protocol, Meier et al. 2021-style ESM-1v), no folding and no MSA; optionally the top-K most damaging substitutions per position are folded so the structural response can be checked against the margins (consistency ρ)
+- **DMS validation against ProteinGym** — curated small proteins (≤250 aa, full 19-column sweeps, clean numbering) from `DMS_ProteinGym_substitutions` are mapped onto your sequence (exact substring, else global alignment at ≥90% identity), every single-substitution row gets its PLM margin, a bounded fold plan follows (top-1 per position by the lowest margin — never by fitness, no label leakage — plus a fitness-stratified sample), and six pre-registered correlations are reported: zero-shot ρ(PLM margin, fitness) over all mapped rows, ΔpLDDT / local RMSD on the folded subset, per-position PLM fragility vs mean fitness, PLM↔structure agreement — each with n and a bootstrap 95% CI. Multi-mutant rows are skipped and every honest deviation is listed in an on-screen caveats card
 - **Per-residue pLDDT chart** — WT vs mutant, hoverable
 - **Cross-run comparison** — two tables built from job history on the same protein: mutations ranked by local RMSD; positions compared by percentiles within the compared set, since every window has its own model noise floor
 - **Research presets** — KRAS G12D, p53 R82H, HbB E6V, lysozyme I56T, Trp-cage W6F, Aβ42 E22G, α-syn A53T, GFP S65T
@@ -100,8 +110,16 @@ cd frontend && npm install && npm run dev
 ```
 
 Open the frontend, pick a preset or paste a FASTA, then run WT + mutant, a position
-scan or a strength-dial ensemble.
-Full pipeline check: `python scripts/e2e_smoke.py` (ubiquitin + I44A/I3L/P19G).
+scan, a strength-dial ensemble, a whole-protein PLM screen or a DMS validation.
+Full pipeline check: `python scripts/e2e_smoke.py` (ubiquitin + I44A/I3L/P19G
++ PLM screen + a PLM-only DMS check when `data/dms/curated.json` exists).
+
+Validation numbers for the write-up: `scripts/30_download_proteingym.py` fetches the
+ProteinGym substitutions, `scripts/34_curate_proteingym.py` builds the curated
+manifest (`data/dms/curated.json`, the only committed file — the CSVs stay local),
+`scripts/35_batch_validation.py` runs the full protocol over every curated assay
+(also `--offline`, in-process, without the queue) and `scripts/36_thesis_figures.py`
+renders the figures from `data/report/validation/*.json` into `data/report/figs/`.
 
 ## Architecture
 
@@ -120,7 +138,7 @@ Full pipeline check: `python scripts/e2e_smoke.py` (ubiquitin + I44A/I3L/P19G).
 - `ml/` — folding-model wrappers + CPU/GPU-fp32/fp16 profiles
 - `hpc_core/` — C++17 + CUDA kernel: Kabsch, RMSD, PyBind11 bindings
 - `frontend/` — Vite + React + TypeScript, 3Dmol.js + Plotly.js
-- `scripts/` — environment setup, spike tests, benchmarks, report figures + presentation generator, demo recorder
+- `scripts/` — environment setup, spike tests, benchmarks, report figures + presentation generator, demo recorder, ProteinGym download/curation + batch DMS validation + thesis figures
 
 The demo GIF is recorded by a Playwright script that drives the real UI end-to-end
 on a real GPU run (`scripts/20_demo_video.py`) — including a check that the recorded
@@ -129,5 +147,6 @@ job ran the real model, not a stub.
 ## Credits
 
 - [OmegaFold](https://github.com/HeliXonProtein/OmegaFold) ([Wu et al., 2022](https://doi.org/10.1101/2022.07.21.500999), Apache-2.0) and [ESMFold](https://github.com/facebookresearch/esm) — structure prediction
+- [ProteinGym](https://github.com/OATML-Markslab/ProteinGym) (OATML, Marks lab) and the deep mutational scanning studies it aggregates — experimental fitness ground truth for the validation tab; zero-shot scoring follows the wild-type-margin protocol of [Meier et al., 2021](https://doi.org/10.1101/2021.07.09.450647) (ESM-1v)
 - [3Dmol.js](https://3dmol.csb.pitt.edu/) — molecular viewer · [Plotly.js](https://plotly.com/javascript/) — charts
 - [PyBind11](https://github.com/pybind/pybind11) — C++/Python bindings

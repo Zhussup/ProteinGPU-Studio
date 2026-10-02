@@ -1,0 +1,8 @@
+{
+  "url": "https://marks.hms.harvard.edu/proteingym/ProteinGym_v1.3/DMS_ProteinGym_substitutions.zip",
+  "mirror_size": 43021128,
+  "zip_sha_size": 43021128,
+  "assays": 217,
+  "csv_rows": 2465984,
+  "dir": "data/proteingym/substitutions"
+}

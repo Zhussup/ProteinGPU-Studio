@@ -314,3 +314,78 @@ def make_scan_map_summary(n: int, folds: int, fragile: dict | None,
         best=best["mut_aa"], best_r=best["local_rmsd"],
         h=counts["hedgehog"], nd=counts["needle"],
         d=counts["disk"], c=counts["clover"])
+
+
+# сводка PLM-скрина: ранговый язык (percentile в пуле всех замен белка);
+# fragile-выбор по plm_v_max, худшая замена = минимальный margin.
+# PLM 筛查摘要：排序语言（全蛋白替换池中的百分位）；最脆弱按 plm_v_max，
+# 最差替换为最小 margin。
+_PLM_TPL: dict[str, str] = {
+    "ru": ("PLM-скрин: {n_pos}×19 замен оценены из одного форварда; "
+           "самая хрупкая позиция — {wt}{pos} (pctl {pctl:.0f}), "
+           "worst-замена {best} (margin {margin:+.2f}); "
+           "сфолднуто {folds_done} из топ-K."),
+    "en": ("PLM screen: {n_pos}×19 substitutions scored from one forward; "
+           "most fragile position — {wt}{pos} (pctl {pctl:.0f}), "
+           "worst substitution {best} (margin {margin:+.2f}); "
+           "{folds_done} of top-K folded."),
+    "zh": ("PLM 筛查：{n_pos}×19 种替换由一次前向评估；"
+           "最脆弱位置——{wt}{pos}（pctl {pctl:.0f}），"
+           "最差替换 {best}（margin {margin:+.2f}）；"
+           "已折叠 {folds_done} 个 top-K。"),
+}
+
+_NOTE_DUMMY: dict[str, str] = {
+    "ru": (" Внимание: профиль dummy — оценки подставлены детерминированным "
+           "фейком и непригодны для выводов."),
+    "en": (" Caution: dummy profile — the scores are deterministic placeholders "
+           "and must not be interpreted."),
+    "zh": (" 注意：dummy 配置——评分由确定性占位数据填充，不可用于解读。"),
+}
+
+
+def make_plm_screen_summary(n_pos: int, folds_done: int, fragile: dict | None,
+                            scorer: str, lang: str | None = None) -> str:
+    """Headline for a whole-protein PLM screen (rank language: the PLM
+    margin has no interpretable absolute scale — only within-protein ranks)."""
+    lg = norm_lang(lang)
+    if fragile is None:
+        return _PLM_TPL[lg].format(
+            n_pos=n_pos, folds_done=folds_done, wt="—", pos="—", pctl=0.0,
+            best="—", margin=0.0) + (_NOTE_DUMMY[lg] if scorer == "dummy-plm" else "")
+    worst = min(fragile["rows"], key=lambda r: r["plm_margin"])
+    return _PLM_TPL[lg].format(
+        n_pos=n_pos, folds_done=folds_done, wt=fragile["wt_aa"],
+        pos=fragile["pos"], pctl=fragile["stats"]["pctl_v_max"],
+        best=worst["mut_aa"], margin=worst["plm_margin"],
+    ) + (_NOTE_DUMMY[lg] if scorer == "dummy-plm" else "")
+
+
+# сводка DMS-валидации: ранговый язык; ρ(PLM-margin, fitness) — zero-shot
+# заголовок, структурный отклик — на сфолднутом подмножестве. Неинформативные
+# значения (ρ None при n<3) печатаются как «—», а не как 0.
+# DMS 验证摘要：排序语言；ρ(PLM-margin, fitness) 为 zero-shot 标题。
+_DMS_TPL: dict[str, str] = {
+    "ru": ("DMS-валидация {assay}: mapped {n_rows} синглов; "
+           "zero-shot ρ(PLM-margin, fitness) = {rho} (n={n_plm}); "
+           "сфолднуто {n_fold}: ρ(ΔpLDDT, fitness) = {drho}."),
+    "en": ("DMS validation {assay}: {n_rows} mapped singles; "
+           "zero-shot ρ(PLM margin, fitness) = {rho} (n={n_plm}); "
+           "{n_fold} folded: ρ(ΔpLDDT, fitness) = {drho}."),
+    "zh": ("DMS 验证 {assay}：映射 {n_rows} 条单突变；"
+           "zero-shot ρ(PLM-margin, fitness) = {rho}（n={n_plm}）；"
+           "折叠 {n_fold} 个：ρ(ΔpLDDT, fitness) = {drho}。"),
+}
+
+
+def make_dms_validation_summary(assay_id: str, n_rows: int,
+                                plm_rho: float | None, n_plm: int,
+                                dplddt_rho: float | None, n_fold: int,
+                                lang: str | None = None) -> str:
+    """Headline for a DMS-validation run (ranks only; ρ=None → «—»)."""
+    lg = norm_lang(lang)
+    rho = "—" if plm_rho is None else f"{plm_rho:+.2f}"
+    drho = "—" if dplddt_rho is None else f"{dplddt_rho:+.2f}"
+    return _DMS_TPL[lg].format(
+        assay=assay_id, n_rows=n_rows, rho=rho, n_plm=n_plm,
+        drho=drho, n_fold=n_fold)

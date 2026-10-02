@@ -250,6 +250,52 @@ class ScanMapResponse(BaseModel):
     n_folds: int
 
 
+class PlmScreenRequest(SequenceInput):
+    """Whole-protein PLM screen (Meier 2021-style WT margin): all 19*L
+    substitutions ranked from ONE OmegaPLM pass, then an optional bounded
+    stage folding the most damaging substitutions per position.
+
+    fold_top_k=0 keeps the run PLM-only (seconds); the folding budget is
+    capped by max_folds so the job is bounded by construction.
+    """
+    # фолдинг в скрине: топ-K самых «повреждающих» замен на позицию
+    # 折叠补充：每位置 K 个最“损伤”的替换
+    fold_top_k: int = Field(default=1, ge=0, le=19)
+    max_folds: int = Field(default=64, ge=0, le=400)
+
+
+class PlmScreenResponse(BaseModel):
+    job_id: str
+    status: str
+    length: int
+    n_folds: int
+
+
+class DmsValidationInput(SequenceInput):
+    """Correlate the app's predictors with experimental DMS fitness.
+
+    0-values = fast modes: sample_n=0 → no stratified folds; fold_positions_max=0
+    → no per-position folds — PLM-only correlation (seconds).
+    """
+    assay_id: str = Field(min_length=3, max_length=80)
+    # сколько стратифицированных по fitness вариантов дофолдить
+    # сколько вариантов, стратифицированных по fitness, дополнительно свернуть
+    sample_n: int = Field(default=48, ge=0, le=256)
+    # на сколько позиций (по PLM-хрупкости) фолдить топ-1 замену
+    # для скольких позиций (по PLM-уязвимости) свернуть топ-1 замену
+    fold_positions_max: int = Field(default=40, ge=0, le=400)
+    # seed стратифицированной выборки (None → 0, детерминизм)
+    # seed стратифицированной выборки (None → 0, детерминизм)
+    seed: int = Field(default=0, ge=0, le=2**31 - 1)
+
+
+class DmsValidationResponse(BaseModel):
+    job_id: str
+    status: str
+    length: int
+    assay_id: str
+
+
 class BenchmarkProfileRow(BaseModel):
     profile: str
     length: int

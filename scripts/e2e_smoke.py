@@ -31,12 +31,20 @@ VRAM_BUDGET_MB = 4500
 WALL_BUDGET_S = 600
 
 
+def _consensus_of(assays: list[dict], dms_id: str) -> str | None:
+    for a in assays:
+        if a["dms_id"] == dms_id:
+            return a["consensus_seq"]
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-thresholds", action="store_true",
                     help="only check sanity ([0,15] A), not demo expectations")
     args = ap.parse_args()
 
+    import numpy as np
     import torch
     from Bio.PDB import PDBParser
 
@@ -49,8 +57,10 @@ def main() -> int:
     os.environ.setdefault("PGS_DB_PATH",
                           os.path.join(os.environ["PGS_DATA_DIR"], "jobs.db"))
 
+    from backend.app.config import get_settings
     from backend.app.services.align_service import align_pair
     from ml.folding.dummy_model import get_model
+    from ml.folding.plm_scoring import STD_AA, get_plm_scorer
 
     model = get_model("auto")
     print(f"model: {type(model).__name__} device={getattr(model, 'device', '?')}")
@@ -89,6 +99,80 @@ def main() -> int:
         "wall_budget_s": WALL_BUDGET_S,
         "results": results,
     }
+
+    # -- PLM-скрин (zero-shot WT-margin из одного forward) -------------------
+    scorer = get_plm_scorer(model)
+    score = scorer.score(UBIQ)
+    L = len(UBIQ)
+    assert score.margins.shape == (L, 20)
+    assert np.isfinite(score.margins).all(), "PLM margins must be finite"
+    wt_cols = [STD_AA.index(a) for a in UBIQ]
+    max_wt_dev = float(np.max(np.abs(score.margins[np.arange(L), wt_cols])))
+    again = scorer.score(UBIQ)
+    assert np.array_equal(score.margins, again.margins), "scorer must be deterministic"
+    from backend.app.services.plm_screen import (  # noqa: E402
+        build_plm_csv, build_positions, normalize_plm_screen)
+    positions = build_positions(UBIQ, score)
+    normalize_plm_screen(positions)
+    csv_text = build_plm_csv(positions)
+    n_rows_csv = len(csv_text.strip().splitlines()) - 1
+    assert n_rows_csv == L * 19, f"csv rows {n_rows_csv} != {L}*19"
+    pctls = [row["pctl"] for p in positions for row in p["rows"]]
+    assert all(0.0 <= p <= 1.0 for p in pctls)
+    # топ хрупких: медиана damage позиции, тот же канал что и у роз
+    fragile = sorted(range(L), key=lambda i: float(np.median(-score.margins[i])))[:3]
+    report["plm"] = {
+        "scorer": scorer.name, "elapsed_s": round(score.elapsed_s, 2),
+        "rows_csv": n_rows_csv,
+        "fragile_positions_0based": fragile,
+        "wt_col_maxabs_dev": max_wt_dev,
+    }
+    print(f"plm_screen: scorer={scorer.name} rows={n_rows_csv} "
+          f"fragile(0b)={fragile}")
+
+    # -- DMS-кейс (только PLM, без фолдов) -----------------------------------
+    # Кюрируемый набор в репо → PLM-only прогон по одному assay (корреляция
+    # zero-shot). Нет данных или dummy-скорер → честный автосибирн.
+    dms_report: dict = {"skipped": "curated.json не на диске"}
+    curated = REPO / "data" / "dms" / "curated.json"
+    os.environ["PGS_DATA_DIR"] = str(REPO / "data")
+    get_settings.cache_clear()
+    if curated.exists() and scorer.name == "omegaplm-tied":
+        try:
+            from backend.app.services.dms_service import (
+                load_assay, map_positions, zscore)
+            from backend.app.services.stats_lite import spearman
+
+            assays_all = json.loads(curated.read_text(encoding="utf-8"))["assays"]
+            dms_id = min(sorted(a["dms_id"] for a in assays_all),
+                         key=lambda i: len(_consensus_of(assays_all, i)))
+            singles, counts, target = load_assay(dms_id)
+            mode, mapping = map_positions(target, target)
+            assert mode == "exact-substring" and len(mapping) == len(target)
+            dscore = scorer.score(target)
+            zs, _, sd = zscore([raw for _, _, _, raw in singles])
+            if sd > 1e-9:
+                xs, ys = [], []
+                for z, (pos_dms, _wt, alt_aa, _raw) in zip(zs, singles):
+                    pos0 = mapping.get(pos_dms)
+                    if pos0 is None:
+                        continue
+                    xs.append(dscore.margin(pos0, alt_aa))
+                    ys.append(z)
+                rho = spearman(xs, ys)
+                assert rho is not None
+                dms_report = {"assay": dms_id, "mapping": mode, "n": len(xs),
+                              "rho_plm_all_plm_only": round(rho, 4),
+                              "scorer": scorer.name}
+                print(f"dms (PLM-only): {dms_id} n={len(xs)} ρ={rho:.4f}")
+        except Exception as e:
+            dms_report = {"skipped": type(e).__name__}
+            print(f"dms smoke skipped: {type(e).__name__}: {e}")
+    elif curated.exists():
+        dms_report = {"skipped": f"scorer={scorer.name} — PLM-only DMS цифры запрещены"}
+        print("dms smoke skipped: dummy scorer")
+    report["dms"] = dms_report
+
     out = REPO / "data" / "report" / "e2e_smoke.json"
     out.write_text(json.dumps(report, indent=2, ensure_ascii=False))
 

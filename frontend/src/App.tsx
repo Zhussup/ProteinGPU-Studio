@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import WorkspacePage from './pages/WorkspacePage'
+import ValidationPage from './pages/ValidationPage'
 import BenchmarksPage from './pages/BenchmarksPage'
 import { api } from './lib/api'
 import { LOCALES, useI18n, type Key, type Lang } from './i18n'
 
-type Tab = 'workspace' | 'benchmarks'
+type Tab = 'workspace' | 'validation' | 'benchmarks'
 
 const TAB_KEYS: Record<Tab, Key> = {
   workspace: 'nav.workspace',
+  validation: 'nav.validation',
   benchmarks: 'nav.benchmarks',
 }
 
@@ -61,9 +63,10 @@ export default function App() {
         <div className="flex items-center gap-4 text-xs">
           <LanguageSwitch />
           <nav className="flex">
-            {(['workspace', 'benchmarks'] as Tab[]).map((tb) => (
+            {(['workspace', 'validation', 'benchmarks'] as Tab[]).map((tb) => (
               <button
                 key={tb}
+                data-demo={`tab-${tb}`}
                 onClick={() => setTab(tb)}
                 className={`border border-b-0 px-3 py-1.5 transition ${
                   tab === tb
@@ -88,7 +91,13 @@ export default function App() {
         </div>
       </header>
 
-      {tab === 'workspace' ? <WorkspacePage /> : <BenchmarksPage />}
+      {tab === 'workspace' ? (
+        <WorkspacePage />
+      ) : tab === 'validation' ? (
+        <ValidationPage />
+      ) : (
+        <BenchmarksPage />
+      )}
     </div>
   )
 }

@@ -5,12 +5,11 @@
 // ScanMapPanel：敏感性图谱 / “风玫瑰”（dum.md §5）。
 // 热图（位点 × 罗盘方向）、带玫瑰小图的排序表格、所选位点的大玫瑰，
 // 以及“着色 3D”——把逐残基敏感性标量推入分子查看器。
-import { Suspense, lazy, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { MapPosition, ScanMapResult } from '../lib/types'
 import { useI18n, type Interp, type Key } from '../i18n'
-import RoseGlyph, { bucketColor, HEAT_BUCKETS, PETAL_DIRS, rank } from './RoseGlyph'
-
-const Plot = lazy(() => import('./PlotlyChart'))
+import RoseGlyph, { PETAL_DIRS, rank } from './RoseGlyph'
+import PetalHeatmap, { type PetalRow } from './PetalHeatmap'
 
 export type PaintMetric = 'v_max' | 'v_med'
 
@@ -132,9 +131,7 @@ export default function ScanMapPanel({ result, jobId, paintedMetric, onPaint, on
 
       {/* тепловая карта: позиции × фиксированные направления компаса (канал длины) */}
       {/* 热图：位置 × 固定罗盘方向（长度通道） */}
-      <Suspense fallback={<div className="text-xs text-neutral-400">{t('common.chartLoading')}</div>}>
-        <MapHeatmap result={result} />
-      </Suspense>
+      <MapHeatmap result={result} />
 
       {/* большая роза выбранной позиции */}
       {/* 所选位点的大玫瑰 */}
@@ -215,6 +212,34 @@ export function petalsOf(p: MapPosition, fmt: (m: string, pctl: string, rmsd: st
   }))
 }
 
+// тепловая карта: теперь общий PetalHeatmap; ScanMapPanel лишь собирает
+// значения канала (pctl) и локализованные подсказки
+// 热图：现在由通用 PetalHeatmap 绘制；ScanMapPanel 只负责组装
+// 通道值（pctl）与本地化提示
+function MapHeatmap({ result }: { result: ScanMapResult }) {
+  const { t } = useI18n()
+  const positions = result.positions.map((p) => ({
+    pos: p.pos,
+    rows: p.rows.map((r): PetalRow => ({
+      mut_aa: r.mut_aa,
+      pctl: r.pctl,
+      tip: t('map.heatTip', {
+        m: `${p.wt_aa}${p.pos}${r.mut_aa}`,
+        pctl: r.pctl.toFixed(2),
+        rmsd: r.local_rmsd.toFixed(2),
+      }),
+    })),
+  }))
+  return (
+    <PetalHeatmap
+      positions={positions}
+      title={t('map.heatmap')}
+      xTitle={t('res.xaxis.residue')}
+      legendText={t('map.heatLegend')}
+    />
+  )
+}
+
 function TableRose({ p }: { p: MapPosition }) {
   const { t } = useI18n()
   return (
@@ -272,62 +297,3 @@ function PctlBar({ v }: { v: number }) {
   )
 }
 
-// тепловая карта: x = измеренные позиции, y = ФИКСИРОВАННЫЙ 20-буквенный компас;
-// z = канал длины (по-строчный pctl |ΔpLDDT_local|, null в слоте WT)
-// 热图：x = 已测位置，y = 固定的 20 字母罗盘；
-// z = 长度通道（|ΔpLDDT_local| 的逐行 pctl，WT 槽位为 null）
-function MapHeatmap({ result }: { result: ScanMapResult }) {
-  const { t } = useI18n()
-  const positions = result.positions
-  const dirs = PETAL_DIRS.split('')
-  const z = dirs.map((aa) =>
-    positions.map((p) => {
-      const row = p.rows.find((r) => r.mut_aa === aa)
-      return row ? row.pctl : null
-    }),
-  )
-  const custom = dirs.map((aa) =>
-    positions.map((p) => {
-      const row = p.rows.find((r) => r.mut_aa === aa)
-      return row ? t('map.heatTip', {
-        m: `${p.wt_aa}${p.pos}${aa}`,
-        pctl: row.pctl.toFixed(2),
-        rmsd: row.local_rmsd.toFixed(2),
-      }) : ''
-    }),
-  )
-  const data = [{
-    x: positions.map((p) => p.pos),
-    y: dirs,
-    z,
-    customdata: custom,
-    type: 'heatmap' as const,
-    colorscale: [[0, '#ffffff'], [1, '#b91c1c']],
-    zmin: 0,
-    zmax: 1,
-    hovertemplate: '%{customdata}<extra>pctl %{z}</extra>',
-    colorbar: { thickness: 10, len: 0.9 },
-  }]
-  const layout = {
-    margin: { t: 10, r: 10, b: 40, l: 40 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { color: '#525252', size: 11 },
-    xaxis: { title: { text: t('res.xaxis.residue') }, linecolor: '#d4d4d4' },
-    yaxis: { linecolor: '#d4d4d4' },
-  }
-  return (
-    <div>
-      <div className="mb-1 text-[11px] text-neutral-500">{t('map.heatmap')}</div>
-      <Plot data={data} layout={layout} />
-      {/* легенда корзин для шкалы 3D-раскраски */}
-      {/* 3D 着色色带的分档图例 */}
-      <div className="mt-1 flex items-center gap-1 text-[10px] text-neutral-500">
-        <span>0</span>
-        {Array.from({ length: HEAT_BUCKETS }, (_, i) => (
-          <span key={i} className="inline-block h-2.5 w-4" style={{ background: bucketColor(i) }} />
-        ))}
-        <span>1 · {t('map.heatLegend')}</span>
-      </div>
-    </div>
-  )
-}

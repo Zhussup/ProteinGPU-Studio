@@ -11,6 +11,7 @@ export const zh: Dict = {
   'app.subtitle': '结构预测 · 计算突变 · Kabsch/RMSD（CPU 与 CUDA）',
   'nav.workspace': '工作台',
   'nav.benchmarks': '基准测试',
+  'nav.validation': '验证',
   'health.ok': '后端可用',
   'health.down': '后端不可用——请启动 uvicorn',
   'health.checking': '检查中…',
@@ -294,6 +295,8 @@ export const zh: Dict = {
   'run.mapCount': '{n} 位点 × 19 = {folds} 次折叠',
   'ws.mapTitle': '敏感性图谱——{n} 个位点 × 19 种替换',
   'hist.kind.map': '图谱',
+  'hist.kind.plm': 'PLM 筛查',
+  'hist.kind.dms': 'DMS 验证',
   'viewer.legendSensitivity': '敏感性（0–1）',
 
   'map.metricLabel': '3D 着色标量：',
@@ -333,4 +336,131 @@ export const zh: Dict = {
   'map.note':
     '长度与颜色均为百分位（蛋白内 / 位点内）：不同窗口的绝对数值不可直接比较；' +
     '点击行查看大玫瑰；CSV 正是未来数据集的行（每个位点 × 替换一行）',
+
+  'run.plm': 'PLM 筛查',
+  'run.plmTitle':
+    '全蛋白筛查：一次 PLM 前向得到全部 19×L 替换（zero-shot WT-margin），' +
+    '可选折叠 top-K 最损伤替换；0 = 仅 PLM',
+  'run.plmTopK': '折叠 top-K',
+  'run.stage.plm': 'PLM 前向',
+  'run.stage.plmFolds': 'top-K 折叠',
+
+  'ws.plmTitle': '全蛋白 PLM 筛查 —— {n} 个位置 × 19 种替换',
+
+  'plm.metricLabel': '3D 着色标量：',
+  'plm.metric.vmax': 'max plm_damage',
+  'plm.metric.vmed': '中位 plm_damage',
+  'plm.paint': '着色 3D',
+  'plm.paintTitle': '按 PLM 通道百分位为 WT 结构着色（零折叠）',
+  'plm.clearPaint': '清除着色',
+  'plm.painted': '3D 已着色：{metric}（蛋白内百分位）',
+  'plm.csv': 'CSV（数据集）',
+  'plm.json': 'JSON',
+  'plm.heatmap': '热图：位置 × 罗盘方向（颜色 = plm_damage 百分位）',
+  'plm.heatTip': '{m} · damage 百分位 {pctl} · log-margin {margin}',
+  'plm.heatLegend': '越热 = 预测越有害',
+  'plm.h.pos': '位置',
+  'plm.h.rose': '玫瑰',
+  'plm.h.vmax': 'max plm_damage',
+  'plm.h.vmed': '中位 plm_damage',
+  'plm.h.logprob': 'log p(WT)',
+  'plm.h.fold': '已折叠',
+  'plm.h.pctl': '百分位',
+  'plm.foldChip': '该位置已折叠的 top-K 替换（按 margin）',
+  'plm.folds': 'top-K 折叠：{done}/{planned}',
+  'plm.consistency': 'PLM ↔ 结构一致性（margin vs local RMSD）：ρ = {rho}（预期为负）',
+  'plm.dummyNote': 'dummy 配置：margin 为确定性占位数据——仅可用于检查 UI 连通，不可用于解读。',
+  'plm.note':
+    '花瓣长度 = plm_damage 蛋白内百分位，颜色 = 位点内排名；' +
+    'margin 没有绝对尺度：请按百分位比较各位置；' +
+    'CSV 含全部 19×L 行，未折叠行结构列为空',
+  'plm.detailVmax': 'max plm_damage {v}',
+  'plm.detailVmed': '中位数 {v}',
+  'plm.detailLogprob': 'log p(WT) {v}',
+  'plm.detailWorst': '最差替换 {m}（margin {margin}）',
+  'plm.lenChannel': '花瓣长度 —— plm_damage 蛋白内百分位',
+  'plm.colorChannel': '颜色 —— plm_damage 位点内排名',
+  'plm.petalTip': '{m} · damage 百分位 {pctl} · log-margin {margin}',
+  'plm.helpTitle': 'PLM 筛查：这是什么意思？',
+
+  // -- “验证”标签页：DMS 对 ProteinGym ------------------------------------------
+  'val.title': '针对实验的 DMS 验证（ProteinGym）',
+  'val.aboutAssay':
+    '应用预测器（PLM 裕度、ΔpLDDT、local RMSD）与 DMS 数据集实验 fitness 的相关性。',
+  'val.assay': '数据集（assay）',
+  'val.assayMeta': '{len} aa · 单突变 {singles} · 位置 {positions}',
+  'val.assayEmpty':
+    '磁盘上没有已策展的数据集：scripts/30_download_proteingym.py 下载基准，' +
+    'scripts/34_curate_proteingym.py 生成 data/dms/curated.json 清单。',
+  'val.assayMissing': '数据集 CSV 缺失——请运行 scripts/30_download_proteingym.py',
+  'val.sampleN': '补充折叠的分层样本数（0 = 无分层折叠）',
+  'val.foldPosMax': '按 PLM 做每位置 top-1 折叠的位置数（0 = 仅 PLM）',
+  'val.seed': '分层抽样 seed',
+  'val.run': '运行验证',
+  'val.running': '验证运行中…',
+  'val.corr.title': '预登记相关性',
+  'val.corr.plm_all': 'PLM 裕度 ↔ fitness（zero-shot 标题）',
+  'val.corr.plddt_fold': 'ΔpLDDT ↔ fitness（已折叠）',
+  'val.corr.rmsd_fold': 'local RMSD ↔ fitness（已折叠）',
+  'val.corr.pos_plm': '位置 PLM 脆弱性 ↔ 平均 fitness',
+  'val.corr.pos_struct_plm': 'top-1 结构 ↔ PLM 脆弱性（PLM↔结构一致性）',
+  'val.corr.margin_rmsd': 'PLM 裕度 ↔ local RMSD（一致性，已折叠）',
+  'val.corr.rho': 'ρ',
+  'val.corr.n': 'n',
+  'val.corr.ci': 'bootstrap 95%',
+  'val.corr.expect': '符号',
+  'val.corr.matchTrue': '吻合——与物理预期一致',
+  'val.corr.matchFalse': '与预期相反',
+  'val.corr.flat': '未定义（n 太小）',
+  'val.scatterPLM': 'PLM 裕度 对 fitness（映射行）',
+  'val.scatterStruct': 'local RMSD 对 fitness（已折叠）',
+  'val.xMargin': 'PLM 裕度（logit 差）',
+  'val.xRmsd': 'local RMSD（Å）',
+  'val.yFitness': 'fitness（assay 内 z-score）',
+  'val.posStrip': '逐位置：PLM 脆弱性（damage 中位数百分位）对实验 fitness',
+  'val.pctl': 'PLM 百分位（0..1）',
+  'val.fitness': 'fitness z',
+  'val.counts': '映射行：{mapped}/{total}；合并重复：{dups}；跳过多突变：{multi}',
+  'val.downloads': '下载：{csv} · {json}',
+  'val.noFolds': 'PLM only——已折叠 0 行（两个折叠手动参数 = 0）',
+  'val.honesty': '计算诚实性',
+  'val.caveat.multiFiltered': '已跳过 {n} 行多突变体——只声明单替换模式',
+  'val.caveat.regionMap': 'DMS 目标通过比对拼接到我们的序列上（{mode}）——比对列之外的位置已丢弃',
+  'val.caveat.foldSubset': '结构相关性只在子集上计算：{total} 条映射行中折叠了 {folded} 条',
+  'val.caveat.zscoreCenter': 'fitness z-score 以 assay 的突变体均值为中心，而非 WT',
+  'val.caveat.tiedFitness': 'fitness 方差为零——相关性未定义',
+  'val.caveat.dummyProfile': 'dummy 配置：PLM 裕度为确定性假数据——数字仅用于调试流水线',
+  'val.helpTitle': '验证：这是什么意思？',
+
+  'help.plmScreen': [
+    '**它是什么：**由一次蛋白质语言模型（OmegaPLM）前向给出全部 19×L 替换的排名。' +
+    '模型读取完整序列，评估每种替换在上下文中的“意外程度”——无折叠、无 MSA。',
+    '**WT margin：**在每个位置比较 WT 残基与替换的对数概率' +
+    '（margin = log p(替换) − log p(WT)）。负 margin 表示替换看起来有害；' +
+    '**plm_damage = −margin**，因此热图上“越热 = 预测越有害”。' +
+    '这是 ESM-1v（Meier 等，2021）zero-shot 评估协议在 weight-tied OmegaPLM ' +
+    'logits 上的应用（模型没有独立 LM 头——logits 由输入 embedding 矩阵点积得到）。',
+    '**边界：**margin 是无绝对尺度的排序量——只能通过蛋白内百分位比较位置。' +
+    '模型看到的是序列而非折叠结构：结构层面的效应由受限的 top-K 折叠检查' +
+    '（“top-K 折叠”框），与 margin 的一致性（ρ vs local RMSD）显示在表下方。',
+    '**经济性：**一次前向代替 19×L 次折叠——几秒内筛查整个蛋白；' +
+    '折叠阶段由 max_folds 限制。CSV 含全部 19×L 行——正是用于对照实验' +
+    '（“验证”标签页）的数据集。',
+  ],
+
+  'help.validation': [
+    '**它是什么：**预测器对实验的外部检验。DMS（深度突变扫描）是单个蛋白数百/数千' +
+    '突变体的实测 fitness；数据集来自公开基准 ProteinGym。策展对象是小的、' +
+    '全扫描的蛋白（每个位置、编号干净）——清单 data/dms/curated.json。',
+    '**协议：**DMS 编号投影到你的序列上（精确子串或全局比对，identity ≥ 0.9）；' +
+    '每一行得到**一次** OmegaPLM 前向的 PLM 裕度。随后是受限的折叠阶段：WT + ' +
+    '每位置 PLM 最脆弱的替换（按裕度选择，绝不按 fitness——无标签泄漏）+ ' +
+    '按 fitness 分层的抽样。',
+    '**如何解读：**关键是全部行上的 ρ(PLM 裕度, fitness)（zero-shot：若模型把' +
+    '“意外”替换排为适应性低，则为正）。每个相关性报告 n 与 bootstrap 95% CI；' +
+    '符号与物理预期对照。秩相关与校准无关——基线 ρ 即使不高也值得诚实解读。',
+    '**边界：**仅单替换（多突变体已跳过）；fitness 是 assay 内 z-score' +
+    '（以突变体均值为中心，而非 WT）；结构相关性在折叠子集上计算，不声称覆盖全集。' +
+    '完整行集在 CSV 工件中。',
+  ],
 }

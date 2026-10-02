@@ -36,11 +36,32 @@ def _retranslated_summary(res: dict, lang: str) -> dict:
     history restores in whatever UI language is active right now. Falls back
     to the stored text for results it cannot regenerate.
     """
-    from ..services.summary import (make_ensemble_summary, make_scan_map_summary,
-                                    make_scan_summary, make_summary)
+    from ..services.summary import (make_dms_validation_summary,
+                                    make_ensemble_summary, make_plm_screen_summary,
+                                    make_scan_map_summary, make_scan_summary,
+                                    make_summary)
     from ..services.sensitivity import most_fragile, quadrant_counts
     try:
         out = dict(res)
+        kind = res.get("kind")  # дискриминатор ПЕРЕД shape-ветками: PLM-результат
+        # тоже содержит positions+petal_dirs, но его сводка — другая
+        # 判别字段必须先于形状分支：PLM 结果同样含 positions+petal_dirs
+        if kind == "plm_screen":
+            frag = most_fragile(res["positions"])
+            f = res.get("folds") or {}
+            out["summary"] = make_plm_screen_summary(
+                n_pos=len(res["positions"]), folds_done=f.get("done", 0),
+                fragile=frag, scorer=res.get("plm_scorer", ""), lang=lang)
+            return out
+        if kind == "dms_validation":
+            corr = {c["name"]: c for c in res["correlations"]}
+            out["summary"] = make_dms_validation_summary(
+                assay_id=res["assay_id"], n_rows=res.get("n_rows", 0),
+                plm_rho=corr["plm_all"]["spearman"],
+                n_plm=corr["plm_all"]["n"],
+                dplddt_rho=corr["plddt_fold"]["spearman"],
+                n_fold=corr["plddt_fold"]["n"], lang=lang)
+            return out
         if res.get("rmsd") and "wt_aa" in res:
             out["summary"] = make_summary(
                 RmsdResult(**res["rmsd"]), res["wt_aa"],
@@ -104,8 +125,11 @@ def job_file(job_id: str, fn: str) -> PlainTextResponse:
     is_ens_artifact = fn.startswith("ens_") and fn.endswith(".pdb") and len(fn) == 10
     is_map_artifact = fn in {"scan_map.json", "scan_map.csv",
                              "scan_map_partial.json"}
+    is_plm_artifact = fn in {"plm_screen.json", "plm_screen.csv"}
+    is_dms_artifact = fn in {"dms_validation.json", "dms_validation.csv"}
     if fn not in {"wt.pdb", "mut.pdb", "mut_aligned.pdb"} and not (
-            is_scan_artifact or is_ens_artifact or is_map_artifact):
+            is_scan_artifact or is_ens_artifact or is_map_artifact
+            or is_plm_artifact or is_dms_artifact):
         raise HTTPException(404, "unknown artifact")
     path = get_job_manager().job_dir(job_id) / fn
     if not path.exists():

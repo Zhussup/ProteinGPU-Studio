@@ -27,6 +27,9 @@ export interface RunPanelProps {
   onRunScan: () => void
   onRunEnsemble: () => void
   onRunMap: () => void
+  onRunPlm: () => void
+  plmTopK: number
+  onPlmTopKChange: (k: number) => void
   mapFrom: number
   mapTo: number
   seqLen: number
@@ -64,6 +67,12 @@ const STAGE_KEYS: Record<string, { at: number; label: Key }[]> = {
     { at: 0.9, label: 'run.stage.map' },
     { at: 0.99, label: 'run.stage.summary' },
   ],
+  plm_screen: [
+    { at: 0.35, label: 'run.stage.plm' },
+    { at: 0.5, label: 'run.stage.wt' },
+    { at: 0.95, label: 'run.stage.plmFolds' },
+    { at: 0.99, label: 'run.stage.summary' },
+  ],
 }
 
 // 'run.stage.pdb' / 'run.stage.wt' не зависят от языка, но тип Dict требует,
@@ -98,6 +107,7 @@ const PROFILE_OPTIONS: { id: InferenceProfile; label: Key }[] = [
 export default function RunPanel({
   canRun, running, status, error, gpu, profile, onProfileChange,
   onRunPredict, onRunMutate, onRunScan, onRunEnsemble, onRunMap,
+  onRunPlm, plmTopK, onPlmTopKChange,
   mapFrom, mapTo, seqLen, onMapRangeChange, onReset,
 }: RunPanelProps) {
   const { t } = useI18n()
@@ -158,6 +168,29 @@ export default function RunPanel({
         >
           {t('run.map')}
         </button>
+        {/* PLM-скрин: fold_top_k 0..2 — 0 = только PLM (секунды) */}
+        {/* PLM 筛查：fold_top_k 0..2 —— 0 = 仅 PLM（数秒） */}
+        <span className="flex items-center gap-1.5" data-demo="plm-knob">
+          <select
+            value={plmTopK}
+            onChange={(e) => onPlmTopKChange(Number(e.target.value))}
+            disabled={running}
+            aria-label={t('run.plmTopK')}
+            className="mono border border-neutral-300 bg-white px-1.5 py-1.5 text-xs text-neutral-900 focus:border-neutral-900"
+          >
+            {[0, 1, 2].map((k) => (
+              <option key={k} value={k}>{k}</option>
+            ))}
+          </select>
+          <button
+            onClick={onRunPlm}
+            disabled={!canRun || running}
+            title={t('run.plmTitle')}
+            className="border border-red-700 bg-red-50 px-4 py-2 text-sm text-red-800 transition hover:bg-red-100 disabled:opacity-40"
+          >
+            {t('run.plm')}
+          </button>
+        </span>
         {!running && status && (
           <button onClick={onReset} className="text-xs text-neutral-500 underline hover:text-neutral-900">
             {t('run.reset')}

@@ -15,7 +15,9 @@ for p in (str(REPO / "ml"), str(REPO / "hpc_core" / "python")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from .routers import benchmark, jobs, predict, system, translate  # noqa: E402
+from .routers import (  # noqa: E402
+    benchmark, jobs, predict, system, translate, validation,
+)
 
 app = FastAPI(
     title="ProteinGPU-Studio",
@@ -35,6 +37,7 @@ app.add_middleware(
 app.include_router(system.router)
 app.include_router(translate.router)
 app.include_router(predict.router)
+app.include_router(validation.router)
 app.include_router(benchmark.router)
 app.include_router(jobs.router)
 

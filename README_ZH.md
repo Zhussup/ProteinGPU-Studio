@@ -37,6 +37,13 @@ TM-score，以及每条链的 pLDDT。推理栈（CPU / fp32-GPU / fp16-GPU）�
 屏幕上的一切都是真实的：没有伪造的进度条，没有占位模型 —— UI 显示的是后端
 流水线的真实阶段，上面的演示 GIF 就是一次完整的真实运行。
 
+整条流水线**用实验做了验证**：来自公开基准 ProteinGym 的深度突变扫描（DMS）
+数据集会投影到你粘贴的序列上，数据集的每一行都由折叠蛋白的同一个模型做
+zero-shot 评分（OmegaFold 的 PLM 阶段、weight-tied logits，整个蛋白只需一次
+前向传播）；随后以受限折叠检查结构响应是否与语言模型的 margins 相符。
+对实验 fitness 的相关系数均附样本量 n 与 bootstrap 置信区间，且每对
+指标都预登记了物理上预期的符号。
+
 ## 功能特性
 
 - **真实折叠模型** —— OmegaFold 为主，ESMFold 兜底；CPU / fp32-GPU / fp16-GPU 三种配置可在 UI 中切换
@@ -47,6 +54,8 @@ TM-score，以及每条链的 pLDDT。推理栈（CPU / fp32-GPU / fp16-GPU）�
 - **敏感性地图** —— 一次任务扫描选定的位置范围（可至全蛋白）× 19 种替换：位点 × 罗盘方向的热力图、逐位点标量（max / 中位 local RMSD、锐度）与象限分类（海胆 / 尖针 / 圆盘 / 三叶草）、按所选标量在蛋白内百分位给 WT 的 3D 结构着色、导出 CSV（数据集行）/ JSON
 - **位点玫瑰图** —— 位点对 19 种替换的响应画在固定的理化罗盘上（同一替换在所有位点的方向一致，WT 槽位留空）：花瓣长度 = |ΔpLDDT| 在蛋白内的百分位，颜色 = local RMSD 在位点内的百分位 —— 玫瑰形状即位点签名，跨位点可直接比较
 - **蛋白浏览器** —— 沿序列的 2D 轨道视图：逐残基 pLDDT、突变位点、扫描结果以及组合敏感性热图条（每残基平均 |ΔpLDDT|）；±50 残基窗口模式、缩略导航图、逐残基悬停提示
+- **全蛋白 PLM 筛查** —— 仅凭一次 OmegaPLM 前向传播为整条序列的全部 19 × L 替换排序（WT-margin zero-shot 协议，Meier 等 2021 的 ESM-1v 风格），无折叠、无 MSA；可选将每位点 PLM 预测最损伤的 top-K 替换进行折叠——用结构响应核对 margins（一致度 ρ）
+- **DMS 对 ProteinGym 的验证** —— 策展的小蛋白（≤ 250 aa、19 列全覆盖、编号干净）来自 `DMS_ProteinGym_substitutions`，投影到你的序列上（精确子串，否则全局比对且 identity ≥ 90%）；每条单替换行获得其 PLM margin，随后是受限折叠计划（按最低 margin 选每位置 top-1——绝不按 fitness，无标签泄漏——外加按 fitness 分层抽样）；报告六项预登记相关系数：全部映射行上的 zero-shot ρ(PLM margin, fitness)、折叠子集上的 ΔpLDDT / local RMSD、逐位点 PLM 脆弱性对平均 fitness、PLM↔结构一致度——每项均附 n 与 bootstrap 95% CI。多突变行被跳过，每项诚实的限定都显示在屏幕上的“计算诚实性”卡片中
 - **逐残基 pLDDT 曲线** —— WT 与突变体对比，支持悬停查看
 - **跨运行对比** —— 基于同一蛋白任务历史的两张表：突变按 local RMSD 排序；位点之间按比较集合内的百分位比较——每个窗口都有各自的模型噪声底
 - **科研预设** —— KRAS G12D、p53 R82H、HbB E6V、溶菌酶 I56T、Trp-cage W6F、Aβ42 E22G、α-突触核蛋白 A53T、GFP S65T
@@ -96,8 +105,18 @@ uvicorn backend.app.main:app --port 8077
 cd frontend && npm install && npm run dev
 ```
 
-打开前端，选择预设或粘贴 FASTA，然后运行 WT + 突变体、位点扫描或强度旋钮组合。
-完整流水线自检：`python scripts/e2e_smoke.py`（泛素 + I44A/I3L/P19G）。
+打开前端，选择预设或粘贴 FASTA，然后运行 WT + 突变体、位点扫描、强度旋钮组合、
+全蛋白 PLM 筛查或 DMS 验证。
+完整流水线自检：`python scripts/e2e_smoke.py`（泛素 + I44A/I3L/P19G
++ PLM 筛查；若存在 `data/dms/curated.json` 则附加 PLM-only DMS 检查）。
+
+写入论文的验证数字：`scripts/30_download_proteingym.py` 下载 ProteinGym
+substitutions，`scripts/34_curate_proteingym.py` 生成策展清单
+（`data/dms/curated.json` 为唯一提交入库的文件，CSV 留在本地），
+`scripts/35_batch_validation.py` 对全部策展数据集运行完整协议
+（亦有 `--offline`——单进程直调，不经过队列），
+`scripts/36_thesis_figures.py` 将 `data/report/validation/*.json`
+渲染成图表到 `data/report/figs/`。
 
 ## 架构
 
@@ -116,7 +135,7 @@ cd frontend && npm install && npm run dev
 - `ml/` —— 折叠模型封装 + CPU/GPU-fp32/fp16 配置
 - `hpc_core/` —— C++17 + CUDA 核心：Kabsch、RMSD、PyBind11 绑定
 - `frontend/` —— Vite + React + TypeScript，3Dmol.js + Plotly.js
-- `scripts/` —— 环境安装、spike 测试、基准测试、报告图表与演示文稿生成、演示录制
+- `scripts/` —— 环境安装、spike 测试、基准测试、报告图表与演示文稿生成、演示录制、ProteinGym 下载/策展 + 批量 DMS 验证 + 论文图表
 
 演示 GIF 由 Playwright 脚本录制：脚本驱动真实 UI 在真实 GPU 上完整跑通一次
 （`scripts/20_demo_video.py`）——其中还包含一项校验，确保录制的任务运行的是
@@ -125,5 +144,6 @@ cd frontend && npm install && npm run dev
 ## 致谢
 
 - [OmegaFold](https://github.com/HeliXonProtein/OmegaFold)（[Wu et al., 2022](https://doi.org/10.1101/2022.07.21.500999)，Apache-2.0）与 [ESMFold](https://github.com/facebookresearch/esm) —— 结构预测
+- [ProteinGym](https://github.com/OATML-Markslab/ProteinGym)（OATML，Marks 实验室）及其聚合的深度突变扫描研究 —— 验证页签的实验 fitness 基准；zero-shot 评分遵循 [Meier 等，2021](https://doi.org/10.1101/2021.07.09.450647)（ESM-1v）的 WT-margin 协议
 - [3Dmol.js](https://3dmol.csb.pitt.edu/) —— 分子可视化 · [Plotly.js](https://plotly.com/javascript/) —— 图表
 - [PyBind11](https://github.com/pybind/pybind11) —— C++/Python 绑定

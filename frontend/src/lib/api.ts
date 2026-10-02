@@ -6,7 +6,7 @@
 //（currentLang() 读取 localStorage）。
 import { currentLang } from '../i18n'
 import type {
-  GpuInfo, InferenceProfile, JobStatus, JobSummary, MutationResult,
+  AssayInfo, GpuInfo, InferenceProfile, JobStatus, JobSummary, MutationResult,
   PredictResponse, Preset, TranslateResponse,
 } from './types'
 
@@ -72,6 +72,30 @@ export const api = {
     if (!res.ok) throw new Error(`${res.status}: artifact fetch failed`)
     return res.text()
   },
+
+  // скрин всего белка: fold_top_k 0..2 (0 = только PLM, секунды)
+  // 全蛋白筛查：fold_top_k 0..2（0 = 仅 PLM，数秒）
+  submitPlmScreen: (sequence: string, fold_top_k: number, profile?: InferenceProfile) =>
+    fetch(withLang('/api/v1/plm_screen'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sequence, fold_top_k, profile }),
+    }).then((r) => json<{ job_id: string; status: string; n_folds: number }>(r)),
+
+  // DMS-валидация: список кюрируемых наборов (чистый I/O)
+  // DMS 验证：已策展数据集列表（纯 I/O）
+  assays: () =>
+    fetch('/api/v1/validate/assays').then((r) => json<{ assays: AssayInfo[] }>(r)),
+
+  validateDms: (
+    sequence: string, assay_id: string, sample_n: number,
+    fold_positions_max: number, seed: number, profile?: InferenceProfile,
+  ) =>
+    fetch(withLang('/api/v1/validate/dms'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sequence, assay_id, sample_n, fold_positions_max, seed, profile }),
+    }).then((r) => json<{ job_id: string; status: string; length: number; assay_id: string }>(r)),
 
   submitEnsemble: (
     sequence: string, position: number, mode: 'sampled' | 'exhaustive',
