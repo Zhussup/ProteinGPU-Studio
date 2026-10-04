@@ -234,7 +234,7 @@ def _run_dms_validation(job: Job) -> dict:
         wt, wt_cached = svc.predict_cached(seq)
         (jm.job_dir(job.job_id) / "wt.pdb").write_text(wt.pdb_text)
         for i, (label, v) in enumerate(fold_plan):
-            mut = svc.model.predict(v.mut_seq)
+            mut = svc.predict_checked(job, v.mut_seq)
             _stage(job, jm, stage_text("dms_fold_one", lang, m=label,
                                        i=i + 1, n=n),
                    0.3 + 0.6 * (i + 1) / max(1, n))

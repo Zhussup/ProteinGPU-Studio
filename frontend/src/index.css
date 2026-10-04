@@ -1,13 +1,84 @@
 @import "tailwindcss";
 
+/* тёмная тема по классу на <html>, а не по системной схеме: режим выбирается
+   кнопкой в сайдбаре и сохраняется (state/theme.tsx) */
+/* 深色主题由 <html> 上的类驱动，而非系统偏好：模式在侧栏按钮中选择并持久化
+   （state/theme.tsx） */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   color-scheme: light;
+  /* семантические токены хрома (свой CSS, вне шкалы Tailwind) */
+  /* 界面 chrome 的语义 token（自定义 CSS，不在 Tailwind 量表内） */
+  --body-bg: #fafafa;
+  --body-ink: #111111;
+  --panel-border: #d4d4d4;
+  --panel-bg: #ffffff;
+  --sel-bg: #111111;
+  --sel-ink: #ffffff;
+  --track: #d4d4d4;
+  --scrollbar: #c4c4c4;
+}
+
+/* тёмная тема = переворот шкалы Tailwind: bg-white → тёмная поверхность,
+   text-neutral-900 → светлый текст, border-neutral-900 → светлая рамка.
+   Правило вне @layer — перекрывает :root из theme-слоя Tailwind; значения —
+   зеркало светлой палитры, поэтому bg-neutral-900/text-white «инвертируются»
+   целиком (активная навигация, брендовые кнопки). */
+/* 深色主题 = Tailwind 量表翻转：bg-white → 深色表面、text-neutral-900 →
+   浅色文字、border-neutral-900 → 浅色边框。规则置于 @layer 之外，以此
+   覆盖 Tailwind theme 层的 :root；取值是浅色调色板的镜像——
+   bg-neutral-900/text-white 因此整体“反转”（活动导航、品牌按钮）。 */
+.dark {
+  color-scheme: dark;
+  --body-bg: #0c0c0c;
+  --body-ink: #f0f0f0;
+  --panel-border: #2e2e2e;
+  --panel-bg: #171717;
+  --sel-bg: #ececec;
+  --sel-ink: #111111;
+  --track: #3a3a3a;
+  --scrollbar: #3f3f3f;
+
+  --color-white: #171717;
+  --color-neutral-50: #141414;
+  --color-neutral-100: #1c1c1c;
+  --color-neutral-200: #2a2a2a;
+  --color-neutral-300: #3a3a3a;
+  /* 400 не трогаем: приглушённый текст #a3a3a3 читается на обеих темах */
+  /* 400 保持不变：柔和文字 #a3a3a3 在两种主题下都可读 */
+  --color-neutral-500: #9a9a9a;
+  --color-neutral-600: #b0b0b0;
+  --color-neutral-700: #c5c5c5;
+  --color-neutral-800: #dedede;
+  --color-neutral-900: #f0f0f0;
+  --color-neutral-950: #fafafa;
+
+  --color-red-50: #2a1414;
+  --color-red-300: #6f2a2a;
+  --color-red-600: #dc2626;
+  --color-red-700: #dc2626;
+  --color-red-800: #fca5a5;
+}
+
+/* тревожная заливка остаётся тёмно-красной, текст на ней — светлый: перевёрнутый
+   --color-white сделал бы его чёрным на красном */
+/* 警示填充保持深红，其上文字保持浅色：否则翻转后的 --color-white 会让文字变黑 */
+.dark [class~="bg-red-600"],
+.dark [class~="bg-red-700"] {
+  color: #f5f5f5;
+}
+
+/* тревожный текст-акцент на тёмном светлее: #dc2626 на #171717 слабоват для мелкого шрифта */
+/* 深色下警示文本提亮：#dc2626 配 #171717 对小字号偏弱 */
+.dark [class~="text-red-700"] {
+  color: #f87171;
 }
 
 body {
   margin: 0;
-  background: #fafafa;
-  color: #111111;
+  background: var(--body-bg);
+  color: var(--body-ink);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -15,8 +86,8 @@ body {
 /* строгая панель: прямые углы, волосяная граница */
 /* 严格面板风格：方角、细边框 */
 .panel {
-  border: 1px solid #d4d4d4;
-  background: #ffffff;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
 }
 
 .mono {
@@ -24,15 +95,15 @@ body {
 }
 
 ::selection {
-  background: #111111;
-  color: #fff;
+  background: var(--sel-bg);
+  color: var(--sel-ink);
 }
 
 /* тонкие скроллбары */
 /* 细滚动条 */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #c4c4c4 transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 
 /* квадратные контролы форм: убрать нативное скругление */
@@ -55,9 +126,10 @@ button {
 }
 
 /* слайдер τ ручки мутагенеза: квадратный ползунок, волосяная дорожка — та же
-   строгая геометрия, что у всех прочих контролов (без нативного скругления) */
-/* 突变旋钮的 τ 滑块：方形滑钮、细轨道——与其他控件相同的
-   严格几何（无原生圆角外观） */
+   строгая геометрия, что у всех прочих контролов (без нативного скругления);
+   цвета через переменные шкалы — ползунок инвертируется вместе с темой */
+/* 突变旋钮的 τ 滑块：方形滑钮、细轨道——与其他控件相同的严格几何
+   （无原生圆角）；颜色取自量表变量——滑钮随主题一起反转 */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -66,7 +138,7 @@ input[type="range"] {
 }
 input[type="range"]::-webkit-slider-runnable-track {
   height: 2px;
-  background: #d4d4d4;
+  background: var(--track);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -74,25 +146,25 @@ input[type="range"]::-webkit-slider-thumb {
   width: 12px;
   height: 12px;
   margin-top: -5px;
-  background: #111111;
+  background: var(--color-neutral-900);
   border: none;
   border-radius: 0;
   cursor: pointer;
 }
 input[type="range"]::-moz-range-track {
   height: 2px;
-  background: #d4d4d4;
+  background: var(--track);
 }
 input[type="range"]::-moz-range-thumb {
   width: 12px;
   height: 12px;
-  background: #111111;
+  background: var(--color-neutral-900);
   border: none;
   border-radius: 0;
   cursor: pointer;
 }
 input[type="range"]:focus::-webkit-slider-thumb {
-  outline: 1px solid #111111;
+  outline: 1px solid var(--color-neutral-900);
   outline-offset: 2px;
 }
 input[type="range"]:disabled::-webkit-slider-thumb {

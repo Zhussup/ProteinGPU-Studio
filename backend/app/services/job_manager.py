@@ -19,6 +19,26 @@ from typing import Any, Callable
 from ..config import get_settings
 from .strings import stage_text
 
+# статусы, из которых джоб уже не выйдет: отменять нечего
+# 终态：任务不会再变化，无需取消
+TERMINAL_STATUSES = ("done", "error", "cancelled")
+
+
+class JobCancelled(Exception):
+    """Кооперативная отмена: брошено из точки проверки внутри джоба.
+
+    Поток нельзя убить снаружи, поэтому длинные циклы фолдинга сами зовут
+    Job.raise_if_cancelled() перед каждым шагом, а _run переводит джоб в
+    статус "cancelled", когда исключение до него долетит.
+    协作式取消：从任务内部的检查点抛出。外部无法终止线程，
+    因此长折叠循环在每个步骤前调用 Job.raise_if_cancelled()，
+    异常抵达 _run 后任务转为 "cancelled"。
+    """
+
+    def __init__(self, job_id: str) -> None:
+        super().__init__(f"job {job_id} cancelled")
+        self.job_id = job_id
+
 
 class Job:
     def __init__(self, job_id: str, kind: str, params: dict[str, Any]):
@@ -32,6 +52,22 @@ class Job:
         self.result: dict[str, Any] | None = None
         self.created_at = time.strftime("%Y-%m-%dT%H:%M:%S")
         self.finished_at: str | None = None
+        self._cancel = threading.Event()
+
+    @property
+    def cancelled(self) -> bool:
+        return self._cancel.is_set()
+
+    def cancel(self) -> None:
+        self._cancel.set()
+
+    def raise_if_cancelled(self) -> None:
+        """Точка проверки внутри длинных циклов (перед каждым фолдом).
+
+        长循环内的检查点（每次折叠前）。
+        """
+        if self.cancelled:
+            raise JobCancelled(self.job_id)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -90,9 +126,35 @@ class JobManager:
         self._pool.submit(self._run, job, run_fn, use_gpu)
         return job_id
 
+    def cancel(self, job_id: str) -> Job | None:
+        """Кооперативно остановить джоб; None — джоба нет.
+
+        Отмена ставит флаг и сразу переводит джоб в "cancelled": ожидающий
+        джоб не начнётся, идущий прервётся на ближайшей точке проверки.
+        Джоб, найденный только в SQLite (процесс перезапущен), флагом уже не
+        остановить — но смена статуса полезна: она чистит зависшие "running"
+        из истории после рестарта.
+        协作式停止任务；None 表示任务不存在。取消设置标志并立即转为 "cancelled"：
+        排队中的不会开始，运行中的在最近检查点中断。仅存在于 SQLite 的任务
+        （进程已重启）无法用标志停止，但改状态仍可清理重启后卡住的 "running"。
+        """
+        job = self.get(job_id)
+        if job is None:
+            return None
+        if job.status in TERMINAL_STATUSES:
+            return job
+        job.cancel()
+        job.status = "cancelled"
+        job.finished_at = time.strftime("%Y-%m-%dT%H:%M:%S")
+        self._persist(job)
+        return job
+
     def _run(self, job: Job, run_fn: Callable[[Job], dict[str, Any]],
              use_gpu: bool) -> None:
         try:
+            # отмена могла прийти, пока джоб ждал воркер в пуле
+            # 任务在池中等待 worker 时可能已被取消
+            job.raise_if_cancelled()
             job.status = "running"
             self._persist(job)
             if use_gpu:
@@ -101,16 +163,28 @@ class JobManager:
                 if not self.gpu_sem.acquire(blocking=False):
                     job.message = stage_text("gpu_wait", job.params.get("lang"))
                     self._persist(job)
-                    self.gpu_sem.acquire()
+                    # ожидание слота прерываемо: иначе отмена джоба, стоящего в
+                    # очереди, ждала бы завершения текущего
+                    # 等待槽位可中断：否则队列中任务的取消要等当前任务结束
+                    while not self.gpu_sem.acquire(timeout=0.5):
+                        if job.cancelled:
+                            raise JobCancelled(job.job_id)
                 try:
+                    job.raise_if_cancelled()
                     result = run_fn(job)
                 finally:
                     self.gpu_sem.release()
             else:
+                job.raise_if_cancelled()
                 result = run_fn(job)
             job.result = result
             job.status = "done"
             job.progress = 1.0
+        except JobCancelled:
+            # отдельная ветка ДО Exception: отмена — не ошибка
+            # 单独分支放在 Exception 之前：取消不是错误
+            job.status = "cancelled"
+            job.error = None
         except Exception as exc:  # отдаём в API, воркер не падает | 上抛给 API，工作线程不崩溃
             job.status = "error"
             job.error = f"{type(exc).__name__}: {exc}"

@@ -5,6 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ProteinGPU-Studio</title>
+    <script>
+      // тема до первой отрисовки: сохранённый dark → класс на <html>,
+      // иначе светлый холст мигнёт у тёмной темы
+      // 首次绘制前确定主题：持久化的 dark → 给 <html> 加类，避免深色主题闪白
+      try {
+        if (localStorage.getItem('ui-theme') === 'dark') {
+          document.documentElement.classList.add('dark')
+        }
+      } catch (e) { /* приватный режим | 隐私模式 */ }
+    </script>
   </head>
   <body>
     <div id="root"></div>

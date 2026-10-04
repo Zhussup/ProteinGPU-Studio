@@ -7,11 +7,62 @@ export const en: Dict = {
   'common.close': 'close',
   'common.chartLoading': 'chart is loading…',
   'common.language': 'interface language',
+  'theme.toDark': 'dark theme',
+  'theme.toLight': 'light theme',
 
   'app.subtitle': 'structure prediction · in silico mutagenesis · Kabsch/RMSD on CPU and CUDA',
-  'nav.workspace': 'Workspace',
-  'nav.benchmarks': 'Benchmarks',
+  // pages and nav groups (sidebar) | 页面与导航分组（侧栏）
+  'nav.structure': 'Structure & mutations',
+  'nav.scan': 'Position scan',
+  'nav.ensemble': 'Ensemble',
+  'nav.sensitivity': 'Sensitivity map',
+  'nav.plm': 'PLM screen',
   'nav.validation': 'Validation',
+  'nav.comparison': 'Comparison',
+  'nav.history': 'History',
+  'nav.benchmarks': 'Benchmarks',
+  'nav.group.analysis': 'Analysis',
+  'nav.group.data': 'Data',
+  'nav.group.system': 'System',
+
+  // sidebar cards | 侧栏卡片
+  'shell.protein': 'Protein',
+  'shell.proteinEdit': 'edit',
+  'shell.proteinEmpty': 'no protein set — paste a sequence',
+  'shell.compute': 'Compute',
+  'shell.job': 'job',
+  'page.noResult': 'no result yet — run a calculation on this page',
+
+  // page intros | 页面导语
+  'hint.structure':
+    'One protein, one mutation: WT prediction, mutant overlay, RMSD/TM-score/pLDDT.',
+  'hint.scan': 'All 19 single substitutions at the chosen position — which one breaks the structure hardest.',
+  'hint.ensemble': 'An ensemble of variants around a position: how many substitutions at once, how radical, how many variants.',
+  'hint.sensitivity': 'Sensitivity map: 19 substitutions at every position of the range — direction rose and heatmap.',
+  'hint.plm': 'Whole-protein PLM screen with zero folds: where the language model predicts damage, plus optional top-K folding.',
+  'hint.comparison': 'Summary tables across runs: mutations of one protein and position sensitivity.',
+  'hint.history': 'Every job from the log: click a finished one to restore its result on the right page.',
+
+  // structure & mutations page | 结构与突变页
+  'struct.mode.title': 'calculation mode',
+  'struct.run.wt': 'Run prediction',
+  'struct.run.mut': 'Run comparison',
+
+  // position scan | 位点扫描
+  'scan.run': 'Run scan',
+
+  // ensemble | ensemble
+  'ens.mode.sampled': 'random ensemble (K)',
+  'ens.mode.exhaustive': 'all 19 substitutions',
+  'ens.run': 'Run ensemble',
+
+  // sensitivity map | 敏感性图谱
+  'map.run': 'Run map',
+
+  // PLM screen | PLM 筛查
+  'plm.run': 'Run PLM screen',
+  'plm.foldLabel': 'top-K folding',
+  'plm.foldHintZero': '0 — PLM only: seconds, zero folds',
   'health.ok': 'backend reachable',
   'health.down': 'backend unreachable — start uvicorn',
   'health.checking': 'checking…',
@@ -30,9 +81,6 @@ export const en: Dict = {
   'mut.demoPresets': 'Demo presets (ubiquitin, literature-backed):',
 
   'dial.title': 'Mutagenesis strength dial',
-  'dial.mode.exhaustive': 'all 19 subs',
-  'dial.modeExhaustiveTitle':
-    'exhaustive mode: all 19 single substitutions at the position (a superset of "Position scan"); μ/τ/K do not apply',
   'dial.mu': 'μ — simultaneous substitutions per variant',
   'dial.muHint': 'anchor + (μ−1) background',
   'dial.tau': 'τ — substitution spectrum temperature (Grantham)',
@@ -72,6 +120,8 @@ export const en: Dict = {
   'run.dummy': 'dummy (test)',
   'run.queued': 'queued…',
   'run.jobFailed': 'job failed',
+  'run.cancel': 'cancel',
+  'run.cancelled': 'job cancelled — GPU slot released',
   'run.running': 'running…',
   'run.gpu': 'GPU: {name}',
   'run.cpuOnly': 'CPU-only: {reason}',
@@ -240,6 +290,7 @@ export const en: Dict = {
   'hist.restoreHint': 'click to restore the result',
   'hist.noResult': 'no result',
   'hist.error': 'error',
+  'hist.cancelled': 'cancelled',
   'hist.prediction': 'prediction · {label}',
 
   'viewer.hint': 'LMB — rotate · wheel — zoom · RMB — pan',
@@ -314,6 +365,7 @@ export const en: Dict = {
   'hist.kind.map': 'map',
   'hist.kind.plm': 'PLM screen',
   'hist.kind.dms': 'DMS',
+  'hist.kind.benchmark': 'benchmark',
   'viewer.legendSensitivity': 'Sensitivity (0–1)',
 
   'map.metricLabel': '3D paint scalar:',

@@ -126,6 +126,12 @@ export const api = {
   job: (jobId: string) =>
     fetch(`/api/v1/jobs/${jobId}`).then((r) => json<JobStatus>(r)),
 
+  // отмена: кооперативная, но флаг ставится сразу, поэтому ответ уже cancelled
+  // 取消：协作式，但标志立即设置，因此响应已是 cancelled
+  cancelJob: (jobId: string) =>
+    fetch(`/api/v1/jobs/${jobId}/cancel`, { method: 'POST' }).then((r) =>
+      json<JobStatus>(r)),
+
   jobs: (limit = 20) =>
     fetch(`/api/v1/jobs?limit=${limit}`).then((r) => json<JobSummary[]>(r)),
 

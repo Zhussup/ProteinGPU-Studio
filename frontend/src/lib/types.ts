@@ -300,7 +300,7 @@ export interface AssayInfo {
 export interface JobStatus {
   job_id: string
   kind: string
-  status: 'queued' | 'running' | 'done' | 'error'
+  status: 'queued' | 'running' | 'done' | 'error' | 'cancelled'
   progress: number
   message?: string | null
   error?: string | null
@@ -313,7 +313,7 @@ export interface JobStatus {
 export interface JobSummary {
   job_id: string
   kind: string
-  status: 'queued' | 'running' | 'done' | 'error'
+  status: 'queued' | 'running' | 'done' | 'error' | 'cancelled'
   label: string
   sequence: string
   position?: number | null

@@ -5,6 +5,7 @@
 import { Suspense, lazy, useState } from 'react'
 import type { MutationResult } from '../lib/types'
 import { renderBold, useI18n, type Key } from '../i18n'
+import { PALETTE, useTheme } from '../state/theme'
 import Modal from './Modal'
 
 const Plot = lazy(() => import('./PlotlyChart'))
@@ -168,29 +169,31 @@ function PlddtChart({ wt, mut, position, wtAA, mutAA }: {
   wt: number[]; mut: number[]; position: number; wtAA: string; mutAA: string
 }) {
   const { t } = useI18n()
+  const { theme } = useTheme()
+  const C = PALETTE[theme]
   const xs = wt.map((_, i) => i + 1)
   const data = [
     {
       x: xs, y: wt, type: 'scatter', mode: 'lines', name: 'WT',
-      line: { color: '#9ca3af', width: 1.5 },
+      line: { color: C.faint, width: 1.5 },
     },
     {
       x: xs, y: mut, type: 'scatter', mode: 'lines', name: `${wtAA}${position}${mutAA}`,
-      line: { color: '#111111', width: 2 },
+      line: { color: C.ink, width: 2 },
     },
     {
       x: [position, position], y: [
         Math.min(...wt, ...mut) - 2, Math.max(...wt, ...mut) + 2,
       ], type: 'scatter', mode: 'lines', name: t('res.trace.mutation'),
-      line: { color: '#b91c1c', width: 1, dash: 'dot' }, showlegend: false,
+      line: { color: C.accent, width: 1, dash: 'dot' }, showlegend: false,
     },
   ]
   const layout = {
     margin: { t: 10, r: 10, b: 40, l: 45 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { color: '#525252', size: 11 },
-    xaxis: { title: { text: t('res.xaxis.residue') }, linecolor: '#d4d4d4' },
-    yaxis: { title: { text: 'pLDDT' }, range: [0, 100], gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    paper_bgcolor: C.paper, plot_bgcolor: C.paper,
+    font: { color: C.muted, size: 11 },
+    xaxis: { title: { text: t('res.xaxis.residue') }, linecolor: C.border },
+    yaxis: { title: { text: 'pLDDT' }, range: [0, 100], gridcolor: C.grid, linecolor: C.border },
     legend: { orientation: 'h', y: 1.15 },
   }
   return <Plot data={data} layout={layout} />

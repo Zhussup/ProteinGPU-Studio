@@ -10,6 +10,7 @@
 // 玫瑰的形状即签名：“海胆”（每种替换都有响应）、“独针”（仅一个化学
 // 方向断裂）、“圆盘”（耐受）、“三叶草”（强但参差）。
 import { memo } from 'react'
+import { PALETTE, type ChartColors, useTheme } from '../state/theme'
 
 // Фиксированный 20-направленный компас, общий с бэкендом
 // (backend/app/services/sensitivity.py PETAL_DIRS) — держим синхронно.
@@ -27,21 +28,26 @@ export function rank(x: number, arr: number[]): number {
   return arr.length > 1 ? below / (arr.length - 1) : 0.5
 }
 
-// тепловая шкала: нейтральный серый → фирменный красный, по интенсивности 0..1
-// 热度色带：中性灰 → 应用主色红，按强度 0..1
-export function heatColor(intensity: number): string {
+// тепловая шкала: от нулевого отклика к фирменному красному, по интенсивности
+// 0..1; от/до берутся из палитры темы (в светлой — прежние #e5e5e5 → #b91c1c)
+// 热度色带：从零响应到品牌红，按强度 0..1；起止色取自主题调色板
+//（浅色主题即原 #e5e5e5 → #b91c1c）
+export function heatColor(intensity: number, C: ChartColors): string {
   const t = Math.max(0, Math.min(1, intensity))
-  const from = [0xe5, 0xe5, 0xe5]
-  const to = [0xb9, 0x1c, 0x1c]
-  const c = from.map((f, i) => Math.round(f + (to[i] - f) * t))
+  const from = C.grid
+  const to = C.accent
+  const pf = (s: string, i: number) => parseInt(s.slice(1 + i * 2, 3 + i * 2), 16)
+  const f = [0, 1, 2].map((i) => pf(from, i))
+  const to3 = [0, 1, 2].map((i) => pf(to, i))
+  const c = f.map((x, i) => Math.round(x + (to3[i] - x) * t))
   return `rgb(${c[0]},${c[1]},${c[2]})`
 }
 
 // квантованные корзины для 3D-раскраски (непрерывные диапазоны resi, ≤8 цветов)
 // 3D 着色用的分档（连续 resi 区间，≤8 色）
 export const HEAT_BUCKETS = 8
-export function bucketColor(i: number): string {
-  return heatColor((i + 0.5) / HEAT_BUCKETS)
+export function bucketColor(i: number, C: ChartColors): string {
+  return heatColor((i + 0.5) / HEAT_BUCKETS, C)
 }
 export function bucketOf(intensity: number): number {
   return Math.min(HEAT_BUCKETS - 1, Math.max(0, Math.floor(intensity * HEAT_BUCKETS)))
@@ -85,6 +91,8 @@ function wedgePath(cx: number, cy: number, r0: number, r1: number, a0: number, a
 const STEP = 360 / 20
 
 function RoseGlyph({ petals, wtSlot, size = 72, title }: RoseGlyphProps) {
+  const { theme } = useTheme()
+  const C = PALETTE[theme]
   const s = size
   const c = s / 2
   const rMax = c - 3
@@ -103,8 +111,8 @@ function RoseGlyph({ petals, wtSlot, size = 72, title }: RoseGlyphProps) {
       {title && <title>{title}</title>}
       {/* базовая окружность + внешние опорные кольца */}
       {/* 基准圆 + 外部参考环 */}
-      <circle cx={c} cy={c} r={r0} fill="none" stroke="#e5e5e5" strokeWidth={0.8} />
-      <circle cx={c} cy={c} r={rMax} fill="none" stroke="#f5f5f5" strokeWidth={0.8} />
+      <circle cx={c} cy={c} r={r0} fill="none" stroke={C.grid} strokeWidth={0.8} />
+      <circle cx={c} cy={c} r={rMax} fill="none" stroke={C.band} strokeWidth={0.8} />
       {PETAL_DIRS.split('').map((aa, slot) => {
         const a0 = slot * STEP
         if (slot === wtSlot) {
@@ -114,7 +122,7 @@ function RoseGlyph({ petals, wtSlot, size = 72, title }: RoseGlyphProps) {
             <path
               key={`wt-${slot}`}
               d={wedgePath(c, c, r0, r0 + (rMax - r0) * 0.12, a0 + 1.5, a0 + STEP - 1.5)}
-              fill="#9ca3af"
+              fill={C.wt}
               stroke="none"
             />
           )
@@ -126,7 +134,7 @@ function RoseGlyph({ petals, wtSlot, size = 72, title }: RoseGlyphProps) {
           <path
             key={aa}
             d={wedgePath(c, c, r0, r1, a0 + 1.5, a0 + STEP - 1.5)}
-            fill={heatColor(p.intensity)}
+            fill={heatColor(p.intensity, C)}
             stroke="none"
           >
             {p.tip && <title>{p.tip}</title>}

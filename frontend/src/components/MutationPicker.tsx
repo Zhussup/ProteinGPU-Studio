@@ -85,7 +85,7 @@ export default function MutationPicker({
 
 // SequenceStrip: однобуквенная последовательность с подсвеченным сайтом мутации.
 // SequenceStrip：单字母序列，高亮突变位点。
-function SequenceStrip({ sequence, position }: { sequence: string; position: number }) {
+export function SequenceStrip({ sequence, position }: { sequence: string; position: number }) {
   const start = Math.max(0, position - 11)
   const end = Math.min(sequence.length, position + 10)
   const before = sequence.slice(start, position - 1)

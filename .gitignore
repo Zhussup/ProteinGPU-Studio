@@ -59,3 +59,7 @@ dum.md
 # docs: keep only assets (README GIF), everything else stays local
 docs/*
 !docs/assets/
+
+# dev.sh: логи локального запуска бэкенда и фронтенда
+# dev.sh：本地后端/前端运行的日志
+/.dev/

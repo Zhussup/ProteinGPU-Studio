@@ -72,6 +72,19 @@ class FoldingService:
         self.cache.put(seq, res, name)
         return res, False
 
+    def predict_checked(self, job, seq: str) -> PredictResult:
+        """Fold with a cancellation checkpoint before the inference.
+
+        The job owns the cancel flag; checking here (rather than between
+        positions) keeps cancel latency at one fold. Note this bypasses the
+        WT-only cache — mutant folds have always gone straight to the model.
+        推理前带取消检查点。取消标志归任务所有；在此检查（而非每个位点之间）
+        使取消延迟降至一次折叠。注意：绕过仅缓存 WT 的缓存——突变体折叠
+        一直是直接走模型。
+        """
+        job.raise_if_cancelled()
+        return self.model.predict(seq)
+
     def close(self) -> None:
         with self._lock:
             if self._model is not None:

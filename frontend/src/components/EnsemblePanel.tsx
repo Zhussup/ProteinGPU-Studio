@@ -8,6 +8,7 @@
 import { Suspense, lazy, useState } from 'react'
 import type { EnsembleResult, EnsembleRow } from '../lib/types'
 import { renderBold, useI18n, type Key } from '../i18n'
+import { PALETTE, useTheme } from '../state/theme'
 import Modal from './Modal'
 
 const Plot = lazy(() => import('../components/PlotlyChart'))
@@ -205,19 +206,21 @@ export default function EnsemblePanel({ result, onPickRow, pickedIndex }: Ensemb
 function Hist({ title, values, xTitle, yTitle }: {
   title: string; values: number[]; xTitle: string; yTitle: string
 }) {
+  const { theme } = useTheme()
+  const C = PALETTE[theme]
   const data = [{
     x: values,
     type: 'histogram' as const,
     nbinsx: 12,
-    marker: { color: '#111111' },
+    marker: { color: C.ink },
   }]
   const layout = {
     margin: { t: 24, r: 10, b: 40, l: 50 },
-    title: { text: title, font: { size: 12, color: '#404040' } },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { color: '#525252', size: 11 },
-    xaxis: { title: { text: xTitle }, linecolor: '#d4d4d4' },
-    yaxis: { title: { text: yTitle }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    title: { text: title, font: { size: 12, color: C.ink2 } },
+    paper_bgcolor: C.paper, plot_bgcolor: C.paper,
+    font: { color: C.muted, size: 11 },
+    xaxis: { title: { text: xTitle }, linecolor: C.border },
+    yaxis: { title: { text: yTitle }, gridcolor: C.grid, linecolor: C.border },
     bargap: 0.08,
   }
   return <Plot data={data} layout={layout} />

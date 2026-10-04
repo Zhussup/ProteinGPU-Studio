@@ -29,6 +29,24 @@ def job_status(job_id: str) -> JobStatus:
     return JobStatus(**_job_or_404(job_id).to_dict())
 
 
+@router.post("/jobs/{job_id}/cancel", response_model=JobStatus)
+def job_cancel(job_id: str) -> JobStatus:
+    """Кооперативно остановить джоб и освободить GPU-слот.
+
+    Идемпотентно для уже отменённого (двойной клик по кнопке безопасен);
+    завершённый джоб отменять поздно — 409, как у /result без результата.
+    协作式停止任务并释放 GPU 槽位。对已取消的任务幂等（重复点击安全）；
+    已完成的任务取消太晚——与 /result 无结果时一致，返回 409。
+    """
+    job = _job_or_404(job_id)
+    if job.status in ("done", "error"):
+        raise HTTPException(409, f"job {job_id} is {job.status}, cannot cancel")
+    if job.status == "cancelled":
+        return JobStatus(**job.to_dict())
+    cancelled = get_job_manager().cancel(job_id)
+    return JobStatus(**cancelled.to_dict())
+
+
 def _retranslated_summary(res: dict, lang: str) -> dict:
     """Return the result dict with `summary` regenerated in `lang`.
 

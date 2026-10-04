@@ -1,15 +1,17 @@
-// MoleculeViewer: обёртка 3Dmol.js на белом холсте.
-// WT — полупрозрачный серый cartoon; мутант — тёмно-серый/спектр; мутированный
-// остаток — красные стики. Бэкенд отдаёт уже выровненный PDB мутанта
-// (выравнивание делает ядро C++/CUDA) — никакой математики на клиенте.
-// MoleculeViewer：白底画布上的 3Dmol.js 封装。
-// WT 为半透明灰色 cartoon；突变体为深灰/渐变谱；突变残基为红色棍棒。
-// 后端返回已对齐的突变体 PDB（对齐由 C++/CUDA 核心完成）——客户端不做任何计算。
+// MoleculeViewer: обёртка 3Dmol.js на холсте цвета --panel темы.
+// WT — полупрозрачный серый cartoon; мутант — светлый в тёмной теме / тёмный в
+// светлой; мутированный остаток — красные стики. Бэкенд отдаёт уже выровненный
+// PDB мутанта (выравнивание делает ядро C++/CUDA) — никакой математики на клиенте.
+// MoleculeViewer：以主题底色渲染的 3Dmol.js 封装。
+// WT 为半透明灰色 cartoon；突变体在深色主题下取浅色、浅色主题下取深色；
+// 突变残基为红色棍棒。后端返回已对齐的突变体 PDB（对齐由 C++/CUDA 核心完成）
+// ——客户端不做任何计算。
 import { useEffect, useRef } from 'react'
 // UMD-бандл: импорт определяет window.$3Dmol
 // UMD 包：导入后即定义 window.$3Dmol
 import '3dmol'
 import { useI18n } from '../i18n'
+import { PALETTE, useTheme, type ChartColors } from '../state/theme'
 import { bucketColor, bucketOf, HEAT_BUCKETS } from './RoseGlyph'
 
 // 3dmol поставляет UMD-бандл; объявляем минимальную поверхность, которую используем.
@@ -42,10 +44,10 @@ declare global {
   }
 }
 
-const WT_COLOR = '#9ca3af' // светло-серый, полупрозрачный | 浅灰、半透明
-const MUT_COLOR = '#1f2937' // почти чёрный | 近黑
-const MUT_COLOR_ALT = '#374151' // фолбэк, когда выравнивания нет | 未对齐时的回退色
-const MUTATION_COLOR = '#b91c1c' // строгий красный | 严格红
+// цвета моделей — из палитры темы (PALETTE[theme]): WT-файнт и красный
+// читаются на обеих темах, мутант должен контрастировать с фоном
+// 模型颜色取自主题调色板（PALETTE[theme]）：WT 灰与红色两种主题皆可读，
+// 突变体须与背景形成对比
 
 export interface ViewerProps {
   wtPdb: string | null
@@ -83,13 +85,19 @@ export default function MoleculeViewer({
   wtPdb, mutPdb, aligned, mutationPosition, height = 420, residueScores, scoreLabel,
 }: ViewerProps) {
   const { t } = useI18n()
+  const { theme } = useTheme()
+  const C = PALETTE[theme]
   const hostRef = useRef<HTMLDivElement>(null)
   const glRef = useRef<$3DmolViewer | null>(null)
 
+  // смена темы пересоздаёт viewer: и фон WebGL, и цвета моделей — конкретные
+  // hex в 3dmol, иначе пришлось бы перезапускать каждый addStyle вручную
+  // 主题切换时重建 viewer：WebGL 背景 3dmol 以具体 hex 存放，
+  // 手动补缀每个 addStyle 反而更繁琐
   useEffect(() => {
     const host = hostRef.current
     if (!host || !window.$3Dmol) return
-    const gl = window.$3Dmol.createViewer(host, { backgroundColor: '#ffffff' })
+    const gl = window.$3Dmol.createViewer(host, { backgroundColor: C.paper })
     glRef.current = gl
     // e2e-хук (?e2e в URL): демо-записи гоняют rotate/zoom через API вьюера —
     // синтетические события wheel не зумят в headless-захвате
@@ -102,7 +110,7 @@ export default function MoleculeViewer({
       gl.clear()
       glRef.current = null
     }
-  }, [])
+  }, [theme, C])
 
   useEffect(() => {
     const gl = glRef.current
@@ -115,18 +123,18 @@ export default function MoleculeViewer({
     // WT：半透明灰色 cartoon 骨架——或敏感性着色（当 scan map 传入逐残基
     // 分数时）（model: 0 不触碰突变体模型；null 保持基础灰色）
     gl.addModel(wtPdb, 'pdb')
-    gl.addStyle({}, { cartoon: { color: WT_COLOR, opacity: 0.55 } })
+    gl.addStyle({}, { cartoon: { color: C.wt, opacity: 0.55 } })
     if (residueScores) {
       for (const run of scoreRuns(residueScores)) {
         gl.addStyle(
           { model: 0, resi: [`${run.start}-${run.end}`] },
-          { cartoon: { color: bucketColor(run.bucket), opacity: 0.9 } },
+          { cartoon: { color: bucketColor(run.bucket, C), opacity: 0.9 } },
         )
       }
     }
 
-    // Мутант: выровненная (или сырая) модель, тёмный cartoon — контраст на белом
-    // 突变体：对齐（或原始）模型，深色 cartoon——在白底上有对比度
+    // Мутант: выровненная (или сырая) модель, контрастный к фону cartoon
+    // 突变体：对齐（或原始）模型，cartoon 与背景形成对比
     const mut = mutPdb
     if (mut) {
       gl.addModel(mut, 'pdb')
@@ -134,21 +142,21 @@ export default function MoleculeViewer({
       if (aligned) {
         gl.addStyle(sel, { cartoon: { colorscheme: 'spectrum', opacity: 0.95 } })
       } else {
-        gl.addStyle(sel, { cartoon: { color: MUT_COLOR_ALT, opacity: 0.95 } })
+        gl.addStyle(sel, { cartoon: { color: C.ink2, opacity: 0.95 } })
       }
       // мутированный остаток — красные стики
       // 突变残基以红色棍棒显示
       if (mutationPosition && mutationPosition >= 1) {
         gl.addStyle({ resi: mutationPosition }, {
-          stick: { color: MUTATION_COLOR, radius: 0.25 },
-          sphere: { color: MUTATION_COLOR, radius: 0.45 },
+          stick: { color: C.accent, radius: 0.25 },
+          sphere: { color: C.accent, radius: 0.45 },
         })
       }
     }
 
     gl.zoomTo()
     gl.render()
-  }, [wtPdb, mutPdb, aligned, mutationPosition, residueScores])
+  }, [wtPdb, mutPdb, aligned, mutationPosition, residueScores, theme, C])
 
   const painted = !!residueScores && residueScores.some((v) => v !== null && v !== undefined)
 
@@ -166,12 +174,12 @@ export default function MoleculeViewer({
       {wtPdb && (mutPdb || painted) && (
         <div className="pointer-events-none absolute top-2 left-2 flex flex-col gap-1 text-[11px]">
           {painted ? (
-            <LegendRamp label={scoreLabel ?? t('viewer.legendSensitivity')} />
+            <LegendRamp label={scoreLabel ?? t('viewer.legendSensitivity')} C={C} />
           ) : (
-            <Legend color={WT_COLOR} label={t('viewer.legendWt')} />
+            <Legend color={C.wt} label={t('viewer.legendWt')} />
           )}
-          {mutPdb && <Legend color={MUT_COLOR} label={t('viewer.legendMut')} />}
-          {mutationPosition && mutPdb && <Legend color={MUTATION_COLOR} label={t('viewer.legendMutation', { pos: mutationPosition })} />}
+          {mutPdb && <Legend color={C.mut} label={t('viewer.legendMut')} />}
+          {mutationPosition && mutPdb && <Legend color={C.accent} label={t('viewer.legendMutation', { pos: mutationPosition })} />}
         </div>
       )}
     </div>
@@ -189,12 +197,12 @@ function Legend({ color, label }: { color: string; label: string }) {
 
 // легенда-градиент для раскраски чувствительности: квантованные "тепловые" корзины
 // 敏感性着色的渐变图例：分档热度色块
-function LegendRamp({ label }: { label: string }) {
+function LegendRamp({ label, C }: { label: string; C: ChartColors }) {
   return (
     <div className="flex items-center gap-1.5 border border-neutral-200 bg-white/85 px-2 py-0.5 text-neutral-700">
       <span className="flex">
         {Array.from({ length: HEAT_BUCKETS }, (_, i) => (
-          <span key={i} className="inline-block h-2.5 w-2" style={{ background: bucketColor(i) }} />
+          <span key={i} className="inline-block h-2.5 w-2" style={{ background: bucketColor(i, C) }} />
         ))}
       </span>
       {label}

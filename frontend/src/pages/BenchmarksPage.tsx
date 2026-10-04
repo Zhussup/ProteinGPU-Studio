@@ -6,14 +6,16 @@ import { Suspense, lazy, useState } from 'react'
 import { api } from '../lib/api'
 import type { BenchmarkRow, KernelRow } from '../lib/types'
 import { useI18n } from '../i18n'
+import { PALETTE, useTheme } from '../state/theme'
 
 const Plot = lazy(() => import('../components/PlotlyChart'))
 
 const PROFILES = ['fp32-gpu', 'fp16-gpu', 'cpu', 'dummy']
 
-// строгие серые + один красный; чёрный закреплён за основной серией
-// 严格灰阶 + 一抹红；黑色留给主系列
-const COLORS = ['#111111', '#6b7280', '#b91c1c', '#9ca3af', '#374151']
+// строгие серые + один красный; чёрный закреплён за основной серией.
+// порядок из палитры темы: ink, gray, accent, faint, ink2
+// 严格灰阶 + 一抹红；黑色留给主系列。顺序取自主题调色板。
+const SERIES_KEYS = ['ink', 'gray', 'accent', 'faint', 'ink2'] as const
 
 export default function BenchmarksPage() {
   const { t } = useI18n()
@@ -31,6 +33,7 @@ export default function BenchmarksPage() {
       const s = await api.job(jobId)
       if (s.status === 'done') return
       if (s.status === 'error') throw new Error(s.error ?? t('run.jobFailed'))
+      if (s.status === 'cancelled') throw new Error(t('run.cancelled'))
       await new Promise((r) => setTimeout(r, 1000))
     }
   }
@@ -114,6 +117,9 @@ export default function BenchmarksPage() {
 
 function InferenceChart({ rows }: { rows: BenchmarkRow[] }) {
   const { t } = useI18n()
+  const { theme } = useTheme()
+  const C = PALETTE[theme]
+  const colors = SERIES_KEYS.map((k) => C[k])
   const profiles = [...new Set(rows.map((r) => r.profile))]
   const data = profiles.map((p, i) => {
     const rr = rows.filter((r) => r.profile === p).sort((a, b) => a.length - b.length)
@@ -128,16 +134,16 @@ function InferenceChart({ rows }: { rows: BenchmarkRow[] }) {
       type: 'scatter' as const,
       mode: 'lines+markers' as const,
       name: p,
-      line: { color: COLORS[i % COLORS.length] },
-      marker: { color: COLORS[i % COLORS.length] },
+      line: { color: colors[i % colors.length] },
+      marker: { color: colors[i % colors.length] },
     }
   })
   const layout = {
     margin: { t: 10, r: 10, b: 40, l: 60 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { color: '#525252', size: 11 },
-    xaxis: { title: { text: t('bench.xaxis.length') }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
-    yaxis: { title: { text: t('bench.yaxis.latency') }, type: 'log' as const, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    paper_bgcolor: C.paper, plot_bgcolor: C.paper,
+    font: { color: C.muted, size: 11 },
+    xaxis: { title: { text: t('bench.xaxis.length') }, gridcolor: C.grid, linecolor: C.border },
+    yaxis: { title: { text: t('bench.yaxis.latency') }, type: 'log' as const, gridcolor: C.grid, linecolor: C.border },
     legend: { orientation: 'h' as const },
   }
   return (
@@ -149,18 +155,21 @@ function InferenceChart({ rows }: { rows: BenchmarkRow[] }) {
 
 function KernelChart({ rows }: { rows: KernelRow[] }) {
   const { t } = useI18n()
+  const { theme } = useTheme()
+  const C = PALETTE[theme]
+  const colors = SERIES_KEYS.map((k) => C[k])
   const data = [{
     x: rows.map((r) => r.engine),
     y: rows.map((r) => r.wall_median_s * 1000),
     error_y: { type: 'data' as const, array: rows.map((r) => (r.wall_iqr_s / 2) * 1000), visible: true },
     type: 'bar' as const,
-    marker: { color: rows.map((_, i) => COLORS[i % COLORS.length]) },
+    marker: { color: rows.map((_, i) => colors[i % colors.length]) },
   }]
   const layout = {
     margin: { t: 10, r: 10, b: 40, l: 60 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { color: '#525252', size: 11 },
-    yaxis: { title: { text: t('bench.yaxis.ms') }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    paper_bgcolor: C.paper, plot_bgcolor: C.paper,
+    font: { color: C.muted, size: 11 },
+    yaxis: { title: { text: t('bench.yaxis.ms') }, gridcolor: C.grid, linecolor: C.border },
   }
   const info = rows[0] ? t('bench.kernelInfo', { pairs: rows[0].pairs, atoms: rows[0].atoms }) : ''
   return (

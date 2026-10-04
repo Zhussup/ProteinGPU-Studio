@@ -4,13 +4,17 @@
 // HistoryPanel：最近任务（经 GET /api/v1/jobs 取自 SQLite）。点击已完成
 // 的任务可将其结果恢复到工作台——序列、突变、PDB。
 import type { JobSummary } from '../lib/types'
-import { useI18n, type Key } from '../i18n'
+import { useI18n } from '../i18n'
+import { KIND_KEYS } from '../state/workspace'
 
 export interface HistoryPanelProps {
   jobs: JobSummary[]
   currentJobId?: string | null
   onRestore: (job: JobSummary) => void
   onRefresh: () => void
+  // tall — на всю высоту страницы истории вместо узкой колонки рабочей области
+  // tall——历史页整页高度，替代工作台的窄列
+  tall?: boolean
 }
 
 const STATUS_MARK: Record<JobSummary['status'], string> = {
@@ -18,16 +22,7 @@ const STATUS_MARK: Record<JobSummary['status'], string> = {
   error: 'bg-red-700',
   running: 'stage-active bg-neutral-400',
   queued: 'bg-neutral-300',
-}
-
-const KIND_KEYS: Record<string, Key> = {
-  predict: 'hist.kind.predict',
-  mutate: 'hist.kind.mutate',
-  scan: 'hist.kind.scan',
-  ensemble: 'hist.kind.ensemble',
-  scan_map: 'hist.kind.map',
-  plm_screen: 'hist.kind.plm',
-  dms_validation: 'hist.kind.dms',
+  cancelled: 'bg-neutral-200',
 }
 
 // "2026-09-11T14:23:05" → "11.09 14:23"
@@ -35,7 +30,7 @@ function shortTime(iso: string): string {
   return `${iso.slice(8, 10)}.${iso.slice(5, 7)} ${iso.slice(11, 16)}`
 }
 
-export default function HistoryPanel({ jobs, currentJobId, onRestore, onRefresh }: HistoryPanelProps) {
+export default function HistoryPanel({ jobs, currentJobId, onRestore, onRefresh, tall }: HistoryPanelProps) {
   const { t } = useI18n()
   return (
     <div className="space-y-2">
@@ -52,7 +47,7 @@ export default function HistoryPanel({ jobs, currentJobId, onRestore, onRefresh 
       {jobs.length === 0 ? (
         <div className="text-xs text-neutral-400">{t('hist.empty')}</div>
       ) : (
-        <div className="max-h-56 overflow-y-auto border border-neutral-200">
+        <div className={`overflow-y-auto border border-neutral-200 ${tall ? 'max-h-[70vh]' : 'max-h-56'}`}>
           {jobs.map((j) => {
             const restorable = j.status === 'done'
             const current = j.job_id === currentJobId
@@ -73,11 +68,13 @@ export default function HistoryPanel({ jobs, currentJobId, onRestore, onRefresh 
                 <span className="flex-1 truncate text-neutral-500">
                   {j.status === 'error'
                     ? (j.error ?? t('hist.error'))
-                    : j.kind === 'predict'
-                      ? t('hist.prediction', { label: j.label })
-                      : j.kind === 'dms_validation'
-                        ? j.label
-                        : `${j.sequence.length} aa`}
+                    : j.status === 'cancelled'
+                      ? t('hist.cancelled')
+                      : j.kind === 'predict'
+                        ? t('hist.prediction', { label: j.label })
+                        : j.kind === 'dms_validation'
+                          ? j.label
+                          : `${j.sequence.length} aa`}
                 </span>
                 <span className="mono shrink-0 text-neutral-400">{shortTime(j.created_at)}</span>
               </button>

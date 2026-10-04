@@ -321,7 +321,7 @@ class BenchmarkResponse(BaseModel):
 class JobStatus(BaseModel):
     job_id: str
     kind: str  # predict | mutate | scan | ensemble | benchmark
-    status: Literal["queued", "running", "done", "error"]
+    status: Literal["queued", "running", "done", "error", "cancelled"]
     progress: float = 0.0
     message: str | None = None
     created_at: str

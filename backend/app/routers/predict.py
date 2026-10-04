@@ -140,7 +140,7 @@ def _run_mutate(job: Job) -> dict:
         _stage(job, jm, stage_text("wt", lang), 0.1)  # пропускается при попадании в кэш | 缓存命中时跳过
     wt, wt_cached = svc.predict_cached(seq)
     _stage(job, jm, stage_text("mutant", lang), 0.5)
-    mut = svc.model.predict(mut_seq)
+    mut = svc.predict_checked(job, mut_seq)
     _stage(job, jm, stage_text("pdbs", lang), 0.8)
 
     out_dir = jm.job_dir(job.job_id)
@@ -229,10 +229,10 @@ def _run_scan(job: Job) -> dict:
 
     n = len(targets)
     for i, mut_aa in enumerate(targets):
-        mut = svc.model.predict(mutant_sequence(seq, pos, mut_aa))
+        mut = svc.predict_checked(job, mutant_sequence(seq, pos, mut_aa))
         _stage(job, jm, stage_text("subs", lang, m=f"{wt_aa}{pos}{mut_aa}",
                                    i=i + 1, n=n),
-               0.1 + 0.8 * (i + 1) / n)
+               0.1 + 0.9 * (i + 1) / n)
         al = align_pair(wt_ca, mut.coords_ca, position=pos,
                         radius=settings.local_radius)
         rows.append({
@@ -345,10 +345,10 @@ def _run_ensemble(job: Job) -> dict:
     # 逐残基 |ΔpLDDT| 累加器（查看器轨道）
     abs_sum = [0.0] * len(seq)
     for i, muts in enumerate(muts_list):
-        mut = svc.model.predict(apply_mutations(seq, muts))
+        mut = svc.predict_checked(job, apply_mutations(seq, muts))
         label = mutation_label(muts)
         _stage(job, jm, stage_text("ens", lang, m=label, i=i + 1, n=n),
-               0.1 + 0.8 * (i + 1) / n)
+               0.1 + 0.9 * (i + 1) / n)
         al = align_pair(wt_ca, mut.coords_ca, position=pos,
                         radius=settings.local_radius)
         a, b = al.local_window  # с 1, включительно | 从 1 开始、含端点
@@ -440,8 +440,10 @@ def _run_scan_map(job: Job) -> dict:
 
     Rows are emitted in rose order (PETAL_DIRS minus the WT slot) so the UI
     draws the glyph straight from the artifact; ranking scalars live in stats.
-    One checkpoint per finished position — the GPU-hours survive an error
-    (scan_map_partial.json), and the fold cache makes an identical rerun free.
+    One checkpoint per finished position — the data of every finished position
+    survives an error or a cancellation (scan_map_partial.json). The folds do
+    NOT survive: FoldingCache holds the WT sequence only, so an identical
+    rerun pays every mutant fold again.
     Mutant PDBs are NOT kept: this is a data job, not a structure job — the
     aligned strongest mutant comes from /scan on demand.
     """
@@ -469,10 +471,10 @@ def _run_scan_map(job: Job) -> dict:
     for i, pos in enumerate(positions):
         _stage(job, jm, stage_text("map", lang, m=f"{seq[pos - 1]}{pos}",
                                    i=i + 1, n=n),
-               0.1 + 0.85 * (i + 1) / n)
+               0.1 + 0.9 * (i + 1) / n)
         rows = []
         for mut_aa in petal_dirs(seq[pos - 1]):
-            mut = svc.model.predict(mutant_sequence(seq, pos, mut_aa))
+            mut = svc.predict_checked(job, mutant_sequence(seq, pos, mut_aa))
             al = align_pair(wt_ca, mut.coords_ca, position=pos,
                             radius=settings.local_radius)
             a, b = al.local_window  # с 1, включительно | 从 1 开始、含端点
@@ -600,12 +602,12 @@ def _run_plm_screen(job: Job) -> dict:
     n = len(plan)
     folds_done = 0
     for i, (p, r) in enumerate(plan):
-        mut = svc.model.predict(mutant_sequence(seq, p["pos"], r["mut_aa"]))
+        mut = svc.predict_checked(job, mutant_sequence(seq, p["pos"], r["mut_aa"]))
         _stage(job, jm, stage_text("plm_fold_topk",
                                    lang,
                                    m=f"{p['wt_aa']}{p['pos']}{r['mut_aa']}",
                                    i=i + 1, n=n),
-               0.5 + 0.45 * (i + 1) / n)
+               0.5 + 0.5 * (i + 1) / n)
         al = align_pair(wt_ca, mut.coords_ca, position=p["pos"],
                         radius=get_settings().local_radius)
         fill_structural(r, al, mut, wt)

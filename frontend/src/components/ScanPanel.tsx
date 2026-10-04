@@ -6,6 +6,7 @@
 import { Suspense, lazy } from 'react'
 import type { ScanResult, ScanRow } from '../lib/types'
 import { useI18n, type Key } from '../i18n'
+import { PALETTE, useTheme } from '../state/theme'
 
 const Plot = lazy(() => import('../components/PlotlyChart'))
 
@@ -88,20 +89,22 @@ export default function ScanPanel({ result, onPickRow, pickedAA }: ScanPanelProp
 
 function ScanChart({ rows, wtAA }: { rows: ScanRow[]; wtAA: string }) {
   const { t } = useI18n()
+  const { theme } = useTheme()
+  const C = PALETTE[theme]
   const data = [{
     x: rows.map((r) => r.mut_aa),
     y: rows.map((r) => r.local_rmsd),
     type: 'bar' as const,
     marker: {
-      color: rows.map((_, i) => (i === 0 ? '#b91c1c' : '#111111')),
+      color: rows.map((_, i) => (i === 0 ? C.accent : C.ink)),
     },
   }]
   const layout = {
     margin: { t: 10, r: 10, b: 40, l: 50 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { color: '#525252', size: 11 },
-    xaxis: { title: { text: t('scan.xaxis.subst', { wt: wtAA }) }, linecolor: '#d4d4d4' },
-    yaxis: { title: { text: 'local RMSD, Å' }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    paper_bgcolor: C.paper, plot_bgcolor: C.paper,
+    font: { color: C.muted, size: 11 },
+    xaxis: { title: { text: t('scan.xaxis.subst', { wt: wtAA }) }, linecolor: C.border },
+    yaxis: { title: { text: 'local RMSD, Å' }, gridcolor: C.grid, linecolor: C.border },
   }
   return <Plot data={data} layout={layout} />
 }

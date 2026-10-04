@@ -1,32 +1,148 @@
-// WorkspacePage: последовательность → мутация → запуск → 3D-оверлей + карточки RMSD + история.
-// WorkspacePage：序列 → 突变 → 运行 → 3D 叠加 + RMSD 卡片 + 历史。
-import { useCallback, useEffect, useState } from 'react'
+// workspace: общий контекст рабочей области — белок, вычислительный профиль,
+// результаты всех видов анализа, ручка ансамбля, история задач и единственный
+// поллер активной задачи. Живёт над роутером страниц, поэтому задача переживает
+// переход между страницами (useJob снимает поллинг только при unmount, а
+// провайдер не размонтируется).
+// workspace：工作台共享上下文——蛋白、算力配置、各类分析结果、ensemble 旋钮、
+// 任务历史，以及唯一的活动任务轮询器。它位于页面路由之上，因此任务在页面
+// 切换时不会中断（useJob 仅在卸载时停止轮询，而 Provider 从不卸载）。
+import {
+  createContext, useCallback, useContext, useEffect, useState,
+  type ReactNode,
+} from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useJob } from '../lib/useJob'
-import { useI18n } from '../i18n'
+import { useI18n, type Key } from '../i18n'
 import type {
-  EnsembleResult, GpuInfo, InferenceProfile, JobSummary, MutationResult,
+  EnsembleResult, GpuInfo, InferenceProfile, JobSummary, JobStatus, MutationResult,
   PlmScreenResult, Preset, ScanMapResult, ScanResult,
 } from '../lib/types'
-import SequenceInput, { stripFasta } from '../components/SequenceInput'
-import MutationPicker from '../components/MutationPicker'
-import MutagenesisDial from '../components/MutagenesisDial'
-import RunPanel from '../components/RunPanel'
-import ResultTabs from '../components/ResultTabs'
-import ScanPanel from '../components/ScanPanel'
-import ScanMapPanel, { type PaintMetric } from '../components/ScanMapPanel'
-import PlmScreenPanel, { type PlmPaintMetric } from '../components/PlmScreenPanel'
-import EnsemblePanel from '../components/EnsemblePanel'
-import MoleculeViewer from '../components/MoleculeViewer'
-import ProteinViewer from '../components/ProteinViewer'
-import HistoryPanel from '../components/HistoryPanel'
-import MutationsCompare from '../components/MutationsCompare'
-import SensitivityCompare from '../components/SensitivityCompare'
+import { stripFasta } from '../components/SequenceInput'
+import type { PaintMetric } from '../components/ScanMapPanel'
+import type { PlmPaintMetric } from '../components/PlmScreenPanel'
 
-const LIMITS = { min: 10, max: 600 }
+export const LIMITS = { min: 10, max: 600 }
 
-export default function WorkspacePage() {
-  const { t, lang } = useI18n()
+// тип задачи → страница, где живёт её результат: цель для мини-статуса
+// в сайдбаре и для восстановления задачи из истории
+// 任务类型 → 存放其结果页面：侧栏迷你状态与历史恢复的目标
+export const KIND_ROUTE: Record<string, string> = {
+  predict: '/structure',
+  mutate: '/structure',
+  scan: '/scan',
+  ensemble: '/ensemble',
+  scan_map: '/sensitivity',
+  plm_screen: '/plm',
+  dms_validation: '/validation',
+  benchmark: '/benchmarks',
+  benchmark_kernels: '/benchmarks',
+}
+
+// подписи видов задач (история + мини-статус) — один источник для обоих мест
+// 任务类型标签（历史 + 迷你状态）——两处的单一来源
+export const KIND_KEYS: Record<string, Key> = {
+  predict: 'hist.kind.predict',
+  mutate: 'hist.kind.mutate',
+  scan: 'hist.kind.scan',
+  ensemble: 'hist.kind.ensemble',
+  scan_map: 'hist.kind.map',
+  plm_screen: 'hist.kind.plm',
+  dms_validation: 'hist.kind.dms',
+  benchmark: 'hist.kind.benchmark',
+  benchmark_kernels: 'hist.kind.benchmark',
+}
+
+// чем раскрашен 3D-вьюер: скалярный канал scan-map или PLM
+// 3D 查看器着色所用的标量通道：scan-map 或 PLM
+export interface MapPaint {
+  scores: (number | null)[]
+  metric: PaintMetric | PlmPaintMetric
+}
+
+export interface WorkspaceCtx {
+  // белок | 蛋白
+  input: string
+  setInput: (s: string) => void
+  seq: string
+  seqOk: boolean
+  canRun: boolean
+  position: number
+  setPosition: (p: number) => void
+  mutantAA: string
+  setMutantAA: (aa: string) => void
+  presets: Preset[]
+  applyPreset: (p: Preset) => void
+
+  // вычисления | 算力
+  profile: InferenceProfile
+  setProfile: (p: InferenceProfile) => void
+  gpu: GpuInfo | null
+
+  // результаты | 结果
+  result: MutationResult | null
+  scanResult: ScanResult | null
+  ensembleResult: EnsembleResult | null
+  pickedEnsIdx: number | null
+  mapResult: ScanMapResult | null
+  plmResult: PlmScreenResult | null
+  plmTopK: number
+  setPlmTopK: (v: number) => void
+  mapFrom: number
+  mapTo: number
+  setMapRange: (from: number, to: number) => void
+  mapPaint: MapPaint | null
+  setMapPaint: (p: MapPaint | null) => void
+  wtPdb: string | null
+  mutPdb: string | null
+  resultJob: { id: string; kind: string } | null
+  activeJobId: string | null
+
+  // ручка ансамбля | ensemble 旋钮
+  dialExhaustive: boolean
+  setDialExhaustive: (v: boolean) => void
+  dialMu: number
+  setDialMu: (v: number) => void
+  dialTau: number
+  setDialTau: (v: number) => void
+  dialK: number
+  setDialK: (v: number) => void
+  dialSeed: number | null
+  setDialSeed: (v: number | null) => void
+
+  // задачи | 任务
+  jobStatus: JobStatus | null
+  jobRunning: boolean
+  jobError: string | null
+  cancelJob: () => void
+  runPredict: () => void
+  runMutate: () => void
+  runScan: () => void
+  runEnsemble: () => void
+  runMap: () => void
+  runPlm: () => void
+  resetResults: () => void
+
+  // история | 历史
+  history: JobSummary[]
+  refreshHistory: () => void
+  restore: (j: JobSummary) => void
+  pickScanRow: (aa: string) => void
+  pickEnsembleRow: (i: number) => void
+}
+
+const Ctx = createContext<WorkspaceCtx | null>(null)
+
+export function useWorkspace(): WorkspaceCtx {
+  const v = useContext(Ctx)
+  if (!v) throw new Error('useWorkspace must be used within WorkspaceProvider')
+  return v
+}
+
+export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const { lang } = useI18n()
+  const navigate = useNavigate()
+
   const [input, setInput] = useState('')
   const [position, setPosition] = useState(44)
   const [mutantAA, setMutantAA] = useState('A')
@@ -40,12 +156,7 @@ export default function WorkspacePage() {
   // карта чувствительности (dum.md §5): 19-векторы по позициям + 3D-раскраска
   // 敏感性图谱（dum.md §5）：逐位点 19 维向量 + 3D 着色
   const [mapResult, setMapResult] = useState<ScanMapResult | null>(null)
-  // какой скаляр нарисован: scan_map-метрики или PLM-каналы
-  // 已着色的标量：scan_map 指标或 PLM 通道
-  const [mapPaint, setMapPaint] = useState<{
-    scores: (number | null)[]
-    metric: PaintMetric | PlmPaintMetric
-  } | null>(null)
+  const [mapPaint, setMapPaint] = useState<MapPaint | null>(null)
   // PLM-скрин всего белка: один forward-проход + опциональный top-K фолдинг
   // 全蛋白 PLM 筛查：一次前向 + 可选的 top-K 折叠
   const [plmResult, setPlmResult] = useState<PlmScreenResult | null>(null)
@@ -68,6 +179,7 @@ export default function WorkspacePage() {
   // 正在展示结果/扫描面板的已完成任务——切换语言时重新请求
   const [resultJob, setResultJob] = useState<{ id: string; kind: string } | null>(null)
   const job = useJob()
+  const { status: jobStatus, running: jobRunning, error: jobError } = job
 
   const loadHistory = useCallback(() => {
     api.jobs(20).then(setHistory).catch(() => {})
@@ -76,7 +188,7 @@ export default function WorkspacePage() {
   useEffect(() => {
     api.presets().then((r) => setPresets(r.presets)).catch(() => {})
     api.gpu().then(setGpu).catch(() => {})
-  }, [loadHistory, lang]) // повторный запрос при смене языка: тексты пресетов приходят с бэкенда | 切换语言时重新请求：预设文本由后端返回
+  }, [lang]) // повторный запрос при смене языка: тексты пресетов приходят с бэкенда | 切换语言时重新请求：预设文本由后端返回
 
   useEffect(() => {
     loadHistory()
@@ -107,6 +219,23 @@ export default function WorkspacePage() {
     if (p.mutant_aa) setMutantAA(p.mutant_aa)
   }, [])
 
+  const clearResults = useCallback(() => {
+    setResult(null)
+    setScanResult(null)
+    setEnsembleResult(null)
+    setPickedEnsIdx(null)
+    setResultJob(null)
+    setMapResult(null)
+    setMapPaint(null)
+    setPlmResult(null)
+  }, [])
+
+  const resetResults = useCallback(() => {
+    clearResults()
+    setWtPdb(null)
+    setMutPdb(null)
+  }, [clearResults])
+
   const afterDone = useCallback(async (jobId: string, kind: string) => {
     try {
       if (kind === 'mutate') {
@@ -127,13 +256,11 @@ export default function WorkspacePage() {
         }
         setResultJob({ id: jobId, kind })
       } else if (kind === 'scan_map') {
-        const res = await api.result(jobId) as unknown as ScanMapResult
-        setMapResult(res)
+        setMapResult(await api.result(jobId) as unknown as ScanMapResult)
         setMapPaint(null)
         setResultJob({ id: jobId, kind })
       } else if (kind === 'plm_screen') {
-        const res = await api.result(jobId) as unknown as PlmScreenResult
-        setPlmResult(res)
+        setPlmResult(await api.result(jobId) as unknown as PlmScreenResult)
         setMapPaint(null)
         setResultJob({ id: jobId, kind })
       }
@@ -141,31 +268,23 @@ export default function WorkspacePage() {
     } catch { /* файлы могут отсутствовать для прогонов только-WT */ }
   }, [])
 
-  const runPredict = () => {
-    setResult(null); setMutPdb(null); setScanResult(null)
-    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null); setPlmResult(null)
+  const runPredict = useCallback(() => {
+    clearResults()
     job.run(() => api.submitPredict(seq, profile === 'auto' ? undefined : profile))
-  }
+  }, [clearResults, job, seq, profile])
 
-  const runMutate = () => {
-    setResult(null); setScanResult(null)
-    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null); setPlmResult(null)
+  const runMutate = useCallback(() => {
+    clearResults()
     job.run(() => api.submitMutate(seq, position, mutantAA, profile === 'auto' ? undefined : profile))
-  }
+  }, [clearResults, job, seq, position, mutantAA, profile])
 
-  const runScan = () => {
-    setResult(null); setScanResult(null); setMutPdb(null)
-    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null); setPlmResult(null)
+  const runScan = useCallback(() => {
+    clearResults()
     job.run(() => api.submitScan(seq, position, profile === 'auto' ? undefined : profile))
-  }
+  }, [clearResults, job, seq, position, profile])
 
-  const runEnsemble = () => {
-    setResult(null); setScanResult(null); setMutPdb(null)
-    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null); setPlmResult(null)
+  const runEnsemble = useCallback(() => {
+    clearResults()
     const mode = dialExhaustive ? 'exhaustive' as const : 'sampled' as const
     job.run(() => api.submitEnsemble(
       seq, position, mode,
@@ -175,59 +294,55 @@ export default function WorkspacePage() {
       dialSeed,
       profile === 'auto' ? undefined : profile,
     ))
-  }
+  }, [clearResults, job, seq, position, dialExhaustive, dialMu, dialTau, dialK, dialSeed, profile])
 
   // карта чувствительности: 19 фолдов на позицию в [mapFrom..mapTo]; результат
   // только с данными (без PDB мутантов), структура WT приходит из той же задачи
   // 敏感性图谱：[mapFrom..mapTo] 内每个位置 19 次折叠；结果仅含数据
   //（无突变体 PDB），WT 结构取自同一任务
-  const runMap = () => {
-    setResult(null); setScanResult(null); setMutPdb(null)
-    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null); setPlmResult(null)
+  const runMap = useCallback(() => {
+    clearResults()
     const positions = Array.from(
       { length: Math.max(0, mapTo - mapFrom + 1) },
       (_, i) => mapFrom + i,
     )
     job.run(() => api.submitScanMap(seq, positions, profile === 'auto' ? undefined : profile))
-  }
+  }, [clearResults, job, seq, mapFrom, mapTo, profile])
 
   // PLM-скрин: все 19×L замен из одного форварда; fold_top_k=0 — PLM-only
   // PLM 筛查：一次前向得到全部 19×L 替换；fold_top_k=0 为仅 PLM
-  const runPlm = () => {
-    setResult(null); setScanResult(null); setMutPdb(null)
-    setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-    setMapResult(null); setMapPaint(null); setPlmResult(null)
+  const runPlm = useCallback(() => {
+    clearResults()
     job.run(() => api.submitPlmScreen(seq, plmTopK, profile === 'auto' ? undefined : profile))
-  }
+  }, [clearResults, job, seq, plmTopK, profile])
 
   // опрос завершения: по готовности забираем артефакты, обновляем историю
   // 完成轮询：完成后取工件，刷新历史
   useEffect(() => {
-    const st = job.status?.status
+    const st = jobStatus?.status
     if (st === 'done') {
-      void afterDone(job.status!.job_id, job.status!.kind)
+      void afterDone(jobStatus!.job_id, jobStatus!.kind)
     }
-    if (st === 'done' || st === 'error') loadHistory()
-  }, [job.status?.status, job.status?.job_id, job.status?.kind]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (st === 'done' || st === 'error' || st === 'cancelled') loadHistory()
+  }, [jobStatus?.status, jobStatus?.job_id, jobStatus?.kind]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // показываем оверлей мутанта скана во вьюере (scan_<AA>.pdb выровнен по Kabsch)
   // 在查看器中显示扫描突变体的叠加（scan_<AA>.pdb 已按 Kabsch 对齐）
+  // resultJob покрывает и восстановленные задачи (job.status знает только текущий прогон)
+  // resultJob 也覆盖恢复的任务（job.status 只知道当前运行）
   const pickScanRow = useCallback(async (mutAA: string) => {
-    const jobId = job.status?.job_id
+    const jobId = resultJob?.id ?? jobStatus?.job_id
     if (!jobId) return
     try {
       setMutPdb(await api.pdb(jobId, `scan_${mutAA}.pdb`))
       setPosition(scanResult?.position ?? position)
     } catch { /* артефакт мог исчезнуть */ }
-  }, [job.status?.job_id, scanResult?.position, position])
+  }, [resultJob, jobStatus?.job_id, scanResult?.position, position])
 
   // показываем оверлей варианта ансамбля во вьюере (ens_XX.pdb, выровнен к WT)
   // 在查看器中显示 ensemble 变体的叠加（ens_XX.pdb，已对齐到 WT）
   const pickEnsembleRow = useCallback(async (i: number) => {
-    // resultJob покрывает и восстановленные задачи (job.status знает только текущий прогон)
-    // resultJob 也覆盖恢复的任务（job.status 只知道当前运行）
-    const jobId = resultJob?.id ?? job.status?.job_id
+    const jobId = resultJob?.id ?? jobStatus?.job_id
     const res = ensembleResult
     const row = res?.variants[i]
     if (!jobId || !row) return
@@ -236,22 +351,18 @@ export default function WorkspacePage() {
       setPickedEnsIdx(i)
       setPosition(res!.position)
     } catch { /* artifact may be gone */ }
-  }, [resultJob, job.status?.job_id, ensembleResult])
+  }, [resultJob, jobStatus?.job_id, ensembleResult])
 
-  // восстановление прошлой задачи: последовательность + мутация обратно в поля, артефакты во вьюер
-  // 恢复历史任务：序列 + 突变回填到输入框，工件放回查看器
+  // восстановление прошлой задачи: последовательность + мутация обратно в поля,
+  // артефакты во вьюер; сразу уводим на страницу, где живёт этот результат
+  // 恢复历史任务：序列 + 突变回填到输入框，工件放回查看器；
+  // 并立即跳转到该结果所在的页面
   const restore = useCallback(async (j: JobSummary) => {
+    navigate(KIND_ROUTE[j.kind] ?? '/history')
     if (j.sequence) setInput(j.sequence)
     if (j.position) setPosition(j.position)
     if (j.mutant_aa) setMutantAA(j.mutant_aa)
-    setResult(null)
-    setMutPdb(null)
-    setScanResult(null)
-    setEnsembleResult(null)
-    setPickedEnsIdx(null)
-    setMapResult(null)
-    setMapPaint(null)
-    setPlmResult(null)
+    clearResults()
     try {
       if (j.kind === 'mutate') {
         setResult(await api.result(j.job_id) as unknown as MutationResult)
@@ -281,18 +392,16 @@ export default function WorkspacePage() {
         setDialSeed(null)
         setResultJob({ id: j.job_id, kind: j.kind })
       } else if (j.kind === 'scan_map') {
-        const res = await api.result(j.job_id) as unknown as ScanMapResult
-        setMapResult(res)
+        setMapResult(await api.result(j.job_id) as unknown as ScanMapResult)
         setResultJob({ id: j.job_id, kind: j.kind })
       } else if (j.kind === 'plm_screen') {
-        const res = await api.result(j.job_id) as unknown as PlmScreenResult
-        setPlmResult(res)
+        setPlmResult(await api.result(j.job_id) as unknown as PlmScreenResult)
         if (j.fold_top_k != null) setPlmTopK(j.fold_top_k)
         setResultJob({ id: j.job_id, kind: j.kind })
       }
       setWtPdb(await api.pdb(j.job_id, 'wt.pdb'))
     } catch { /* артефакты могли исчезнуть */ }
-  }, [])
+  }, [navigate, clearResults])
 
   // смена языка → тексты бэкенда (сводка) приходят на новом языке
   // 切换语言 → 后端文本（摘要）以新语言重新获取
@@ -305,173 +414,41 @@ export default function WorkspacePage() {
       if (!live) return
       if (kind === 'mutate') {
         setResult(res as unknown as MutationResult)
-        setScanResult(null)
-        setEnsembleResult(null)
       } else if (kind === 'scan') {
         setScanResult(res as unknown as ScanResult)
-        setResult(null)
-        setEnsembleResult(null)
       } else if (kind === 'ensemble') {
         setEnsembleResult(res as unknown as EnsembleResult)
-        setResult(null)
-        setScanResult(null)
       } else if (kind === 'plm_screen') {
         setPlmResult(res as unknown as PlmScreenResult)
-        setResult(null)
-        setScanResult(null)
-        setEnsembleResult(null)
-        setMapResult(null)
       } else {
         setMapResult(res as unknown as ScanMapResult)
-        setResult(null)
-        setScanResult(null)
-        setEnsembleResult(null)
       }
     }).catch(() => { /* артефакты задачи могли исчезнуть */ })
     return () => { live = false }
   }, [lang]) // eslint-disable-line react-hooks/exhaustive-deps -- resultJob читается, а не триггер
 
-  return (
-    <div className="grid gap-5 lg:grid-cols-[400px_1fr]">
-      <div className="panel space-y-5 p-4">
-        <SequenceInput value={input} onChange={setInput} presets={presets} minLen={LIMITS.min} maxLen={LIMITS.max} />
-        <MutationPicker
-          sequence={seq}
-          position={position}
-          mutantAA={mutantAA}
-          onChange={(p, aa) => { setPosition(p); setMutantAA(aa) }}
-          presets={presets}
-          onApplyPreset={applyPreset}
-        />
-        <MutagenesisDial
-          seqLen={seq.length}
-          profile={profile}
-          exhaustive={dialExhaustive}
-          mu={dialMu}
-          tau={dialTau}
-          k={dialExhaustive ? 19 : dialK}
-          seed={dialSeed}
-          onExhaustive={setDialExhaustive}
-          onMu={setDialMu}
-          onTau={setDialTau}
-          onK={setDialK}
-          onSeed={setDialSeed}
-        />
-        <RunPanel
-          canRun={canRun}
-          running={!!job.running}
-          status={job.status}
-          error={job.error}
-          gpu={gpu}
-          profile={profile}
-          onProfileChange={setProfile}
-          onRunPredict={runPredict}
-          onRunMutate={runMutate}
-          onRunScan={runScan}
-          onRunEnsemble={runEnsemble}
-          onRunMap={runMap}
-          onRunPlm={runPlm}
-          plmTopK={plmTopK}
-          onPlmTopKChange={setPlmTopK}
-          mapFrom={mapFrom}
-          mapTo={mapTo}
-          seqLen={seq.length}
-          onMapRangeChange={(a, b) => { setMapFrom(a); setMapTo(Math.max(a, b)) }}
-          onReset={() => {
-            setResult(null); setWtPdb(null); setMutPdb(null); setScanResult(null)
-            setEnsembleResult(null); setPickedEnsIdx(null); setResultJob(null)
-            setMapResult(null); setMapPaint(null); setPlmResult(null)
-          }}
-        />
-        <HistoryPanel
-          jobs={history}
-          currentJobId={job.status?.job_id ?? null}
-          onRestore={(j) => void restore(j)}
-          onRefresh={loadHistory}
-        />
-      </div>
+  // значение пересобирается на каждый рендер намеренно: состояние провайдера
+  // меняется часто (поллинг 700 мс), мемоизация не дала бы выигрыша
+  // 有意在每次渲染时重建 value：Provider 状态变化频繁（700ms 轮询），
+  // 记忆化没有收益
+  const value: WorkspaceCtx = {
+    input, setInput, seq, seqOk, canRun, position, setPosition, mutantAA, setMutantAA,
+    presets, applyPreset,
+    profile, setProfile, gpu,
+    result, scanResult, ensembleResult, pickedEnsIdx, mapResult, plmResult,
+    plmTopK, setPlmTopK,
+    mapFrom, mapTo,
+    setMapRange: (from, to) => { setMapFrom(from); setMapTo(Math.max(from, to)) },
+    mapPaint, setMapPaint, wtPdb, mutPdb, resultJob,
+    activeJobId: resultJob?.id ?? jobStatus?.job_id ?? null,
+    dialExhaustive, setDialExhaustive, dialMu, setDialMu, dialTau, setDialTau,
+    dialK, setDialK, dialSeed, setDialSeed,
+    jobStatus, jobRunning, jobError, cancelJob: job.cancel,
+    runPredict, runMutate, runScan, runEnsemble, runMap, runPlm, resetResults,
+    history, refreshHistory: loadHistory, restore,
+    pickScanRow: (aa) => void pickScanRow(aa),
+    pickEnsembleRow: (i) => void pickEnsembleRow(i),
+  }
 
-      <div className="space-y-5">
-        <MoleculeViewer
-          wtPdb={wtPdb}
-          mutPdb={mutPdb}
-          aligned={true}
-          mutationPosition={position}
-          residueScores={mapPaint?.scores ?? null}
-          scoreLabel={mapPaint ? t('viewer.legendSensitivity') : undefined}
-        />
-        <ProteinViewer
-          sequence={seqOk ? seq : ''}
-          position={position}
-          onPositionChange={setPosition}
-          plddtWt={result?.plddt_wt_list ?? null}
-          result={result}
-          scan={scanResult}
-          ensemble={ensembleResult}
-        />
-        {mapResult ? (
-          <div className="panel p-4">
-            <h3 className="mb-3 text-sm font-medium text-neutral-900">
-              {t('ws.mapTitle', { n: mapResult.n_positions })}
-            </h3>
-            <ScanMapPanel
-              result={mapResult}
-              jobId={resultJob?.id ?? job.status?.job_id ?? null}
-              paintedMetric={
-                mapPaint?.metric === 'v_max' || mapPaint?.metric === 'v_med'
-                  ? mapPaint.metric
-                  : null
-              }
-              onPaint={(scores, metric) => setMapPaint({ scores, metric })}
-              onClearPaint={() => setMapPaint(null)}
-            />
-          </div>
-        ) : plmResult ? (
-          <div className="panel p-4">
-            <h3 className="mb-3 text-sm font-medium text-neutral-900">
-              {t('ws.plmTitle', { n: plmResult.n_positions })}
-            </h3>
-            <PlmScreenPanel
-              result={plmResult}
-              jobId={resultJob?.id ?? job.status?.job_id ?? null}
-              paintedMetric={mapPaint?.metric === 'plm_v_max' || mapPaint?.metric === 'plm_v_med'
-                ? mapPaint.metric
-                : null}
-              onPaint={(scores, metric) => setMapPaint({ scores, metric })}
-              onClearPaint={() => setMapPaint(null)}
-            />
-          </div>
-        ) : scanResult ? (
-          <div className="panel p-4">
-            <h3 className="mb-3 text-sm font-medium text-neutral-900">
-              {t('ws.scanTitle', { pos: scanResult.position })}
-            </h3>
-            <ScanPanel result={scanResult} onPickRow={(aa) => void pickScanRow(aa)} />
-          </div>
-        ) : ensembleResult ? (
-          <div className="panel p-4">
-            <h3 className="mb-3 text-sm font-medium text-neutral-900">
-              {t('ws.ensembleTitle', { pos: ensembleResult.position })}
-            </h3>
-            <EnsemblePanel
-              result={ensembleResult}
-              onPickRow={(i) => void pickEnsembleRow(i)}
-              pickedIndex={pickedEnsIdx}
-            />
-          </div>
-        ) : result?.rmsd ? (
-          <div className="panel p-4" data-demo="metrics">
-            <h3 className="mb-3 text-sm font-medium text-neutral-900">{t('ws.overlayResult')}</h3>
-            <ResultTabs result={result} />
-          </div>
-        ) : (
-          <div className="panel p-4 text-xs text-neutral-500">
-            {t('ws.hint')}
-          </div>
-        )}
-        <MutationsCompare jobs={history} wtSequence={seqOk ? seq : ''} />
-        <SensitivityCompare jobs={history} wtSequence={seqOk ? seq : ''} />
-      </div>
-    </div>
-  )
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

@@ -6,6 +6,7 @@ import { Suspense, lazy, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { useJob } from '../lib/useJob'
 import { useI18n, renderBold, type Key, type TFn } from '../i18n'
+import { PALETTE, useTheme, type ChartColors } from '../state/theme'
 import type {
   AssayInfo, DmsCorrelation, DmsPoint, DmsValidationResult, InferenceProfile,
 } from '../lib/types'
@@ -16,11 +17,11 @@ const Plot = lazy(() => import('../components/PlotlyChart'))
 
 const LIMITS = { min: 10, max: 600 }
 
-// серая шкала + один красный; чёрный закреплён за zero-shot заголовком
-// 灰阶 + 一抹红；黑色留给 zero-shot 主结果
-const C_DARK = '#111111'
-const C_GRAY = '#6b7280'
-const C_RED = '#b91c1c'
+// серая шкала + один красный; чёрный закреплён за zero-shot заголовком.
+// значения берутся из палитры темы (state/theme.tsx) — ниже они встречаются
+// как C.ink / C.gray / C.accent
+// 灰阶 + 一抹红；黑色留给 zero-shot 主结果。取值来自主题调色板
+//（state/theme.tsx）——下方使用 C.ink / C.gray / C.accent。
 
 const PROFILES: InferenceProfile[] = ['auto', 'fp32-gpu', 'fp16-gpu', 'cpu', 'dummy']
 const PROFILE_LABEL: Record<InferenceProfile, Key> = {
@@ -42,6 +43,8 @@ function fmtCi(ci: [number, number] | null): string {
 
 export default function ValidationPage() {
   const { t, tl, lang } = useI18n()
+  const { theme } = useTheme()
+  const C = PALETTE[theme]
   const [input, setInput] = useState('')
   const [assays, setAssays] = useState<AssayInfo[] | null>(null)
   const [assayId, setAssayId] = useState('')
@@ -207,7 +210,8 @@ export default function ValidationPage() {
           {job.running ? t('val.running') : t('val.run')}
         </button>
 
-        {job.status && job.status.status !== 'done' && job.status.status !== 'error' && (
+        {job.status && job.status.status !== 'done' && job.status.status !== 'error'
+          && job.status.status !== 'cancelled' && (
           <div className="text-xs text-neutral-500">
             {job.status.message ?? '…'} {(job.status.progress * 100).toFixed(0)}%
           </div>
@@ -266,8 +270,8 @@ export default function ValidationPage() {
                     fallback={<div className="text-xs text-neutral-400">{t('common.chartLoading')}</div>}
                   >
                     <Plot
-                      data={scatterData(valResult.scatter_plm, C_DARK)}
-                      layout={scatterLayout(t('val.xMargin'), t('val.yFitness'))}
+                      data={scatterData(valResult.scatter_plm, C.ink)}
+                      layout={scatterLayout(t('val.xMargin'), t('val.yFitness'), C)}
                     />
                   </Suspense>
                 </div>
@@ -279,8 +283,8 @@ export default function ValidationPage() {
                     {valResult.scatter_struct.length > 0
                       ? (
                         <Plot
-                          data={scatterData(valResult.scatter_struct, C_RED)}
-                          layout={scatterLayout(t('val.xRmsd'), t('val.yFitness'))}
+                          data={scatterData(valResult.scatter_struct, C.accent)}
+                          layout={scatterLayout(t('val.xRmsd'), t('val.yFitness'), C)}
                         />
                       )
                       : (
@@ -298,7 +302,7 @@ export default function ValidationPage() {
               <Suspense
                 fallback={<div className="text-xs text-neutral-400">{t('common.chartLoading')}</div>}
               >
-                <Plot data={positionBars(valResult)} layout={positionBarsLayout(t)} />
+                <Plot data={positionBars(valResult, C)} layout={positionBarsLayout(t, C)} />
               </Suspense>
             </div>
 
@@ -387,13 +391,13 @@ function scatterData(pts: DmsPoint[], color: string) {
   }]
 }
 
-function scatterLayout(xTitle: string, yTitle: string) {
+function scatterLayout(xTitle: string, yTitle: string, C: ChartColors) {
   return {
     margin: { t: 10, r: 10, b: 40, l: 55 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { color: '#525252', size: 11 },
-    xaxis: { title: { text: xTitle }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
-    yaxis: { title: { text: yTitle }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    paper_bgcolor: C.paper, plot_bgcolor: C.paper,
+    font: { color: C.muted, size: 11 },
+    xaxis: { title: { text: xTitle }, gridcolor: C.grid, linecolor: C.border },
+    yaxis: { title: { text: yTitle }, gridcolor: C.grid, linecolor: C.border },
     showlegend: false,
   }
 }
@@ -401,7 +405,7 @@ function scatterLayout(xTitle: string, yTitle: string) {
 // два ряда на одной оси позиций: экспериментальный fitness (серый, левая ось)
 // и PLM-перцентиль хрупкости (красный, правая 0..1) — шкалы несопоставимы
 // 同一位置轴上两组柱：实验 fitness（灰，左轴）与 PLM 脆弱性百分位（红，右轴 0..1）——量纲不同
-function positionBars(r: DmsValidationResult) {
+function positionBars(r: DmsValidationResult, C: ChartColors) {
   const pp = r.per_position
   return [
     {
@@ -409,7 +413,7 @@ function positionBars(r: DmsValidationResult) {
       y: pp.map((p) => p.mean_fitness_z),
       name: 'fitness',
       type: 'bar' as const,
-      marker: { color: C_GRAY },
+      marker: { color: C.gray },
     },
     {
       x: pp.map((p) => p.pos),
@@ -417,19 +421,19 @@ function positionBars(r: DmsValidationResult) {
       name: 'PLM',
       type: 'bar' as const,
       yaxis: 'y2' as const,
-      marker: { color: C_RED },
+      marker: { color: C.accent },
     },
   ]
 }
 
-function positionBarsLayout(t: TFn) {
+function positionBarsLayout(t: TFn, C: ChartColors) {
   return {
     margin: { t: 10, r: 55, b: 30, l: 55 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { color: '#525252', size: 11 },
+    paper_bgcolor: C.paper, plot_bgcolor: C.paper,
+    font: { color: C.muted, size: 11 },
     barmode: 'group' as const,
-    xaxis: { title: { text: t('res.xaxis.residue') }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
-    yaxis: { title: { text: t('val.fitness') }, gridcolor: '#e5e5e5', linecolor: '#d4d4d4' },
+    xaxis: { title: { text: t('res.xaxis.residue') }, gridcolor: C.grid, linecolor: C.border },
+    yaxis: { title: { text: t('val.fitness') }, gridcolor: C.grid, linecolor: C.border },
     yaxis2: {
       overlaying: 'y' as const, side: 'right' as const, range: [0, 1] as [number, number],
       title: { text: t('val.pctl') }, showgrid: false, zeroline: false,

@@ -7,6 +7,7 @@
 // tip 为本地化悬停文本。罗盘与后端共用。
 import { Suspense, lazy } from 'react'
 import { useI18n } from '../i18n'
+import { PALETTE, useTheme } from '../state/theme'
 import { HEAT_BUCKETS, bucketColor, PETAL_DIRS } from './RoseGlyph'
 
 const Plot = lazy(() => import('./PlotlyChart'))
@@ -28,6 +29,8 @@ export interface PetalHeatmapProps {
 
 export default function PetalHeatmap({ positions, title, xTitle, legendText }: PetalHeatmapProps) {
   const { t } = useI18n()
+  const { theme } = useTheme()
+  const C = PALETTE[theme]
   const dirs = PETAL_DIRS.split('')
   const z = dirs.map((aa) =>
     positions.map((p) => {
@@ -47,7 +50,7 @@ export default function PetalHeatmap({ positions, title, xTitle, legendText }: P
     z,
     customdata: custom,
     type: 'heatmap' as const,
-    colorscale: [[0, '#ffffff'], [1, '#b91c1c']],
+    colorscale: [[0, C.scaleFrom], [1, C.accent]],
     zmin: 0,
     zmax: 1,
     hovertemplate: '%{customdata}<extra>pctl %{z}</extra>',
@@ -55,10 +58,10 @@ export default function PetalHeatmap({ positions, title, xTitle, legendText }: P
   }]
   const layout = {
     margin: { t: 10, r: 10, b: 40, l: 40 },
-    paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
-    font: { color: '#525252', size: 11 },
-    xaxis: { title: { text: xTitle }, linecolor: '#d4d4d4' },
-    yaxis: { linecolor: '#d4d4d4' },
+    paper_bgcolor: C.paper, plot_bgcolor: C.paper,
+    font: { color: C.muted, size: 11 },
+    xaxis: { title: { text: xTitle }, linecolor: C.border },
+    yaxis: { linecolor: C.border },
   }
   return (
     <div>
@@ -71,7 +74,7 @@ export default function PetalHeatmap({ positions, title, xTitle, legendText }: P
       <div className="mt-1 flex items-center gap-1 text-[10px] text-neutral-500">
         <span>0</span>
         {Array.from({ length: HEAT_BUCKETS }, (_, i) => (
-          <span key={i} className="inline-block h-2.5 w-4" style={{ background: bucketColor(i) }} />
+          <span key={i} className="inline-block h-2.5 w-4" style={{ background: bucketColor(i, C) }} />
         ))}
         <span>1 · {legendText}</span>
       </div>

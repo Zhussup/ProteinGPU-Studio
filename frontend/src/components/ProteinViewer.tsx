@@ -12,17 +12,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EnsembleResult, MutationResult, ScanResult } from '../lib/types'
 import { useI18n, type Key, type TFn } from '../i18n'
+import { PALETTE, type ChartColors, useTheme } from '../state/theme'
 import {
   AXIS_HEIGHT, PAD_X, TRACKS, buildGeometry, computeWindow, tickStep, trackHeight,
   type Geometry, type TrackId,
 } from '../lib/viewerGeometry'
-
-const RED = '#b91c1c' // тот же строгий красный, что в MoleculeViewer | 与 MoleculeViewer 相同的严格红
-const INTERP_FILL: Record<'stable' | 'moderate' | 'critical', string> = {
-  stable: '#d4d4d4',
-  moderate: '#6b7280',
-  critical: '#b91c1c',
-}
 
 // Подписи треков рисуются на canvas — переводятся через словарь.
 // 轨道标签绘制在 canvas 上——通过字典翻译。
@@ -51,6 +45,8 @@ export default function ProteinViewer({
   sequence, position, onPositionChange, plddtWt, result, scan, ensemble,
 }: ProteinViewerProps) {
   const { t } = useI18n()
+  const { theme } = useTheme()
+  const C = PALETTE[theme]
   const [mode, setMode] = useState<ViewMode>('whole')
   const [width, setWidth] = useState(0)
   const [hover, setHover] = useState<number | null>(null)
@@ -127,29 +123,29 @@ export default function ProteinViewer({
     canvas.style.height = `${geom.height}px`
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = C.paper
     ctx.fillRect(0, 0, geom.width, geom.height)
     ctx.font = '10px ui-monospace, monospace'
     ctx.textBaseline = 'middle'
 
-    drawAxis(ctx, geom)
-    drawTracksBackground(ctx, geom, t)
+    drawAxis(ctx, geom, C)
+    drawTracksBackground(ctx, geom, t, C)
 
-    // окно локального RMSD (±10 от сайта мутации) — светлая полоса под данными
-    // 局部 RMSD 窗口（距突变位点 ±10）——数据下方的浅色条带
+    // окно локального RMSD (±10 от сайта мутации) — полоса под данными
+    // 局部 RMSD 窗口（距突变位点 ±10）——数据下方的条带
     const lw = result?.rmsd?.local_window
-    if (lw) drawBand(ctx, geom, lw[0], lw[1], '#f0f0f0')
+    if (lw) drawBand(ctx, geom, lw[0], lw[1], C.band)
 
-    drawSequence(ctx, geom, sequence, cur)
-    drawPlddt(ctx, geom, sequence, plddtWt, t)
-    drawMutation(ctx, geom, mutation)
-    drawScan(ctx, geom, sc, t)
-    drawVariants(ctx, geom, en, t)
-    drawTrackPlaceholders(ctx, geom, t)
+    drawSequence(ctx, geom, sequence, cur, C)
+    drawPlddt(ctx, geom, sequence, plddtWt, t, C)
+    drawMutation(ctx, geom, mutation, C)
+    drawScan(ctx, geom, sc, t, C)
+    drawVariants(ctx, geom, en, t, C)
+    drawTrackPlaceholders(ctx, geom, t, C)
 
-    if (hover) drawVLine(ctx, geom, hover, '#a3a3a3', true)
-    drawVLine(ctx, geom, cur, '#111111', false)
-  }, [geom, sequence, plddtWt, mutation, sc, en, result, hover, cur, t])
+    if (hover) drawVLine(ctx, geom, hover, C.faint, true)
+    drawVLine(ctx, geom, cur, C.ink, false)
+  }, [geom, sequence, plddtWt, mutation, sc, en, result, hover, cur, t, C])
 
   // --- мини-карта: полоса ориентирования с текущим окном ---
   // --- 小地图：带当前窗口的定位条 ---
@@ -165,27 +161,27 @@ export default function ProteinViewer({
     canvas.style.width = `${width}px`
     canvas.style.height = `${mapH}px`
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = C.paper
     ctx.fillRect(0, 0, width, mapH)
 
     const x0 = padX
     const w = width - 2 * x0
-    ctx.fillStyle = '#e5e5e5'
+    ctx.fillStyle = C.grid
     ctx.fillRect(x0, 7, w, 6)
     const wx = x0 + ((win.start - 1) / length) * w
     const ww = ((win.end - win.start + 1) / length) * w
-    ctx.strokeStyle = '#111111'
+    ctx.strokeStyle = C.ink
     ctx.lineWidth = 1
     ctx.strokeRect(wx + 0.5, 4.5, Math.max(2, ww - 1), 11)
     if (length > 1) {
-      ctx.fillStyle = '#737373'
+      ctx.fillStyle = C.dim
       ctx.font = '9px ui-monospace, monospace'
       ctx.textBaseline = 'top'
       ctx.fillText('1', x0, 7)
       const last = String(length)
       ctx.fillText(last, x0 + w - last.length * 6, 7)
     }
-  }, [width, length, win, padX])
+  }, [width, length, win, padX, C])
 
   const onMapClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (length === 0) return
@@ -323,10 +319,10 @@ function Header({
 // --- хелперы отрисовки (все координаты из Geometry) ---
 // --- 绘制辅助函数（所有坐标来自 Geometry） ---
 
-function drawAxis(ctx: CanvasRenderingContext2D, g: Geometry) {
+function drawAxis(ctx: CanvasRenderingContext2D, g: Geometry, C: ChartColors) {
   const step = tickStep(g.win.end - g.win.start + 1, g.plotW)
-  ctx.fillStyle = '#737373'
-  ctx.strokeStyle = '#d4d4d4'
+  ctx.fillStyle = C.dim
+  ctx.strokeStyle = C.border
   ctx.textAlign = 'center'
   ctx.beginPath()
   for (let p = Math.ceil(g.win.start / step) * step; p <= g.win.end; p += step) {
@@ -340,20 +336,20 @@ function drawAxis(ctx: CanvasRenderingContext2D, g: Geometry) {
 }
 
 function drawTracksBackground(
-  ctx: CanvasRenderingContext2D, g: Geometry, t: TFn,
+  ctx: CanvasRenderingContext2D, g: Geometry, t: TFn, C: ChartColors,
 ) {
   // название трека в левом поле + волосяная линия под каждым треком
   // 左侧边距的轨道名 + 每条轨道下的细线
   ctx.font = '9px ui-sans-serif, system-ui, sans-serif'
   for (const tr of TRACKS) {
     const top = g.trackTopOf(tr.id)
-    ctx.fillStyle = '#a3a3a3'
+    ctx.fillStyle = C.faint
     ctx.textAlign = 'right'
     ctx.save()
     ctx.translate(g.plotX - 4, top + tr.height / 2)
     ctx.fillText(t(TRACK_LABEL_KEYS[tr.id]), 0, 0)
     ctx.restore()
-    ctx.strokeStyle = '#f0f0f0'
+    ctx.strokeStyle = C.band
     ctx.beginPath()
     ctx.moveTo(g.plotX, top + tr.height + 1.5)
     ctx.lineTo(g.width, top + tr.height + 1.5)
@@ -388,7 +384,7 @@ function drawVLine(
 }
 
 function drawSequence(
-  ctx: CanvasRenderingContext2D, g: Geometry, seq: string, cur: number,
+  ctx: CanvasRenderingContext2D, g: Geometry, seq: string, cur: number, C: ChartColors,
 ) {
   const top = g.trackTopOf('sequence')
   const h = trackHeight('sequence')
@@ -398,21 +394,21 @@ function drawSequence(
   ctx.textAlign = 'center'
   for (let p = g.win.start; p <= g.win.end; p++) {
     if (p === cur) continue // нарисован подсвеченным ниже | 在下方以高亮绘制
-    ctx.fillStyle = '#404040'
+    ctx.fillStyle = C.ink2
     ctx.fillText(seq[p - 1], g.centerFor(p), mid)
   }
-  // текущая позиция: чёрная ячейка, белая буква
-  // 当前位置：黑底白字
-  ctx.fillStyle = '#111111'
+  // текущая позиция: инверсная ячейка (ink / paper темы)
+  // 当前位置：反色单元格（主题的 ink / paper）
+  ctx.fillStyle = C.ink
   ctx.fillRect(g.xFor(cur), top + 2, g.colW, h - 4)
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = C.paper
   ctx.fillText(seq[cur - 1], g.centerFor(cur), mid)
   ctx.textAlign = 'left'
 }
 
 function drawPlddt(
   ctx: CanvasRenderingContext2D, g: Geometry, seq: string,
-  plddt: number[] | null | undefined, t: TFn,
+  plddt: number[] | null | undefined, t: TFn, C: ChartColors,
 ) {
   const top = g.trackTopOf('plddt')
   const h = trackHeight('plddt')
@@ -420,7 +416,7 @@ function drawPlddt(
   const inner = h - 12
   // сетка на 50 / 90
   // 50 / 90 处的网格线
-  ctx.strokeStyle = '#e5e5e5'
+  ctx.strokeStyle = C.grid
   ctx.setLineDash([2, 3])
   for (const v of [50, 90]) {
     const y = baseline - (v / 100) * inner
@@ -428,17 +424,17 @@ function drawPlddt(
     ctx.moveTo(g.plotX, y)
     ctx.lineTo(g.width, y)
     ctx.stroke()
-    ctx.fillStyle = '#a3a3a3'
+    ctx.fillStyle = C.faint
     ctx.fillText(String(v), g.plotX, y - 5)
   }
   ctx.setLineDash([])
 
   if (!plddt || plddt.length !== seq.length) {
-    ctx.fillStyle = '#a3a3a3'
+    ctx.fillStyle = C.faint
     ctx.fillText(t('pv.plddtNoData'), g.plotX + 16, top + h / 2)
     return
   }
-  ctx.fillStyle = '#111111'
+  ctx.fillStyle = C.ink
   const bw = Math.max(1, g.colW * 0.7)
   for (let p = g.win.start; p <= g.win.end; p++) {
     const v = plddt[p - 1]
@@ -446,7 +442,7 @@ function drawPlddt(
     const bh = Math.max(1, (v / 100) * inner)
     ctx.fillRect(g.xFor(p) + (g.colW - bw) / 2, baseline - bh, bw, bh)
   }
-  ctx.strokeStyle = '#d4d4d4'
+  ctx.strokeStyle = C.border
   ctx.beginPath()
   ctx.moveTo(PAD_X, baseline + 0.5)
   ctx.lineTo(g.width, baseline + 0.5)
@@ -457,6 +453,7 @@ function drawMutation(
   ctx: CanvasRenderingContext2D,
   g: Geometry,
   mutation: { position: number; wt_aa: string; mut_aa: string } | null,
+  C: ChartColors,
 ) {
   const top = g.trackTopOf('mutation')
   const h = trackHeight('mutation')
@@ -464,7 +461,7 @@ function drawMutation(
     if (mutation) {
       // ожидаемая мутация из пикера: только контур
       // 来自选择器的待定突变：仅描边
-      ctx.strokeStyle = RED
+      ctx.strokeStyle = C.accent
       ctx.strokeRect(g.xFor(mutation.position) + 1, top + 3, Math.max(2, g.colW - 2), h - 6)
     }
     return
@@ -472,11 +469,11 @@ function drawMutation(
   const m = mutation
   const x = g.xFor(m.position)
   const w = Math.max(2, g.colW)
-  ctx.fillStyle = RED
+  ctx.fillStyle = C.accent
   ctx.fillRect(x, top + 3, w, h - 6)
   // подпись справа от маркера (слева, если выйдет за график)
   // 标签在标记右侧（若超出图区则放左侧）
-  ctx.fillStyle = RED
+  ctx.fillStyle = C.accent
   ctx.font = '10px ui-monospace, monospace'
   const label = `${m.wt_aa}${m.position}${m.mut_aa}`
   const lx = x + w + 5
@@ -484,12 +481,19 @@ function drawMutation(
 }
 
 function drawScan(
-  ctx: CanvasRenderingContext2D, g: Geometry, scan: ScanResult | null, t: TFn,
+  ctx: CanvasRenderingContext2D, g: Geometry, scan: ScanResult | null, t: TFn, C: ChartColors,
 ) {
   const top = g.trackTopOf('scan')
   const h = trackHeight('scan')
+  // вердиктные заливки из палитры: в светлой теме это прежние #d4d4d4 / #6b7280 / #b91c1c
+  // 判定填充取自调色板：浅色主题即原 #d4d4d4 / #6b7280 / #b91c1c
+  const interpFill: Record<'stable' | 'moderate' | 'critical', string> = {
+    stable: C.border,
+    moderate: C.gray,
+    critical: C.accent,
+  }
   if (!scan) {
-    ctx.fillStyle = '#a3a3a3'
+    ctx.fillStyle = C.faint
     ctx.fillText(t('pv.scanNoData'), g.plotX + 16, top + h / 2)
     return
   }
@@ -498,22 +502,22 @@ function drawScan(
   const x = g.xFor(scan.position)
   const w = Math.max(2, g.colW - 1)
   rows.forEach((row, i) => {
-    ctx.fillStyle = INTERP_FILL[row.interpretation]
+    ctx.fillStyle = interpFill[row.interpretation]
     ctx.fillRect(x, top + i * cellH, w, Math.max(1, cellH - 0.5))
   })
-  ctx.fillStyle = '#737373'
+  ctx.fillStyle = C.dim
   ctx.font = '9px ui-monospace, monospace'
   ctx.fillText(`scan @ ${scan.position}`, x + w + 4, top + 6)
 }
 
 function drawTrackPlaceholders(
-  ctx: CanvasRenderingContext2D, g: Geometry, t: TFn,
+  ctx: CanvasRenderingContext2D, g: Geometry, t: TFn, C: ChartColors,
 ) {
   // трек доменов появится вместе с этапом UniProt (design doc §6, этап 1.3)
   // 域轨道随 UniProt 阶段出现（设计文档 §6，阶段 1.3）
   const top = g.trackTopOf('domains')
   const h = trackHeight('domains')
-  ctx.fillStyle = '#a3a3a3'
+  ctx.fillStyle = C.faint
   ctx.font = '9px ui-sans-serif, system-ui, sans-serif'
   ctx.fillText(t('pv.uniprotPlaceholder'), g.plotX + 16, top + h / 2)
 }
@@ -523,22 +527,23 @@ function drawTrackPlaceholders(
 // красный, нормированная на максимум ВНУТРИ ЭТОГО ансамбля.
 // 变体轨道：整个 ensemble 的逐残基平均 |ΔpLDDT|（dum.md §6——
 // 诚实的敏感性图），热度条从浅灰到严格红，按本 ensemble 内的最大值归一化。
-const HEAT_LO = [0xf5, 0xf5, 0xf5]
-const HEAT_HI = [0xb9, 0x1c, 0x1c]
-
-function heatColor(frac: number): string {
-  const c = HEAT_LO.map((lo, i) => Math.round(lo + (HEAT_HI[i] - lo) * frac))
+// тепловая полоса: surface → accent темы (в светлой — прежние #f5f5f5 → #b91c1c)
+// 热度条：surface → 主题 accent（浅色主题即原 #f5f5f5 → #b91c1c）
+function heatColor(frac: number, C: ChartColors): string {
+  const lo = [1, 3, 5].map((i) => parseInt(C.surface.slice(i, i + 2), 16))
+  const hi = [1, 3, 5].map((i) => parseInt(C.accent.slice(i, i + 2), 16))
+  const c = lo.map((x, i) => Math.round(x + (hi[i] - x) * frac))
   return `rgb(${c[0]},${c[1]},${c[2]})`
 }
 
 function drawVariants(
-  ctx: CanvasRenderingContext2D, g: Geometry, ens: EnsembleResult | null, t: TFn,
+  ctx: CanvasRenderingContext2D, g: Geometry, ens: EnsembleResult | null, t: TFn, C: ChartColors,
 ) {
   const top = g.trackTopOf('variants')
   const h = trackHeight('variants')
   const list = ens?.dplddt_abs_mean_list
   if (!list || list.length !== g.length) {
-    ctx.fillStyle = '#a3a3a3'
+    ctx.fillStyle = C.faint
     ctx.font = '9px ui-sans-serif, system-ui, sans-serif'
     ctx.fillText(t('pv.variantsNoData'), g.plotX + 16, top + h / 2)
     return
@@ -550,16 +555,16 @@ function drawVariants(
     // guard ≈0 → всё белое (плоский профиль не несёт информации)
     // 防护 ≈0 → 全白（平坦剖面不含信息）
     const frac = max > 1e-9 ? Math.min(1, Math.max(0, list[p - 1] / max)) : 0
-    ctx.fillStyle = heatColor(frac)
+    ctx.fillStyle = heatColor(frac, C)
     ctx.fillRect(g.xFor(p), top + pad, Math.max(1, g.colW - 0.5), stripH)
   }
   // якорь: с контуром, как у всех прочих маркеров сайта
   // 锚点：与其他位点标记一样描边
   const x = g.xFor(ens!.position)
   const w = Math.max(2, g.colW - 0.5)
-  ctx.strokeStyle = '#111111'
+  ctx.strokeStyle = C.ink
   ctx.strokeRect(x + 0.5, top + pad + 0.5, w - 1, stripH - 1)
-  ctx.fillStyle = '#737373'
+  ctx.fillStyle = C.dim
   ctx.font = '9px ui-monospace, monospace'
   ctx.fillText(`ens @ ${ens!.position}`, x + w + 4, top + 6)
 }

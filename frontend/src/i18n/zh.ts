@@ -7,11 +7,61 @@ export const zh: Dict = {
   'common.close': '关闭',
   'common.chartLoading': '图表加载中…',
   'common.language': '界面语言',
+  'theme.toDark': '深色主题',
+  'theme.toLight': '浅色主题',
 
   'app.subtitle': '结构预测 · 计算突变 · Kabsch/RMSD（CPU 与 CUDA）',
-  'nav.workspace': '工作台',
-  'nav.benchmarks': '基准测试',
+  // 页面与导航分组（侧栏）| pages and nav groups (sidebar)
+  'nav.structure': '结构与突变',
+  'nav.scan': '位点扫描',
+  'nav.ensemble': '组合（ensemble）',
+  'nav.sensitivity': '敏感性图谱',
+  'nav.plm': 'PLM 筛查',
   'nav.validation': '验证',
+  'nav.comparison': '对比',
+  'nav.history': '历史',
+  'nav.benchmarks': '基准测试',
+  'nav.group.analysis': '分析',
+  'nav.group.data': '数据',
+  'nav.group.system': '系统',
+
+  // 侧栏卡片 | sidebar cards
+  'shell.protein': '蛋白',
+  'shell.proteinEdit': '编辑',
+  'shell.proteinEmpty': '尚未设置蛋白——请粘贴序列',
+  'shell.compute': '算力',
+  'shell.job': '任务',
+  'page.noResult': '尚无结果——请在本页运行计算',
+
+  // 页面导语 | page intros
+  'hint.structure': '一个蛋白、一个突变：WT 预测、突变体叠加、RMSD/TM-score/pLDDT。',
+  'hint.scan': '所选位点的全部 19 种单替换——哪一种最严重地破坏结构。',
+  'hint.ensemble': '围绕位点的变体组合：一次多少个替换、多激进、多少个变体。',
+  'hint.sensitivity': '敏感性图谱：区间内每个位点的 19 种替换——方向玫瑰图与热力图。',
+  'hint.plm': '全蛋白 PLM 筛查，零次折叠：语言模型在何处预测有害，另可选 top-K 折叠。',
+  'hint.comparison': '所有运行的汇总表：同一蛋白的突变与位点敏感性。',
+  'hint.history': '日志中的全部任务：点击已完成任务可在对应页面恢复其结果。',
+
+  // 结构与突变页 | structure & mutations page
+  'struct.mode.title': '计算模式',
+  'struct.run.wt': '运行预测',
+  'struct.run.mut': '运行对比',
+
+  // 位点扫描 | position scan
+  'scan.run': '运行扫描',
+
+  // 组合 | ensemble
+  'ens.mode.sampled': '随机组合（K）',
+  'ens.mode.exhaustive': '全部 19 种替换',
+  'ens.run': '运行组合',
+
+  // 敏感性图谱 | sensitivity map
+  'map.run': '运行图谱',
+
+  // PLM 筛查 | PLM screen
+  'plm.run': '运行 PLM 筛查',
+  'plm.foldLabel': 'top-K 折叠',
+  'plm.foldHintZero': '0——仅 PLM：数秒，零次折叠',
   'health.ok': '后端可用',
   'health.down': '后端不可用——请启动 uvicorn',
   'health.checking': '检查中…',
@@ -30,9 +80,6 @@ export const zh: Dict = {
   'mut.demoPresets': '演示预设（泛素，有文献依据）：',
 
   'dial.title': '突变强度旋钮',
-  'dial.mode.exhaustive': '全部 19 种替换',
-  'dial.modeExhaustiveTitle':
-    'exhaustive 模式：该位点的全部 19 种单替换（「位点扫描」的超集）；不使用 μ/τ/K',
   'dial.mu': 'μ — 每个变体的同步替换数',
   'dial.muHint': '锚点 + (μ−1) 个背景',
   'dial.tau': 'τ — 替换谱温度（按 Grantham）',
@@ -69,6 +116,8 @@ export const zh: Dict = {
   'run.dummy': 'dummy（测试）',
   'run.queued': '排队中…',
   'run.jobFailed': '任务出错',
+  'run.cancel': '取消',
+  'run.cancelled': '任务已取消——GPU 槽位已释放',
   'run.running': '运行中…',
   'run.gpu': 'GPU：{name}',
   'run.cpuOnly': '仅 CPU：{reason}',
@@ -224,6 +273,7 @@ export const zh: Dict = {
   'hist.restoreHint': '点击以恢复结果',
   'hist.noResult': '无结果',
   'hist.error': '错误',
+  'hist.cancelled': '已取消',
   'hist.prediction': '预测 · {label}',
 
   'viewer.hint': '左键——旋转 · 滚轮——缩放 · 右键——平移',
@@ -297,6 +347,7 @@ export const zh: Dict = {
   'hist.kind.map': '图谱',
   'hist.kind.plm': 'PLM 筛查',
   'hist.kind.dms': 'DMS 验证',
+  'hist.kind.benchmark': '基准测试',
   'viewer.legendSensitivity': '敏感性（0–1）',
 
   'map.metricLabel': '3D 着色标量：',
